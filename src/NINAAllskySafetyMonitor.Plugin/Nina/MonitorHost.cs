@@ -61,7 +61,7 @@ public sealed class MonitorHost
         {
             if (IsRunning) return;
 
-            var ports = new MonitorPorts(new SystemClock(), new NinaSiteLocationSource(profileService), new NovasAstroCalculator(), new NinaLogSink());
+            var ports = new MonitorPorts(new SystemClock(), new NinaSiteLocationSource(profileService), new NovasAstroCalculator(), new NinaLogSink(), new WindowsCredentialStore());
             MonitorService built = new MonitorServiceBuilder().Build(() => PluginSettingsStore.Instance.Current, ports);
             built.SnapshotAvailable += OnSnapshot;
 

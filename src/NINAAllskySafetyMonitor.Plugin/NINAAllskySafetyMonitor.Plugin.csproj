@@ -28,6 +28,8 @@
     </PropertyGroup>
     <ItemGroup>
       <PluginOutput Include="$(TargetDir)NINAAllskySafetyMonitor*.dll;$(TargetDir)NINAAllskySafetyMonitor*.pdb" />
+      <!-- SSH.NET (SFTP) and its dependencies. If NINA already has one of these loaded, .NET uses NINA's copy. -->
+      <PluginOutput Include="@(RuntimeCopyLocalItems)" Condition="'%(RuntimeCopyLocalItems.NuGetPackageId)' == 'SSH.NET' Or '%(RuntimeCopyLocalItems.NuGetPackageId)' == 'BouncyCastle.Cryptography' Or '%(RuntimeCopyLocalItems.NuGetPackageId)' == 'Microsoft.Extensions.Logging.Abstractions'" />
     </ItemGroup>
     <MakeDir Directories="$(NinaPluginTarget)" />
     <Copy SourceFiles="@(PluginOutput)" DestinationFolder="$(NinaPluginTarget)" SkipUnchangedFiles="true" />

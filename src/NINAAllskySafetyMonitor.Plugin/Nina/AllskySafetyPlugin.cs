@@ -17,7 +17,7 @@ public sealed class AllskySafetyPlugin : PluginBase
     [ImportingConstructor]
     public AllskySafetyPlugin()
     {
-        Settings = new SettingsViewModel(PluginSettingsStore.Instance);
+        Settings = new SettingsViewModel(PluginSettingsStore.Instance, new WindowsCredentialStore());
     }
 
     /// <summary>Settings editor bound by the options page.</summary>
