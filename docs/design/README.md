@@ -1,12 +1,12 @@
-# Design v1 (2026-11-01)
+# Design v1.1 (2026-11-01)
 
-Traced to `../requirements/requirements.md` v4 (REQ-01 … REQ-57).
+Traced to `../requirements/requirements.md` v4 (REQ-01 … REQ-57). Version 1.1 matches the slice 1 code; §1.5 of the PDF lists the changes from v1.0.
 
 | File | Contents |
 |---|---|
-| `NINAAllskySafetyMonitor-Design-v1.pdf` | Software Design Document (reviewed baseline). |
-| `traceability.xlsx` | REQ → use case → design class → scenario. |
 | `uml/*.puml` | PlantUML sources in Rational Rose style (`uml/_style.iuml`). These are the editable masters. |
+| `review/NINAAllskySafetyMonitor-Design-v1.1.pdf` | Software Design Document for review, generated from the sources. |
+| `review/traceability.xlsx` | REQ → use case → design class → scenario, generated from the sources. Do not edit by hand. |
 
 Diagram index:
 

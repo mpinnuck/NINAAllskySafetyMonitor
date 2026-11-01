@@ -82,8 +82,45 @@ public sealed class SettingsStoreTests : IDisposable
     [Requirement("REQ-53")]
     public void SettingsFileNeverContainsAPassword()
     {
-        string json = SettingsStore.ToJson(new MonitorSettings());
-        Assert.DoesNotContain("password\":", json, StringComparison.OrdinalIgnoreCase);
+        var settings = new MonitorSettings();
+        settings.ImageSource.Direct.UsePassword = true;
+        string json = SettingsStore.ToJson(settings);
+
+        // Any setting whose name mentions a password may only be a true/false flag (UsePassword),
+        // never a value that could hold the password itself.
+        using var doc = System.Text.Json.JsonDocument.Parse(json);
+        var offending = new List<string>();
+        FindPasswordValues(doc.RootElement, "$", offending);
+        Assert.Empty(offending);
+    }
+
+    private static void FindPasswordValues(System.Text.Json.JsonElement element, string path, List<string> offending)
+    {
+        switch (element.ValueKind)
+        {
+            case System.Text.Json.JsonValueKind.Object:
+                foreach (var property in element.EnumerateObject())
+                {
+                    string childPath = $"{path}.{property.Name}";
+                    bool isFlag = property.Value.ValueKind is System.Text.Json.JsonValueKind.True or System.Text.Json.JsonValueKind.False;
+                    if (property.Name.Contains("password", StringComparison.OrdinalIgnoreCase) && !isFlag)
+                    {
+                        offending.Add(childPath);
+                    }
+
+                    FindPasswordValues(property.Value, childPath, offending);
+                }
+
+                break;
+            case System.Text.Json.JsonValueKind.Array:
+                int i = 0;
+                foreach (var item in element.EnumerateArray())
+                {
+                    FindPasswordValues(item, $"{path}[{i++}]", offending);
+                }
+
+                break;
+        }
     }
 
     [Fact]

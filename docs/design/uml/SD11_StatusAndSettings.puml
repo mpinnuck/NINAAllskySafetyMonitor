@@ -4,17 +4,19 @@ title SD-11  View status and edit settings (UC-14, UC-15) — REQ-45, REQ-46, RE
 
 actor Imager
 participant ":MonitorService" as Svc
+participant "MonitorHost" as Host
 participant ":StatusViewModel" as SVM
 participant ":OverlayImageComposer" as Comp
 participant ":StatusHistory" as Hist
-participant ":OptionsView" as OV
+participant ":OptionsTemplates" as OV
 participant ":SettingsViewModel" as SetVM
 participant ":SettingsValidator" as Val
 participant ":WindowsCredentialStore" as Cred
-participant ":PluginSettingsStore" as Store
+participant "PluginSettingsStore" as Store
 
 == Status view (NINA dock panel) ==
-Svc -> SVM : SnapshotAvailable(snapshot)  [background thread]
+Svc -> Host : SnapshotAvailable(snapshot)  [background thread]
+Host -> SVM : SnapshotAvailable(snapshot)
 SVM -> SVM : marshal to UI dispatcher
 SVM -> Comp : Compose(snapshot, projection)
 Comp --> SVM : image + ROI circle + mask + expected/detected stars
@@ -22,7 +24,12 @@ SVM -> Hist : Add(snapshot)
 SVM -> SVM : update state, reason, metrics, countdown,\nhistory chart, UNTUNED banner (REQ-45)
 Imager -> SVM : view
 
+Host -> SVM : RunningChanged  (connect / disconnect)
+SVM -> SVM : show NOT CONNECTED when stopped
+
 == Settings (NINA Options → Plugins) ==
+Imager -> OV : open Options → Plugins → Allsky Safety Monitor
+OV -> SetVM : bind  (SetVM holds a copy of Store.Current)
 Imager -> OV : edit values
 OV -> SetVM : bound properties (every configurable value, REQ-46)
 Imager -> OV : Save
@@ -30,12 +37,19 @@ OV -> SetVM : SaveCommand
 SetVM -> Val : Validate(settings)
 alt invalid
   Val --> SetVM : errors
-  SetVM --> OV : show errors
+  SetVM --> OV : Message = "Not saved: …"
 else valid
   opt SFTP password changed
     SetVM -> Cred : SetSecret("sftp-password", value)  (REQ-53)
   end
-  SetVM -> Store : Save(settings)  (JSON, REQ-55, REQ-56, REQ-57)
+  SetVM -> Store : Save(copy)  (JSON, REQ-55, REQ-56, REQ-57)
+  SetVM --> OV : Message = "Saved hh:mm:ss"
   note right of Store : A connected monitor applies new settings\non its next cycle; no reconnect needed.
+end
+opt Revert
+  Imager -> OV : Revert
+  OV -> SetVM : RevertCommand
+  SetVM -> Store : Current
+  SetVM --> OV : copy reloaded, unsaved edits discarded
 end
 @enduml

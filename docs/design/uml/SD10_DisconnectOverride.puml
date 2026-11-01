@@ -7,6 +7,7 @@ participant ":StatusViewModel" as SVM
 participant ":ManualOverride" as Ovr
 participant ":MonitorService" as Svc
 participant ":AllskySafetyMonitorDevice" as Dev
+participant "MonitorHost" as Host
 participant "NINA" as NINA
 participant ":NinaMountStateSource" as Mount
 
@@ -20,14 +21,20 @@ note right of Ovr : Logged; applied to every decision;\nnot persisted — Auto a
 Imager -> NINA : Disconnect safety monitor
 NINA -> Dev : Disconnect()
 activate Dev
-Dev -> Svc : StopAsync()
+Dev -> Dev : unsubscribe SnapshotAvailable
+Dev -> Host : StopAsync()  [on thread pool]
+activate Host
+Host -> Svc : StopAsync()
 activate Svc
 Svc -> Svc : cancel token, await loop
-Svc --> Dev
+Svc --> Host
 deactivate Svc
-Dev -> Mount : unregister from ITelescopeMediator
+Host -> Mount : unregister from ITelescopeMediator
+Host -> Host : raise RunningChanged\n(status "Not connected")
+Host --> Dev
+deactivate Host
 Dev -> Dev : Connected = false, IsSafe = false
 Dev --> NINA
 deactivate Dev
-note over Dev : No separate process or window remains (REQ-02)
+note over Dev : No separate process or window remains (REQ-02).\nNINA closing: AllskySafetyPlugin.Teardown() calls\nMonitorHost.StopAsync() in the same way.
 @enduml

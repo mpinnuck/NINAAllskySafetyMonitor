@@ -20,7 +20,7 @@ Defaults shown in *[brackets]* are configurable. How configurable values are sto
 
 - **REQ-04** The site location is taken from the active NINA profile. If that isn't available, a configured location is used *[lat −33.713562, lon 151.09024, elev 134 m — from station ISYDNEY478]*.
 - **REQ-05** The mount state is taken from NINA: connected, parked, tracking, slewing, RA (hours), Dec (degrees) and the coordinate epoch.
-- **REQ-06** The mount-reported Altitude/Azimuth are **not** used for positioning: on 2026-11-01 the ASI Mount ASCOM driver reported Az 0° while the mount was pointing at the south celestial pole (expected 180°). They are logged as a cross-check only.
+- **REQ-06** The mount-reported Altitude/Azimuth are **not** used for positioning. The ASI Mount driver reports Azimuth in the mount's own home-referenced frame (0° when pointing at the celestial pole), not the geographic azimuth the ASCOM standard defines, and the value can differ after power-on until the mount is homed. They are logged for diagnostics only.
 - **REQ-07** When the mount reports no valid position (for example, disconnected), the position is treated as unavailable, not as an error.
 
 ## 3. Operating window

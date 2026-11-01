@@ -7,6 +7,7 @@ participant ":FailSafeGuard" as Guard
 participant ":MonitoringCycle" as Cyc
 participant ":OperatingWindow" as Win
 participant ":DecisionLogger" as Log
+participant "MonitorHost" as Host
 participant ":AllskySafetyMonitorDevice" as Dev
 participant "NINA" as NINA
 
@@ -22,16 +23,19 @@ end
 Guard -> Log : LogError(e)  (secrets redacted, REQ-54)
 Guard --> Svc : snapshot(Unsafe, "monitor error: …")  (REQ-50)
 deactivate Guard
-Svc -> Dev : SnapshotAvailable
-Dev -> NINA : IsSafe = false
+Svc -> Host : SnapshotAvailable
+Host -> Dev : SnapshotAvailable
+Dev -> NINA : PropertyChanged(IsSafe)
+NINA -> Dev : IsSafe
+Dev --> NINA : false
 note right of NINA : Exception never reaches NINA;\nsequence continues normally (REQ-49)
 
 == Daytime / twilight ==
 Svc -> Guard : RunAsync(cycle, ct)
 Guard -> Cyc : RunOnceAsync(ct)
-Cyc -> Win : Evaluate(site, now)
+Cyc -> Win : Evaluate(site, now, limit)
 Win --> Cyc : ActiveWindow failed (sun > −18°)
 Cyc -> Cyc : skip acquisition, analysis, weather (REQ-10)
-Cyc --> Guard : snapshot(Idle, IsSafe = false)
+Cyc --> Guard : snapshot(Idle, IsSafe = false,\n"Outside operating window: Sun at x° (limit −18°)")
 Guard --> Svc : snapshot
 @enduml

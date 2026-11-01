@@ -4,15 +4,18 @@ title CL-10b  NINAAllskySafetyMonitor.Plugin — view models and views (MVVM)
 
 package "NINA (external)" <<external>> {
   abstract class DockableVM
+  interface IDockableVM
 }
 package "NINAAllskySafetyMonitor.Plugin.ViewModels" {
-  class StatusViewModel {
+  class StatusViewModel <<Export(IDockableVM)>> {
+    +Title = "Allsky Safety"
     +Image : BitmapSource
-    +StateText, ReasonText
+    +IsConnected, IsSafe : bool
+    +StateText, ReasonText, LastUpdateText
     +Metrics : MetricsViewModel
     +History : HistoryChartViewModel
     +OverrideMode : OverrideMode
-    +UntunedWarningVisible : bool
+    +UntunedVisible : bool
     .. REQ-40 REQ-43 REQ-45 ..
   }
   class MetricsViewModel {
@@ -25,9 +28,13 @@ package "NINAAllskySafetyMonitor.Plugin.ViewModels" {
     .. REQ-45 ..
   }
   class SettingsViewModel {
-    +Edit : MonitorSettings
-    +SaveCommand, TestImageCommand, TestWeatherCommand
-    .. REQ-46 ..
+    -edit : MonitorSettings  (copy)
+    +bound property per configurable value
+    +SettingsFilePath : string
+    +Message : string
+    +SaveCommand, RevertCommand
+    +TestImageCommand, TestWeatherCommand
+    .. REQ-46 REQ-55 ..
   }
   class CalibrationViewModel {
     +CalibrateCommand
@@ -40,30 +47,53 @@ package "NINAAllskySafetyMonitor.Plugin.ViewModels" {
     +Compose(s : MonitorSnapshot, projection) : BitmapSource
     .. REQ-45 ..
   }
+  class DelegateCommand {
+    +Execute(parameter)
+    +CanExecute(parameter) : bool
+  }
 }
 
 package "NINAAllskySafetyMonitor.Plugin.Views" {
-  class StatusView <<XAML>>
-  class OptionsView <<XAML>>
-  class CalibrationView <<XAML>>
-}
-
-package "NINAAllskySafetyMonitor.Plugin.Views" {
-  class StatusView <<XAML>>
-  class OptionsView <<XAML>>
-  class CalibrationView <<XAML>>
+  class StatusTemplates <<XAML ResourceDictionary>> {
+    "...StatusViewModel_Dockable"
+  }
+  class OptionsTemplates <<XAML ResourceDictionary>> {
+    "Allsky Safety Monitor_Options"
+  }
+  class CalibrationTemplates <<XAML ResourceDictionary>>
 }
 class AllskySafetyPlugin
 class PluginSettingsStore
+class MonitorHost
+class SettingsValidator
 
 DockableVM <|-- StatusViewModel
+IDockableVM <|.. DockableVM
 StatusViewModel --> MetricsViewModel
 StatusViewModel --> HistoryChartViewModel
 StatusViewModel --> OverlayImageComposer
-StatusView ..> StatusViewModel
-OptionsView ..> SettingsViewModel
-CalibrationView ..> CalibrationViewModel
+StatusTemplates ..> StatusViewModel
+OptionsTemplates ..> SettingsViewModel
+CalibrationTemplates ..> CalibrationViewModel
 AllskySafetyPlugin --> SettingsViewModel
 SettingsViewModel --> PluginSettingsStore
-StatusViewModel ..> "MonitorService" : SnapshotAvailable
+SettingsViewModel ..> SettingsValidator
+SettingsViewModel ..> DelegateCommand
+StatusViewModel ..> MonitorHost : SnapshotAvailable,\nRunningChanged
+
+note bottom of StatusTemplates
+  Views are DataTemplates exported as
+  [Export(typeof(ResourceDictionary))].
+  NINA matches them by key: "<plugin name>_Options"
+  for the options page, "<view-model type>_Dockable"
+  for the dock panel.
+end note
+note bottom of SettingsViewModel
+  Edits a copy of the saved settings. Save validates,
+  then saves; Revert discards unsaved edits.
+end note
+note right of StatusViewModel
+  Snapshots arrive on a background thread
+  and are marshalled to the UI dispatcher.
+end note
 @enduml

@@ -35,17 +35,39 @@ package "NINAAllskySafetyMonitor.Harness" {
 }
 
 package "NINAAllskySafetyMonitor.Tests" {
-  class RequirementCoverageTests {
-    +EveryRequirementHasImplementation()
-    +EveryRequirementHasTest()
-    +NoUnknownRequirementIds()
+  package "Traceability" as TT {
+    class RequirementCoverageTests {
+      +RequirementsFileHasRequirements()
+      +NoUnknownRequirementIds()
+      +EveryRequirementHasImplementation()
+      +EveryRequirementHasTest()
+      +CoverageReport()
+    }
+    class RequirementsParser <<static>> {
+      +Parse(markdownPath) : IReadOnlyList<RequirementInfo>
+    }
+    class RequirementTagScanner <<static>> {
+      +Scan(folder) : map REQ → files
+    }
+    class RequirementInfo <<record>> {
+      +Id : string
+      +Text : string
+    }
+    class RepositoryPaths <<static>> {
+      +Root : string
+      +RequirementsFile : string
+    }
   }
-  class RequirementsParser {
-    +Parse(markdownPath) : IReadOnlyList<RequirementInfo>
+  package "Fakes" as TF {
+    class FakeClock
+    class FakeAstroCalculator
+    class FakeSiteLocationSource
+    class ListLogSink
+    class DelegateCycle
   }
   class UnitTestFixtures <<namespace>> {
-    one test class per Core class
-    tagged [Requirement("REQ-xx")]
+    one test class per Core class, in a folder
+    matching the Core package, tagged [Requirement("REQ-xx")]
   }
 }
 
@@ -59,6 +81,17 @@ ReplayCommand ..> "ReplayImageSource"
 ReplayCommand ..> "MonitorServiceBuilder"
 TraceabilityReportCommand ..> RequirementsParser
 RequirementCoverageTests ..> RequirementsParser
+RequirementCoverageTests ..> RequirementTagScanner
+RequirementCoverageTests ..> RepositoryPaths
+RequirementsParser ..> RequirementInfo
+UnitTestFixtures ..> TF
+
+note bottom of RequirementTagScanner
+  Scans source files for [Requirement(...)] rather
+  than reflecting over assemblies, so it also covers
+  the Windows-only Plugin and Astrometry projects
+  when the tests run on the Mac.
+end note
 
 note bottom of ReplayClock
   Clock set from each frame's capture time,

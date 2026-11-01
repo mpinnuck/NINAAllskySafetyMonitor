@@ -5,6 +5,7 @@ title CL-03b  Core.Settings — JSON settings tree and defaults
 
 package "NINAAllskySafetyMonitor.Core.Settings" {
   class MonitorSettings {
+    +SchemaVersion = 1
     +Site : SiteSettings
     +Window : OperatingWindowSettings
     +ImageSource : ImageSourceSettings
@@ -43,6 +44,7 @@ package "NINAAllskySafetyMonitor.Core.Settings" {
   class DirectSourceSettings {
     +Host = "allsky.local"
     +FallbackIp = "192.168.1.110"
+    +Port = 22
     +User = "pi"
     +RemotePath
     +KeyFile
@@ -68,6 +70,7 @@ package "NINAAllskySafetyMonitor.Core.Settings" {
     +PollIntervalS = 120
     +MaxGustKmH = 40
     +StaleAfterMin = 15
+    +TimeoutS = 15
   }
   class DecisionSettings {
     +SafeAfterMin = 4
@@ -87,9 +90,12 @@ package "NINAAllskySafetyMonitor.Core.Settings" {
     .. REQ-57 ..
   }
   class SettingsStore {
-    -path : string
+    +Path : string
     +Load() : MonitorSettings
     +Save(settings : MonitorSettings)
+    +{static} ToJson(s) : string
+    +{static} FromJson(json) : MonitorSettings
+    +{static} Clone(s) : MonitorSettings
     .. REQ-55 REQ-56 ..
   }
   class SettingsValidator {
@@ -115,5 +121,11 @@ SettingsStore ..> SettingsValidator
 note bottom of DirectSourceSettings
   Password is never in the JSON file:
   held in ICredentialStore (REQ-53).
+end note
+note bottom of SettingsStore
+  Save writes a temporary file, then replaces
+  the old one, so a crash can't leave a half-written file.
+  Load falls back to defaults if the file is missing.
+  SchemaVersion allows later migration.
 end note
 @enduml

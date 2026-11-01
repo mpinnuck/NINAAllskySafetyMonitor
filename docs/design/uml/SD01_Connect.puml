@@ -6,15 +6,17 @@ actor Imager
 participant "NINA\nSafetyMonitorChooser" as NINA
 participant ":AllskySafetyMonitorProvider" as Prov
 participant ":AllskySafetyMonitorDevice" as Dev
-participant ":PluginSettingsStore" as Store
+participant "MonitorHost\n.Instance" as Host
+participant "PluginSettingsStore\n.Instance" as Store
 participant ":MonitorServiceBuilder" as Builder
 participant ":MonitorService" as Svc
 participant ":NinaMountStateSource" as Mount
 participant "ITelescopeMediator" as TM
 
 == NINA start-up ==
+NINA -> Prov ** : new(IProfileService)  [MEF import]
 NINA -> Prov : GetEquipment()
-Prov -> Dev ** : new(builder, adapters)
+Prov -> Dev ** : new(profileService)
 Prov --> NINA : [ AllskySafetyMonitorDevice ]
 note right of NINA : Device listed in\nEquipment → Safety Monitor (REQ-01)
 
@@ -22,20 +24,32 @@ note right of NINA : Device listed in\nEquipment → Safety Monitor (REQ-01)
 Imager -> NINA : select device, Connect
 NINA -> Dev : Connect(ct)
 activate Dev
-Dev -> Store : Load()
-Store --> Dev : MonitorSettings (JSON, REQ-56)
-Dev -> Mount : register()
-Mount -> TM : RegisterConsumer(this)
-Dev -> Builder : Build(settings, ports)
-Builder -> Svc ** : new(cycle, guard, interval)
-Builder --> Dev : service
-Dev -> Svc : Start()
-activate Svc
-Svc -> Svc : launch background loop\n(status = Starting, unsafe)
-Svc --> Dev
-Dev --> NINA : true
+Dev -> Host : StartAsync(profileService)
+activate Host
+alt already running
+  Host --> Dev : (no change)
+else not running
+  Host -> Mount ** : new(mediator)
+  Mount -> TM : RegisterConsumer(this)
+  Host -> Host : ports = SystemClock, NinaSiteLocationSource,\nNovasAstroCalculator, NinaLogSink, mount, credentials
+  Host -> Builder : Build(() => Store.Current, ports)
+  Builder -> Svc ** : new(cycle, guard, interval)
+  Builder --> Host : service
+  Host -> Svc : Start()
+  activate Svc
+  Svc -> Svc : launch background loop\n(status = Starting, unsafe)
+  Host -> Host : raise RunningChanged
+end
+Host --> Dev
+deactivate Host
+Dev -> Host : subscribe SnapshotAvailable
+Dev --> NINA : true  (Connected)
 deactivate Dev
 NINA -> Dev : IsSafe
+Dev -> Host : CurrentStatus
 Dev --> NINA : false  (Starting)
-note over Svc : First cycle runs on the background task;\nIsSafe stays false until a decision is made.
+== First cycle (background task) ==
+Svc -> Store : Current  (read every cycle)
+Store --> Svc : MonitorSettings (JSON, REQ-56)
+note over Svc : Saved settings apply from the next cycle.\nIsSafe stays false until a safe decision.
 @enduml

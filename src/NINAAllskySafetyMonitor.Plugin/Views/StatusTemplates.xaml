@@ -1,0 +1,48 @@
+<ResourceDictionary
+    x:Class="NINAAllskySafetyMonitor.Plugin.Views.StatusTemplates"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+    <BooleanToVisibilityConverter x:Key="AllskySafety_BoolToVisibility" />
+
+    <!--  Key = fully qualified view-model type name + "_Dockable" (NINA convention)  -->
+    <DataTemplate x:Key="NINAAllskySafetyMonitor.Plugin.ViewModels.StatusViewModel_Dockable">
+        <StackPanel Margin="8">
+            <Border Padding="10,6" CornerRadius="4">
+                <Border.Style>
+                    <Style TargetType="Border">
+                        <Setter Property="Background" Value="#7A1F1F" />
+                        <Style.Triggers>
+                            <DataTrigger Binding="{Binding IsSafe}" Value="True">
+                                <Setter Property="Background" Value="#1F6B33" />
+                            </DataTrigger>
+                            <DataTrigger Binding="{Binding IsConnected}" Value="False">
+                                <Setter Property="Background" Value="#444444" />
+                            </DataTrigger>
+                        </Style.Triggers>
+                    </Style>
+                </Border.Style>
+                <TextBlock
+                    HorizontalAlignment="Center"
+                    FontSize="20"
+                    FontWeight="Bold"
+                    Foreground="White"
+                    Text="{Binding StateText}" />
+            </Border>
+            <TextBlock
+                Margin="0,8,0,0"
+                Text="{Binding ReasonText}"
+                TextWrapping="Wrap" />
+            <TextBlock
+                Margin="0,4,0,0"
+                Opacity="0.7"
+                Text="{Binding LastUpdateText}" />
+            <TextBlock
+                Margin="0,8,0,0"
+                Foreground="Orange"
+                Text="UNTUNED — cloud thresholds are conservative defaults"
+                TextWrapping="Wrap"
+                Visibility="{Binding UntunedVisible, Converter={StaticResource AllskySafety_BoolToVisibility}}" />
+        </StackPanel>
+    </DataTemplate>
+</ResourceDictionary>

@@ -13,27 +13,50 @@ package "NINA (external)" <<external>> {
   }
   interface ITelescopeMediator
   interface IProfileService
+  abstract class BaseINPC
 }
 
 package "NINAAllskySafetyMonitor.Plugin.Nina" {
-  class AllskySafetyPlugin {
+  class AllskySafetyPlugin <<Export(IPluginManifest)>> {
     +Settings : SettingsViewModel
+    +Teardown() : Task
     .. REQ-46 REQ-48 ..
   }
   class AllskySafetyMonitorProvider <<Export(IEquipmentProvider)>> {
+    -profileService : IProfileService
     +Name = "Allsky Safety Monitor"
     +GetEquipment() : IList<ISafetyMonitor>
     .. REQ-01 ..
   }
   class AllskySafetyMonitorDevice {
-    -builder : MonitorServiceBuilder
-    -service : MonitorService?
+    -host : MonitorHost
     +Id, Name, DisplayName, Category
     +Connected : bool
     +IsSafe : bool
     +Connect(ct) : Task<bool>
     +Disconnect()
     .. REQ-01 REQ-02 REQ-03 REQ-49 ..
+  }
+  class MonitorHost <<singleton>> {
+    +{static} Instance : MonitorHost
+    -service : MonitorService?
+    +IsRunning : bool
+    +CurrentStatus : SafetyStatus
+    +LatestSnapshot : MonitorSnapshot?
+    +StartAsync(profile : IProfileService) : Task
+    +StopAsync() : Task
+    +event SnapshotAvailable
+    +event RunningChanged
+    .. REQ-02 REQ-03 ..
+  }
+  class PluginSettingsStore <<singleton>> {
+    +{static} Instance : PluginSettingsStore
+    -store : SettingsStore
+    +FilePath : string
+    +Current : MonitorSettings
+    +Save(settings : MonitorSettings)
+    +event Saved
+    .. REQ-55 REQ-56 ..
   }
   class NinaMountStateSource {
     -mediator : ITelescopeMediator
@@ -55,11 +78,6 @@ package "NINAAllskySafetyMonitor.Plugin.Nina" {
     +SetSecret(key, value)
     .. REQ-53 ..
   }
-  class PluginSettingsStore {
-    +Path : string
-    +Store : SettingsStore
-    .. REQ-55 REQ-56 ..
-  }
 }
 
 package "NINAAllskySafetyMonitor.Astrometry" {
@@ -73,22 +91,38 @@ package "NINAAllskySafetyMonitor.Astrometry" {
   }
 }
 
-
 interface IAstroCalculator
 IAstroCalculator <|.. NovasAstroCalculator
 PluginBase <|-- AllskySafetyPlugin
 IEP <|.. AllskySafetyMonitorProvider
 ISafetyMonitor <|.. AllskySafetyMonitorDevice
+BaseINPC <|-- AllskySafetyMonitorDevice
 ITelescopeConsumer <|.. NinaMountStateSource
 AllskySafetyMonitorProvider ..> AllskySafetyMonitorDevice : creates
-AllskySafetyMonitorDevice ..> "MonitorService" : starts / stops
+AllskySafetyMonitorDevice --> MonitorHost
+MonitorHost ..> "MonitorServiceBuilder" : builds with adapters
+MonitorHost --> "MonitorService" : starts / stops
+MonitorHost ..> PluginSettingsStore : () => Current
+AllskySafetyPlugin ..> MonitorHost : stops on Teardown
 NinaMountStateSource --> ITelescopeMediator
 NinaSiteLocationSource --> IProfileService
 
+note bottom of MonitorHost
+  One monitor per NINA session. NINA creates the plugin,
+  the device and the dock panel separately, so they share
+  this instance. Connect → StartAsync builds the ports
+  (SystemClock, Nina* adapters, NovasAstroCalculator) and
+  MonitorService; Disconnect or NINA closing → StopAsync.
+  When stopped, CurrentStatus is unsafe, "Not connected".
+end note
 note bottom of AllskySafetyMonitorDevice
-  Connect(): load settings, build MonitorService via
-  MonitorServiceBuilder with the Nina* adapters, Start().
-  IsSafe = service?.CurrentStatus.IsSafe ?? false.
-  Raises PropertyChanged(IsSafe) on SnapshotAvailable.
+  IsSafe = Connected && host.CurrentStatus.IsSafe.
+  Raises PropertyChanged(IsSafe) on each snapshot.
+  Exceptions are logged and never reach NINA.
+end note
+note bottom of PluginSettingsStore
+  %LOCALAPPDATA%\NINAAllskySafetyMonitor\settings.json
+  Outside the NINA plugin folder, so reinstalling
+  the plugin keeps the settings.
 end note
 @enduml

@@ -39,8 +39,7 @@ public sealed class SettingsStore
 
         try
         {
-            string json = File.ReadAllText(Path);
-            return JsonSerializer.Deserialize<MonitorSettings>(json, Options) ?? new MonitorSettings();
+            return FromJson(File.ReadAllText(Path));
         }
         catch (JsonException e)
         {
@@ -63,4 +62,12 @@ public sealed class SettingsStore
 
     /// <summary>Serialises the settings exactly as <see cref="Save"/> writes them.</summary>
     public static string ToJson(MonitorSettings settings) => JsonSerializer.Serialize(settings, Options);
+
+    /// <summary>Parses settings JSON; an empty document yields defaults.</summary>
+    /// <exception cref="JsonException">The text is not valid settings JSON.</exception>
+    public static MonitorSettings FromJson(string json) =>
+        JsonSerializer.Deserialize<MonitorSettings>(json, Options) ?? new MonitorSettings();
+
+    /// <summary>Returns an independent deep copy, used by editors so unsaved changes never affect the running monitor.</summary>
+    public static MonitorSettings Clone(MonitorSettings settings) => FromJson(ToJson(settings));
 }

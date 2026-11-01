@@ -1,6 +1,6 @@
 @startuml CL02_Domain
 !include _style.iuml
-title CL-02  Core.Domain — value objects (immutable records)
+title CL-02  Core.Domain — value objects (immutable records and record structs)
 
 package "NINAAllskySafetyMonitor.Core.Domain" {
   class SkyImage <<record>> {
@@ -34,11 +34,11 @@ package "NINAAllskySafetyMonitor.Core.Domain" {
     +HasValidPosition : bool
     .. REQ-05 REQ-06 REQ-07 ..
   }
-  class HorizontalCoordinate <<record>> {
+  class HorizontalCoordinate <<record struct>> {
     +AltDeg : double
     +AzDeg : double
   }
-  class PixelPoint <<record>> {
+  class PixelPoint <<record struct>> {
     +X : double
     +Y : double
   }

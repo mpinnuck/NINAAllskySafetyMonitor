@@ -1,5 +1,6 @@
 using System.Reflection;
 using System.Runtime.InteropServices;
+using System.Runtime.Versioning;
 
 // Plugin manifest metadata read by NINA (see the official NINA plugin template).
 
@@ -34,3 +35,6 @@ using System.Runtime.InteropServices;
 [assembly: AssemblyMetadata("LongDescription", @"Analyses the latest Allsky camera image for cloud in a circle around the mount's current position, checks rain and wind gusts from a Weather.com personal weather station, and reports safe or unsafe to NINA as a safety monitor device. Unsafe is reported immediately; safe only after a configurable clear period.")]
 
 [assembly: ComVisible(false)]
+
+// Needed because GenerateAssemblyInfo is off: tells the analyser this assembly is Windows-only.
+[assembly: SupportedOSPlatform("windows7.0")]

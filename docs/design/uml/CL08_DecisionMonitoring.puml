@@ -34,19 +34,24 @@ package "NINAAllskySafetyMonitor.Core.Decision" {
 }
 
 package "NINAAllskySafetyMonitor.Core.Monitoring" {
+  interface IMonitoringCycle {
+    +RunOnceAsync(ct) : Task<MonitorSnapshot>
+  }
   class MonitorService {
-    -cycle : MonitoringCycle
+    -cycle : IMonitoringCycle
     -guard : FailSafeGuard
-    -interval : TimeSpan
+    -interval : Func<TimeSpan>
     -loop : Task
     -cts : CancellationTokenSource
     +CurrentStatus : SafetyStatus
+    +IsRunning : bool
     +Start()
     +StopAsync() : Task
     +event SnapshotAvailable : EventHandler<MonitorSnapshot>
     .. REQ-02 REQ-49 ..
   }
   class MonitoringCycle {
+    -settings : Func<MonitorSettings>
     -siteResolver : SiteLocationResolver
     -window : OperatingWindow
     -acquirer : ImageAcquirer
@@ -63,13 +68,13 @@ package "NINAAllskySafetyMonitor.Core.Monitoring" {
     -decisionLogger : DecisionLogger
     -recorder : TuningRecorder
     +RunOnceAsync(ct) : Task<MonitorSnapshot>
-    .. UC-04 ..
+    .. REQ-10 REQ-37 ..
   }
   class FailSafeGuard {
     -clock : IClock
     -log : ILogSink
-    -timeout : TimeSpan
-    +RunAsync(cycle, ct) : Task<MonitorSnapshot>
+    -timeout : Func<TimeSpan>
+    +RunAsync(cycle : IMonitoringCycle, ct) : Task<MonitorSnapshot>
     .. REQ-49 REQ-50 REQ-51 ..
   }
   class StatusHistory {
@@ -79,18 +84,33 @@ package "NINAAllskySafetyMonitor.Core.Monitoring" {
     .. REQ-45 ..
   }
   class MonitorServiceBuilder {
-    +Build(settings, ports) : MonitorService
+    +Build(settings : Func<MonitorSettings>, ports : MonitorPorts) : MonitorService
+  }
+  class MonitorPorts <<record>> {
+    +Clock : IClock
+    +Site : ISiteLocationSource
+    +Astro : IAstroCalculator
+    +Log : ILogSink
+    +Mount : IMountStateSource
+    +Credentials : ICredentialStore
   }
 }
 
 SafetyDecisionEngine --> SafetyHysteresis
 SafetyDecisionEngine --> SlewHoldPolicy
 SafetyDecisionEngine --> ManualOverride
-MonitorService --> MonitoringCycle
+MonitorService --> IMonitoringCycle
+IMonitoringCycle <|.. MonitoringCycle
 MonitorService --> FailSafeGuard
 MonitoringCycle --> SafetyConditionsBuilder
 MonitoringCycle --> SafetyDecisionEngine
 MonitorServiceBuilder ..> MonitorService : creates
+MonitorServiceBuilder ..> MonitorPorts
+note bottom of MonitoringCycle
+  Reads the settings at the start of every cycle,
+  so saved changes apply from the next cycle
+  without reconnecting.
+end note
 
 note bottom of FailSafeGuard
   Wraps every cycle: timeout + catch-all.

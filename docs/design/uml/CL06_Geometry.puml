@@ -5,14 +5,13 @@ title CL-06  Core.Geometry — site, operating window, lens projection, ROI
 package "NINAAllskySafetyMonitor.Core.Geometry" {
   class SiteLocationResolver {
     -profileSource : ISiteLocationSource
-    -fallback : SiteSettings
+    -fallback : Func<SiteSettings>
     +Resolve() : SiteLocation
     .. REQ-04 ..
   }
   class OperatingWindow {
     -astro : IAstroCalculator
-    -sunLimitDeg : double
-    +Evaluate(site, nowUtc) : ConditionCheck
+    +Evaluate(site, nowUtc, sunAltitudeLimitDeg) : ConditionCheck
     .. REQ-08 REQ-09 REQ-10 ..
   }
   class LensCalibration <<record>> {
@@ -61,6 +60,11 @@ package "NINAAllskySafetyMonitor.Core.Geometry" {
 }
 
 LensProjection --> LensCalibration
+note bottom of SiteLocationResolver
+  Uses the NINA profile location; a profile
+  at 0°, 0° or out of range counts as unset,
+  so the configured location is used.
+end note
 HorizonMask --> HorizonMaskDefinition
 HorizonMask --> LensProjection
 RoiCalculator --> MountStateInterpreter
@@ -70,6 +74,7 @@ RoiMaskBuilder --> HorizonMask
 note bottom of RoiCalculator
   Centre is always computed from RA/Dec via IAstroCalculator.
   Mount-reported Alt/Az is never used for positioning (REQ-06):
-  it is passed to the decision log as a cross-check only.
+  the ASI Mount driver reports Azimuth in its own home-referenced
+  frame, so it is passed to the decision log for diagnostics only.
 end note
 @enduml
