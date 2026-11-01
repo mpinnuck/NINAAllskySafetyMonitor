@@ -32,7 +32,7 @@ Defaults shown in *[brackets]* are configurable. How configurable values are sto
 ## 4. Image acquisition
 
 - **REQ-11** The image source is selectable *[Direct]*:
-  - **Web**: a base URL *[https://oci.microconcepts.com.au/allsky/]* plus image file name *[image.jpg]*. The base URL is the Allsky web page; the image is a separate file in the same folder.
+  - **Web**: a base URL *[https://oci.microconcepts.com.au/allsky/]* plus image file name *[allsky.jpg]*. The base URL is the Allsky web page; the image is a separate file in the same folder.
   - **Direct from the Allsky Pi** over SFTP *[file /home/pi/allsky/tmp/allsky.jpg, user pi]*. This avoids the Allsky WebUI login and keeps working if the internet drops. The file is Allsky app data, not served by the web server.
 - **REQ-12** Direct access authenticates with an SSH key *(preferred, [%USERPROFILE%\.ssh\id_ed25519])* or a password.
 - **REQ-13** The Pi host is *[allsky.local]*, with an optional fallback IP *[192.168.1.110]* in case name resolution fails.
@@ -134,7 +134,7 @@ Defaults shown in *[brackets]* are configurable. How configurable values are sto
 ## Open items
 
 - ~~Local image path~~ — confirmed: `/home/pi/allsky/tmp/allsky.jpg`.
-- ~~Web image URL~~ — confirmed: `https://oci.microconcepts.com.au/allsky/image.jpg`.
+- ~~Web image URL~~ — confirmed 2026-11-02: `https://oci.microconcepts.com.au/allsky/allsky.jpg` (`image.jpg` is not the current image).
 - ~~SSH key login~~ — confirmed 2026-11-01: AstroPC key `%USERPROFILE%\.ssh\id_ed25519` (no passphrase) logs in to `pi@allsky.local`.
 - ~~Mount units~~ — confirmed 2026-11-01: RA in hours, Dec in degrees; the driver's Azimuth is unreliable (REQ-06).
 - ~~Weather API key~~ — confirmed working 2026-11-01.

@@ -7,5 +7,5 @@ namespace NINAAllskySafetyMonitor.Core.Settings;
 public sealed class WebSourceSettings
 {
     public string BaseUrl { get; set; } = "https://oci.microconcepts.com.au/allsky/";
-    public string FileName { get; set; } = "image.jpg";
+    public string FileName { get; set; } = "allsky.jpg";
 }

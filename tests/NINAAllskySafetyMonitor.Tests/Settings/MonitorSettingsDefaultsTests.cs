@@ -22,7 +22,7 @@ public sealed class MonitorSettingsDefaultsTests
     {
         Assert.Equal(ImageSourceKind.Direct, s.ImageSource.Kind);
         Assert.Equal("https://oci.microconcepts.com.au/allsky/", s.ImageSource.Web.BaseUrl);
-        Assert.Equal("image.jpg", s.ImageSource.Web.FileName);
+        Assert.Equal("allsky.jpg", s.ImageSource.Web.FileName);
         Assert.Equal("allsky.local", s.ImageSource.Direct.Host);
         Assert.Equal("192.168.1.110", s.ImageSource.Direct.FallbackIp);
         Assert.Equal("/home/pi/allsky/tmp/allsky.jpg", s.ImageSource.Direct.RemotePath);

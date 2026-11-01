@@ -17,11 +17,11 @@ public sealed class WebImageSourceTests
     private WebImageSource Source() => new(new HttpClient(server), () => settings);
 
     [Theory]
-    [InlineData("https://oci.microconcepts.com.au/allsky/", "image.jpg")]
-    [InlineData("https://oci.microconcepts.com.au/allsky", "image.jpg")]
+    [InlineData("https://oci.microconcepts.com.au/allsky/", "allsky.jpg")]
+    [InlineData("https://oci.microconcepts.com.au/allsky", "allsky.jpg")]
     public void UrlIsBaseUrlPlusFileName(string baseUrl, string file) =>
         Assert.Equal(
-            "https://oci.microconcepts.com.au/allsky/image.jpg",
+            "https://oci.microconcepts.com.au/allsky/allsky.jpg",
             WebImageSource.ImageUrl(new WebSourceSettings { BaseUrl = baseUrl, FileName = file }).ToString());
 
     [Fact]
@@ -32,7 +32,7 @@ public sealed class WebImageSourceTests
         Assert.Equal(FetchOutcome.NewImage, r.Outcome);
         Assert.Equal(server.LastModified!.Value.UtcDateTime, r.Image!.CaptureTimeUtc);
         Assert.Equal(ImageSourceKind.Web, r.Image.Source);
-        Assert.Equal("https://oci.microconcepts.com.au/allsky/image.jpg", server.LastRequest!.RequestUri!.ToString());
+        Assert.Equal("https://oci.microconcepts.com.au/allsky/allsky.jpg", server.LastRequest!.RequestUri!.ToString());
     }
 
     [Fact]
