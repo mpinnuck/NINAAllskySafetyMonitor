@@ -64,6 +64,14 @@ public sealed class SettingsValidatorTests
     }
 
     [Fact]
+    public void MissingHostKeyTypeIsReported()
+    {
+        var s = ValidSettings();
+        s.ImageSource.Direct.HostKeyAlgorithm = " ";
+        Assert.Contains(new SettingsValidator().Validate(s), e => e.Contains("host-key type"));
+    }
+
+    [Fact]
     public void WebSourceNeedsAbsoluteUrl()
     {
         var s = ValidSettings();

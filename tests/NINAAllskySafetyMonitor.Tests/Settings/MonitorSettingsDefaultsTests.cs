@@ -42,6 +42,11 @@ public sealed class MonitorSettingsDefaultsTests
     public void HostKeyFingerprintIsPinned() =>
         Assert.Equal("SHA256:xdCrpFUWOI55OZOikaDiy7ON48u/4+pcu7EpiK0Jrqg", s.ImageSource.Direct.HostKeyFingerprint);
 
+    // The pinned fingerprint is the Pi's ECDSA key, so only that key type is requested (verified 2026-11-02 with ssh-keyscan).
+    [Fact, Requirement("REQ-52")]
+    public void HostKeyTypeMatchesThePinnedFingerprint() =>
+        Assert.Equal("ecdsa-sha2-nistp256", s.ImageSource.Direct.HostKeyAlgorithm);
+
     [Fact, Requirement("REQ-12")]
     public void KeyAuthenticationIsDefault()
     {

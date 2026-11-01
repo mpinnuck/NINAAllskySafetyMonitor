@@ -152,6 +152,12 @@ public sealed class SettingsViewModel : INotifyPropertyChanged
         set { edit.ImageSource.Direct.UsePassword = value; OnPropertyChanged(); }
     }
 
+    public string DirectHostKeyAlgorithm
+    {
+        get => edit.ImageSource.Direct.HostKeyAlgorithm;
+        set { edit.ImageSource.Direct.HostKeyAlgorithm = value; OnPropertyChanged(); }
+    }
+
     public string DirectHostKeyFingerprint
     {
         get => edit.ImageSource.Direct.HostKeyFingerprint;

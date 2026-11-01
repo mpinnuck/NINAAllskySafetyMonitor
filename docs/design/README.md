@@ -1,6 +1,6 @@
 # Design v1.1 (2026-11-01)
 
-Traced to `../requirements/requirements.md` v4 (REQ-01 … REQ-57). Version 1.1 matches the slice 1 code; §1.5 of the PDF lists the changes from v1.0.
+Traced to `../requirements/requirements.md` v4 (REQ-01 … REQ-57). Requirements v5 (working area, REQ-58) will be reflected in the design when slice 5 is built. Version 1.1 matches the slice 1 code; §1.5 of the PDF lists the changes from v1.0.
 
 | File | Contents |
 |---|---|

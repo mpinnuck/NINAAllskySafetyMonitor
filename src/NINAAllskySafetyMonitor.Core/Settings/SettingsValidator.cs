@@ -51,6 +51,11 @@ public sealed class SettingsValidator
                 errors.Add("The Pi's host-key fingerprint is required.");
             }
 
+            if (string.IsNullOrWhiteSpace(img.Direct.HostKeyAlgorithm))
+            {
+                errors.Add("The host-key type (for example ecdsa-sha2-nistp256 or ssh-ed25519) is required.");
+            }
+
             Range(errors, img.Direct.Port, 1, 65535, "SFTP port must be between 1 and 65535.");
         }
 

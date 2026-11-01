@@ -79,6 +79,7 @@ public sealed class SftpConnector : IRemoteFileConnector
     private static IRemoteFileSession ConnectTo(string host, DirectSourceSettings s, AuthenticationMethod auth, HostKeyVerifier verifier, TimeSpan timeout)
     {
         var info = new ConnectionInfo(host, s.Port, s.User, auth) { Timeout = timeout };
+        RestrictHostKeyAlgorithm(info, s.HostKeyAlgorithm);
         var client = new SftpClient(info) { OperationTimeout = timeout };
 
         string? received = null;
@@ -104,6 +105,25 @@ public sealed class SftpConnector : IRemoteFileConnector
         {
             client.Dispose();
             throw;
+        }
+    }
+
+    /// <summary>
+    /// Asks the Pi for only the pinned key type, so the fingerprint is compared with the right key.
+    /// </summary>
+    private static void RestrictHostKeyAlgorithm(ConnectionInfo info, string algorithm)
+    {
+        string wanted = algorithm.Trim();
+        var offered = info.HostKeyAlgorithms.Keys.ToList();
+        if (!offered.Contains(wanted, StringComparer.Ordinal))
+        {
+            throw new InvalidOperationException(
+                $"Host-key type '{wanted}' is not supported. Supported types: {string.Join(", ", offered)}");
+        }
+
+        foreach (string name in offered)
+        {
+            if (!string.Equals(name, wanted, StringComparison.Ordinal)) info.HostKeyAlgorithms.Remove(name);
         }
     }
 

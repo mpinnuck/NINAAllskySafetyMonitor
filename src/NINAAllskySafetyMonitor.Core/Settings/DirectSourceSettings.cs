@@ -22,6 +22,12 @@ public sealed class DirectSourceSettings
     /// <summary>When true, authenticate with the password held in the credential store.</summary>
     public bool UsePassword { get; set; }
 
+    /// <summary>
+    /// Host-key type the pinned fingerprint belongs to. The Pi has one key per type (RSA, ECDSA,
+    /// Ed25519), so only this type is requested and compared.
+    /// </summary>
+    public string HostKeyAlgorithm { get; set; } = "ecdsa-sha2-nistp256";
+
     /// <summary>Pinned SHA256 host-key fingerprint of the Pi.</summary>
     public string HostKeyFingerprint { get; set; } = "SHA256:xdCrpFUWOI55OZOikaDiy7ON48u/4+pcu7EpiK0Jrqg";
 }

@@ -24,7 +24,7 @@ Do these at night, or with the limit at +90 in daytime.
 
 | # | Step | Expected | REQ |
 |---|---|---|---|
-| 1 | Options → Plugins → Allsky Safety Monitor | New Image source, Direct (SFTP) and Web sections; earlier settings unchanged; Test image button | 46 |
+| 1 | Options → Plugins → Allsky Safety Monitor | New Image source, Direct (SFTP) and Web sections, including Host-key type = `ecdsa-sha2-nistp256`; earlier settings unchanged; Test image button | 46 |
 | 2 | Source = Direct, press **Test image** | "OK (Direct): N KB, captured hh:mm:ss (x min ago), complete JPEG" | 11, 12, 52 |
 | 3 | Connect the safety monitor; Imaging tab → Allsky Safety | Within a minute: the Allsky image, "Image captured hh:mm:ss (x min ago) · Direct · N KB"; UNSAFE, "Cloud detection not implemented yet · Image x min old" | 11, 14, 15, 45 |
 | 4 | Watch for 3 minutes | Updated time moves every minute; captured time moves on as Allsky takes new pictures; the age counts up between them | 14, 15 |

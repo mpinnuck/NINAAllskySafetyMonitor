@@ -1,6 +1,6 @@
 # NINAAllskySafetyMonitor — Requirements
 
-Version 4 · 2026-11-01
+Version 5 · 2026-11-02
 
 A safety monitor for NINA on the AstroPC. It analyses images from Mark's Allsky camera, combines them with rain and wind data from his weather station, and reports a safe/unsafe status to NINA.
 
@@ -42,19 +42,20 @@ Defaults shown in *[brackets]* are configurable. How configurable values are sto
 - **REQ-17** An image caught part-way through being written (an incomplete JPEG) is discarded and fetched again after *[5 s]*, up to *[3]* attempts.
 - **REQ-18** If no image can be fetched for *[10 min]*, reports **unsafe**.
 
-## 5. Lens calibration and horizon mask
+## 5. Lens calibration and working area
 
 - **REQ-19** Provides a one-off calibration that maps alt/az to Allsky image pixel positions: image centre, rotation (north direction), east/west orientation and the fisheye projection.
 - **REQ-20** Calibration is done by matching identified catalogue stars in a real clear-sky frame.
 - **REQ-21** Shows a verification overlay (catalogue stars and an alt/az grid drawn on the live image) so calibration accuracy can be checked by eye.
-- **REQ-22** Supports a horizon mask: either a minimum altitude *[20°]* or a drawn mask outline, to exclude trees, the house and the overlay text.
+- **REQ-22** A **working area** defines the part of the sky the monitor can see and assess. It is a circle of configurable radius *[60°]* on the sky, centred at a configurable altitude and azimuth *[alt 75°, az 180°, i.e. 15° south of the zenith]*. It can be reduced further by a drawn outline that excludes trees, the house and the overlay text.
 
 ## 6. Region of interest
 
 - **REQ-23** The ROI is a circle of radius *[15°]* on the sky, centred on the mount's current RA/Dec.
 - **REQ-24** RA/Dec is converted to alt/az using the coordinate epoch (JNOW on this rig), the site location and the current time, then to Allsky image pixels using the calibration (REQ-19).
-- **REQ-25** Any part of the ROI below the horizon mask (REQ-22) is excluded from analysis.
-- **REQ-26** The ROI falls back to a circle centred on the zenith when the mount is not connected, is parked, is not tracking, or its position is unavailable.
+- **REQ-25** Any part of the ROI outside the working area (REQ-22) is excluded from analysis.
+- **REQ-58** If less than a configurable fraction *[50%]* of the ROI lies inside the working area, the whole working area is used as the ROI instead, and the status says so.
+- **REQ-26** The ROI falls back to the whole working area when the mount is not connected, is parked, is not tracking, or its position is unavailable.
 - **REQ-27** While the mount is slewing, the current safety state is held and the ROI is updated once the slew finishes.
 
 ## 7. Cloud detection
@@ -95,12 +96,12 @@ Defaults shown in *[brackets]* are configurable. How configurable values are sto
 ## 12. User interface (within NINA)
 
 - **REQ-45** A status view shows:
-  - the latest Allsky image with the ROI circle, horizon mask, and detected vs expected stars overlaid;
+  - the latest Allsky image with the ROI circle, working area, and detected vs expected stars overlaid;
   - a large SAFE / UNSAFE / IDLE indicator showing the reason for the current state;
   - current metrics: star fraction, brightness, rain, wind gust, image age, weather data age, and the countdown to safe;
   - a history graph of the metrics and the safe state for the night.
 - **REQ-46** A settings view edits every configurable value.
-- **REQ-47** A calibration view supports lens calibration (REQ-19–21) and drawing the horizon mask (REQ-22).
+- **REQ-47** A calibration view supports lens calibration (REQ-19–21) and defining the working area (REQ-22).
 
 ---
 
@@ -126,7 +127,7 @@ Defaults shown in *[brackets]* are configurable. How configurable values are sto
 
 - **REQ-55** All configurable values persist between sessions.
 - **REQ-56** Settings are stored in a JSON file.
-- **REQ-57** Calibration results (REQ-19), the horizon mask (REQ-22) and the clear-sky reference (REQ-30) are stored with the settings.
+- **REQ-57** Calibration results (REQ-19), the working area (REQ-22) and the clear-sky reference (REQ-30) are stored with the settings.
 
 ---
 
