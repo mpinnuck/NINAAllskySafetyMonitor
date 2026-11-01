@@ -1,0 +1,69 @@
+@startuml CL10b_PluginViewModels
+!include _style.iuml
+title CL-10b  NINAAllskySafetyMonitor.Plugin — view models and views (MVVM)
+
+package "NINA (external)" <<external>> {
+  abstract class DockableVM
+}
+package "NINAAllskySafetyMonitor.Plugin.ViewModels" {
+  class StatusViewModel {
+    +Image : BitmapSource
+    +StateText, ReasonText
+    +Metrics : MetricsViewModel
+    +History : HistoryChartViewModel
+    +OverrideMode : OverrideMode
+    +UntunedWarningVisible : bool
+    .. REQ-40 REQ-43 REQ-45 ..
+  }
+  class MetricsViewModel {
+    +StarFraction, Brightness, Rain, Gust
+    +ImageAge, WeatherAge, SecondsToSafe
+    .. REQ-45 ..
+  }
+  class HistoryChartViewModel {
+    +Series : PlotModel
+    .. REQ-45 ..
+  }
+  class SettingsViewModel {
+    +Edit : MonitorSettings
+    +SaveCommand, TestImageCommand, TestWeatherCommand
+    .. REQ-46 ..
+  }
+  class CalibrationViewModel {
+    +CalibrateCommand
+    +ShowOverlay : bool
+    +MaskOutline : ObservableCollection<PixelPoint>
+    +AcceptCommand
+    .. REQ-19 REQ-21 REQ-22 REQ-47 ..
+  }
+  class OverlayImageComposer {
+    +Compose(s : MonitorSnapshot, projection) : BitmapSource
+    .. REQ-45 ..
+  }
+}
+
+package "NINAAllskySafetyMonitor.Plugin.Views" {
+  class StatusView <<XAML>>
+  class OptionsView <<XAML>>
+  class CalibrationView <<XAML>>
+}
+
+package "NINAAllskySafetyMonitor.Plugin.Views" {
+  class StatusView <<XAML>>
+  class OptionsView <<XAML>>
+  class CalibrationView <<XAML>>
+}
+class AllskySafetyPlugin
+class PluginSettingsStore
+
+DockableVM <|-- StatusViewModel
+StatusViewModel --> MetricsViewModel
+StatusViewModel --> HistoryChartViewModel
+StatusViewModel --> OverlayImageComposer
+StatusView ..> StatusViewModel
+OptionsView ..> SettingsViewModel
+CalibrationView ..> CalibrationViewModel
+AllskySafetyPlugin --> SettingsViewModel
+SettingsViewModel --> PluginSettingsStore
+StatusViewModel ..> "MonitorService" : SnapshotAvailable
+@enduml

@@ -1,0 +1,73 @@
+@startuml CL01_Packages
+!include _style.iuml
+skinparam linetype polyline
+title CL-01  Assemblies and packages
+
+package "NINAAllskySafetyMonitor.Plugin  (NINA plugin, .NET 8, WPF)" as P {
+  package "Nina\n(provider, device,\nadapters)" as PN
+  package "ViewModels" as PVM
+  package "Views (XAML)" as PV
+}
+
+package "NINAAllskySafetyMonitor.Astrometry\n(adapter over NINA.Astrometry)" as AS
+
+package "NINAAllskySafetyMonitor.Core  (.NET 8 class library — no NINA references)" as C {
+  package "Abstractions\n(ports)" as CA
+  package "Domain" as CD
+  package "Monitoring" as CM
+  package "Acquisition" as CAQ
+  package "Weather" as CW
+  package "Geometry" as CG
+  package "Calibration" as CC
+  package "Analysis" as CAN
+  package "Decision" as CDE
+  package "Tuning" as CT
+  package "Logging" as CL
+  package "Settings" as CS
+  package "Traceability" as CTR
+}
+
+package "NINAAllskySafetyMonitor.Harness\n(console: offline replay,\ntraceability report)" as H
+package "NINAAllskySafetyMonitor.Tests\n(unit + coverage)" as T
+package "NINA 3.x host\n(NINA.Equipment, NINA.Profile,\nNINA.Astrometry, NINA.Core)" as NINA <<external>>
+
+PV ..> PVM
+PVM ..> CM
+PN ..> CM
+PN ..> CA : implements ports
+PN ..> AS
+PN ..> NINA
+PVM ..> NINA
+AS ..> CA : implements IAstroCalculator
+AS ..> NINA
+
+CM ..> CAQ
+CM ..> CW
+CM ..> CG
+CM ..> CAN
+CM ..> CDE
+CM ..> CT
+CM ..> CL
+CAN ..> CG
+CC ..> CG
+CC ..> CAN
+CG ..> CA
+CAN ..> CA
+CM ..> CS
+
+H ..> CM
+H ..> CT
+H ..> AS
+H ..> CTR
+T ..> C
+T ..> CTR
+
+note right of C
+  All safety logic lives in Core.
+  NINA-specific code is confined to
+  NINAAllskySafetyMonitor.Plugin and the thin
+  NINAAllskySafetyMonitor.Astrometry adapter.
+  Domain is used by every package
+  (dependencies omitted for clarity).
+end note
+@enduml

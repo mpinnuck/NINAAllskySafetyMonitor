@@ -1,0 +1,36 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- The NINA plugin: equipment provider, safety-monitor device, adapters and MVVM views. -->
+  <PropertyGroup>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <OutputType>Library</OutputType>
+    <RootNamespace>NINAAllskySafetyMonitor.Plugin</RootNamespace>
+    <AssemblyName>NINAAllskySafetyMonitor</AssemblyName>
+    <!-- Manifest metadata lives in Properties/AssemblyInfo.cs, as NINA's plugin template requires. -->
+    <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
+    <UseWPF>true</UseWPF>
+    <ImportWindowsDesktopTargets>true</ImportWindowsDesktopTargets>
+    <EnableWindowsTargeting>true</EnableWindowsTargeting>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="NINA.Plugin" Version="$(NinaPluginVersion)" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\NINAAllskySafetyMonitor.Core\NINAAllskySafetyMonitor.Core.csproj" />
+    <ProjectReference Include="..\NINAAllskySafetyMonitor.Astrometry\NINAAllskySafetyMonitor.Astrometry.csproj" />
+  </ItemGroup>
+
+  <!-- Copy the build output into NINA's plugin folder so NINA loads it on its next start. -->
+  <Target Name="CopyToNinaPlugins" AfterTargets="Build" Condition="'$(OS)' == 'Windows_NT'">
+    <PropertyGroup>
+      <NinaPluginTarget>$(LOCALAPPDATA)\NINA\Plugins\$(NinaPluginFolder)\NINAAllskySafetyMonitor</NinaPluginTarget>
+    </PropertyGroup>
+    <ItemGroup>
+      <PluginOutput Include="$(TargetDir)NINAAllskySafetyMonitor*.dll;$(TargetDir)NINAAllskySafetyMonitor*.pdb" />
+    </ItemGroup>
+    <MakeDir Directories="$(NinaPluginTarget)" />
+    <Copy SourceFiles="@(PluginOutput)" DestinationFolder="$(NinaPluginTarget)" SkipUnchangedFiles="true" />
+    <Message Importance="high" Text="Copied plugin to $(NinaPluginTarget)" />
+  </Target>
+</Project>

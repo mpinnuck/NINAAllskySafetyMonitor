@@ -1,0 +1,119 @@
+@startuml CL03b_Settings
+!include _style.iuml
+left to right direction
+title CL-03b  Core.Settings — JSON settings tree and defaults
+
+package "NINAAllskySafetyMonitor.Core.Settings" {
+  class MonitorSettings {
+    +Site : SiteSettings
+    +Window : OperatingWindowSettings
+    +ImageSource : ImageSourceSettings
+    +Roi : RoiSettings
+    +Cloud : CloudDetectionSettings
+    +Weather : WeatherSettings
+    +Decision : DecisionSettings
+    +Tuning : TuningSettings
+    +Logging : LoggingSettings
+    +Calibration : CalibrationData
+    .. REQ-55 ..
+  }
+  class SiteSettings {
+    +LatitudeDeg = -33.713562
+    +LongitudeDeg = 151.09024
+    +ElevationM = 134
+  }
+  class OperatingWindowSettings {
+    +SunAltitudeLimitDeg = -18
+  }
+  class ImageSourceSettings {
+    +Kind = Direct
+    +IntervalS = 60
+    +StaleAfterMin = 10
+    +FetchFailUnsafeMin = 10
+    +IncompleteRetryS = 5
+    +IncompleteRetries = 3
+    +TimeoutS = 20
+    +Web : WebSourceSettings
+    +Direct : DirectSourceSettings
+  }
+  class WebSourceSettings {
+    +BaseUrl
+    +FileName = "image.jpg"
+  }
+  class DirectSourceSettings {
+    +Host = "allsky.local"
+    +FallbackIp = "192.168.1.110"
+    +User = "pi"
+    +RemotePath
+    +KeyFile
+    +UsePassword = false
+    +HostKeyFingerprint
+  }
+  class RoiSettings {
+    +RadiusDeg = 15
+  }
+  class CloudDetectionSettings {
+    +LimitingMagnitude = 4.0
+    +MinStarFraction = 0.70
+    +MinExpectedStars = 8
+    +MaxBrightnessRatio = 1.3
+    +MaxUniformityRatio = 1.5
+    +MoonExclusionDeg = 15
+    +Tuned = false
+  }
+  class WeatherSettings {
+    +Enabled = true
+    +StationId = "ISYDNEY478"
+    +ApiKey
+    +PollIntervalS = 120
+    +MaxGustKmH = 40
+    +StaleAfterMin = 15
+  }
+  class DecisionSettings {
+    +SafeAfterMin = 4
+  }
+  class TuningSettings {
+    +Enabled = false
+    +OutputFolder
+  }
+  class LoggingSettings {
+    +RetentionDays = 7
+    +Folder
+  }
+  class CalibrationData {
+    +Lens : LensCalibration?
+    +Mask : HorizonMaskDefinition
+    +ClearSkyReference : ClearSkyReference?
+    .. REQ-57 ..
+  }
+  class SettingsStore {
+    -path : string
+    +Load() : MonitorSettings
+    +Save(settings : MonitorSettings)
+    .. REQ-55 REQ-56 ..
+  }
+  class SettingsValidator {
+    +Validate(s : MonitorSettings) : IReadOnlyList<string>
+  }
+}
+
+MonitorSettings *-- SiteSettings
+MonitorSettings *-- OperatingWindowSettings
+MonitorSettings *-- ImageSourceSettings
+MonitorSettings *-- RoiSettings
+MonitorSettings *-- CloudDetectionSettings
+MonitorSettings *-- WeatherSettings
+MonitorSettings *-- DecisionSettings
+MonitorSettings *-- TuningSettings
+MonitorSettings *-- LoggingSettings
+MonitorSettings *-- CalibrationData
+ImageSourceSettings *-- WebSourceSettings
+ImageSourceSettings *-- DirectSourceSettings
+SettingsStore ..> MonitorSettings : JSON
+SettingsStore ..> SettingsValidator
+
+note bottom of DirectSourceSettings
+  Password is never in the JSON file:
+  held in ICredentialStore (REQ-53).
+end note
+@enduml

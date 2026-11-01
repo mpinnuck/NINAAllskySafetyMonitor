@@ -1,0 +1,44 @@
+@startuml CL05_Weather
+!include _style.iuml
+title CL-05  Core.Weather
+
+package "NINAAllskySafetyMonitor.Core.Weather" {
+  interface IWeatherProvider {
+    +GetLatestAsync(ct : CancellationToken) : Task<WeatherObservation?>
+  }
+  class PwsWeatherClient {
+    -http : HttpClient
+    -stationId : string
+    -apiKey : string
+    -parser : PwsObservationParser
+    +GetLatestAsync(ct) : Task<WeatherObservation?>
+    .. REQ-32 REQ-51 ..
+  }
+  class PwsObservationParser {
+    +Parse(json : string) : WeatherObservation?
+    .. REQ-33 ..
+  }
+  class WeatherPoller {
+    -provider : IWeatherProvider
+    -interval : TimeSpan
+    +Latest : WeatherObservation?
+    +PollIfDueAsync(nowUtc, ct) : Task
+    .. REQ-32 ..
+  }
+  class WeatherEvaluator {
+    -settings : WeatherSettings
+    +Evaluate(obs : WeatherObservation?, nowUtc) : IReadOnlyList<ConditionCheck>
+    .. REQ-34 REQ-35 REQ-36 ..
+  }
+}
+
+IWeatherProvider <|.. PwsWeatherClient
+PwsWeatherClient --> PwsObservationParser
+WeatherPoller --> IWeatherProvider
+
+note bottom of WeatherEvaluator
+  Produces three checks: NoRain (precipRate = 0),
+  WindBelowLimit (gust <= limit), WeatherCurrent (age <= 15 min).
+  When weather is disabled all three pass with reason "weather ignored".
+end note
+@enduml

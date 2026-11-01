@@ -1,0 +1,24 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/NINAAllskySafetyMonitor.Core/NINAAllskySafetyMonitor.Core.csproj" />
+    <Project Path="src/NINAAllskySafetyMonitor.Astrometry/NINAAllskySafetyMonitor.Astrometry.csproj" />
+    <Project Path="src/NINAAllskySafetyMonitor.Plugin/NINAAllskySafetyMonitor.Plugin.csproj" />
+  </Folder>
+  <Folder Name="/tools/">
+    <Project Path="tools/NINAAllskySafetyMonitor.Harness/NINAAllskySafetyMonitor.Harness.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/NINAAllskySafetyMonitor.Tests/NINAAllskySafetyMonitor.Tests.csproj" />
+  </Folder>
+  <Folder Name="/Solution Items/">
+    <File Path="Directory.Build.props" />
+    <File Path=".editorconfig" />
+    <File Path=".gitignore" />
+    <File Path="README.md" />
+    <File Path="CHANGELOG.md" />
+  </Folder>
+  <Folder Name="/docs/">
+    <File Path="docs/requirements/requirements.md" />
+    <File Path="docs/design/README.md" />
+  </Folder>
+</Solution>

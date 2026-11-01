@@ -1,0 +1,30 @@
+@startuml SD09_OfflineReplay
+!include _style.iuml
+title SD-09  Replay saved frames offline (UC-17) — REQ-41, REQ-42
+
+actor Imager
+participant ":ReplayCommand" as Cmd
+participant ":SettingsStore" as Store
+participant ":MonitorServiceBuilder" as B
+participant ":ReplayImageSource" as Src
+participant ":ReplayClock" as Clk
+participant ":MonitoringCycle" as Cyc
+participant ":MetricsCsvWriter" as Csv
+
+Imager -> Cmd : NINAAllskySafetyMonitor.Harness replay --frames <folder> --settings <trial.json>
+Cmd -> Store : Load(trial.json)
+Store --> Cmd : MonitorSettings (trial thresholds)
+Cmd -> B : Build(settings, ports = {ReplayImageSource, ReplayClock,\nFixedMountStateSource, ConfigSiteLocationSource, ConsoleLogSink})
+B --> Cmd : cycle
+loop each saved frame (in capture order)
+  Cmd -> Src : advance()
+  Src -> Clk : UtcNow = frame capture time
+  Cmd -> Cyc : RunOnceAsync()
+  Cyc -> Src : FetchAsync()
+  Src --> Cyc : SkyImage(frame)
+  Cyc --> Cmd : MonitorSnapshot
+  Cmd -> Csv : Append(snapshot)
+end
+Cmd --> Imager : results.csv (opens in Excel)
+note over Cmd : No rig and no running NINA needed.\nCompare results.csv against the tuning\nrecording to evaluate threshold changes.
+@enduml

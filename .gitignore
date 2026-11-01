@@ -1,0 +1,46 @@
+# Build output
+[Bb]in/
+[Oo]bj/
+[Ll]og/
+[Ll]ogs/
+artifacts/
+
+# Visual Studio
+.vs/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+*.rsuser
+
+# Rider / VS Code
+.idea/
+.vscode/*
+!.vscode/extensions.json
+
+# NuGet
+*.nupkg
+*.snupkg
+**/packages/*
+!**/packages/build/
+project.lock.json
+project.fragment.lock.json
+
+# Test results
+[Tt]est[Rr]esult*/
+*.trx
+coverage*.xml
+*.coverage
+
+# Rendered diagrams (regenerated from docs/design/uml/*.puml)
+docs/design/svg/
+docs/design/png/
+docs/design/out/
+
+# Local settings and tuning output — never commit credentials or captured frames
+*.local.json
+tuning/
+
+# macOS / Windows
+.DS_Store
+Thumbs.db

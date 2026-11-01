@@ -1,0 +1,40 @@
+@startuml SD08_Calibration
+!include _style.iuml
+title SD-08  Calibrate lens and define horizon mask (UC-12, UC-13) — REQ-19 … REQ-22, REQ-47, REQ-57
+
+actor Imager
+participant ":CalibrationView" as View
+participant ":CalibrationViewModel" as VM
+participant ":ImageAcquirer" as Acq
+participant ":LensCalibrationSession" as Sess
+participant ":StarDetector" as Det
+participant ":StarIdentifier" as Id
+participant ":LensModelFitter" as Fit
+participant ":CalibrationOverlayRenderer" as Ovl
+participant ":PluginSettingsStore" as Store
+
+Imager -> View : open Calibration (clear night)
+View -> VM : CalibrateCommand
+VM -> Acq : AcquireAsync()
+Acq --> VM : SkyImage
+VM -> Sess : CalibrateAsync(image, site)
+activate Sess
+Sess -> Det : Detect(frame, full-frame mask)
+Det --> Sess : detected stars
+Sess -> Id : Identify(detected, site, utc, previous?)
+Id --> Sess : (catalogue, detected) pairs
+Sess -> Fit : Fit(pairs, site, utc)
+Fit --> Sess : LensFitResult(calibration, rms px, stars used)
+deactivate Sess
+Sess --> VM : result
+VM -> Ovl : Render(frame, projection, site, utc)
+Ovl --> VM : overlay (stars + alt/az grid, REQ-21)
+VM --> View : show overlay and RMS error
+Imager -> View : inspect fit by eye
+Imager -> View : draw horizon outline / set min altitude
+View -> VM : MaskOutline updated (REQ-22)
+Imager -> View : Accept
+View -> VM : AcceptCommand
+VM -> Store : Save(settings with Calibration.Lens, Calibration.Mask)
+note right of Store : Persisted in the JSON settings (REQ-57).\nRunning MonitorService picks up the\nnew calibration on the next cycle.
+@enduml

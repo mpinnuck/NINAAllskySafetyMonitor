@@ -1,0 +1,60 @@
+@startuml SD06_AcquireImage
+!include _style.iuml
+title SD-06  Acquire Allsky image — direct (SFTP) source (UC-06) — REQ-11 … REQ-18, REQ-52, REQ-53
+
+participant ":ImageAcquirer" as Acq
+participant ":SftpImageSource" as Src
+participant ":SftpConnector" as Con
+participant ":HostKeyVerifier" as HK
+participant ":ICredentialStore" as Cred
+participant "Allsky Pi\n(allsky.local)" as Pi
+participant ":JpegIntegrityChecker" as Chk
+
+Acq -> Src : FetchAsync(ct)
+activate Src
+Src -> Con : ConnectAsync(ct)
+activate Con
+opt password authentication
+  Con -> Cred : GetSecret("sftp-password")
+end
+Con -> Pi : connect allsky.local:22  [timeout]
+alt name resolution fails
+  Con -> Pi : connect 192.168.1.110:22 (REQ-13)
+end
+Pi --> Con : host key
+Con -> HK : Verify(hostKey)
+alt fingerprint mismatch
+  HK --> Con : false
+  Con --> Src : error "host key mismatch" (REQ-52)
+  Src --> Acq : Failed
+else match
+  HK --> Con : true
+  Con -> Pi : authenticate (key file / password)
+  Con --> Src : SftpClient
+end
+deactivate Con
+Src -> Pi : stat /home/pi/allsky/tmp/allsky.jpg
+Pi --> Src : mtime
+alt mtime unchanged since last fetch
+  Src --> Acq : Unchanged (REQ-16)
+else new image
+  Src -> Pi : download
+  Pi --> Src : bytes
+  Src --> Acq : NewImage(SkyImage, captureTime = mtime)
+end
+deactivate Src
+
+opt NewImage
+  loop up to 3 attempts
+    Acq -> Chk : IsComplete(bytes)
+    alt missing FFD9 end marker
+      Chk --> Acq : false
+      Acq -> Acq : wait 5 s, fetch again (REQ-17)
+    else complete
+      Chk --> Acq : true
+      Acq -> Acq : LatestImage = image\nLastSuccessUtc = now
+    end
+  end
+end
+note over Acq : ImageFreshnessEvaluator then fails FreshImage if the image\nis > 10 min old or nothing fetched for 10 min (REQ-15, REQ-18).
+@enduml

@@ -1,0 +1,18 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- All safety logic. Must not reference NINA (see design CL-01). -->
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <OutputType>Library</OutputType>
+    <RootNamespace>NINAAllskySafetyMonitor.Core</RootNamespace>
+    <AssemblyName>NINAAllskySafetyMonitor.Core</AssemblyName>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="NINAAllskySafetyMonitor.Tests" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Bright star catalogue embedded at build time (added during code generation). -->
+    <EmbeddedResource Include="Resources\**\*" Exclude="Resources\**\.gitkeep" />
+  </ItemGroup>
+</Project>

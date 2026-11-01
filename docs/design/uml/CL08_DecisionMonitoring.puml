@@ -1,0 +1,106 @@
+@startuml CL08_DecisionMonitoring
+!include _style.iuml
+title CL-08  Core.Decision and Core.Monitoring
+
+package "NINAAllskySafetyMonitor.Core.Decision" {
+  class SafetyConditionsBuilder {
+    +Build(window, freshness, cloud, weatherChecks) : SafetyConditions
+    .. REQ-37 ..
+  }
+  class SafetyHysteresis {
+    -safeAfter : TimeSpan
+    -clearSinceUtc : DateTime?
+    +Apply(c : SafetyConditions, nowUtc) : (bool safe, int? secondsToSafe)
+    .. REQ-38 REQ-39 ..
+  }
+  class SlewHoldPolicy {
+    -held : SafetyStatus?
+    +ShouldHold(m : MountState?) : bool
+    .. REQ-27 ..
+  }
+  class ManualOverride {
+    +Mode : OverrideMode
+    +Apply(s : SafetyStatus) : SafetyStatus
+    .. REQ-40 ..
+  }
+  class SafetyDecisionEngine {
+    -hysteresis : SafetyHysteresis
+    -slewHold : SlewHoldPolicy
+    -override : ManualOverride
+    -tuning : TuningStateEvaluator
+    +Decide(c : SafetyConditions, m : MountState?, nowUtc) : SafetyStatus
+    .. REQ-03 REQ-37 REQ-43 ..
+  }
+}
+
+package "NINAAllskySafetyMonitor.Core.Monitoring" {
+  class MonitorService {
+    -cycle : MonitoringCycle
+    -guard : FailSafeGuard
+    -interval : TimeSpan
+    -loop : Task
+    -cts : CancellationTokenSource
+    +CurrentStatus : SafetyStatus
+    +Start()
+    +StopAsync() : Task
+    +event SnapshotAvailable : EventHandler<MonitorSnapshot>
+    .. REQ-02 REQ-49 ..
+  }
+  class MonitoringCycle {
+    -siteResolver : SiteLocationResolver
+    -window : OperatingWindow
+    -acquirer : ImageAcquirer
+    -freshness : ImageFreshnessEvaluator
+    -decoder : JpegDecoder
+    -mount : IMountStateSource
+    -roiCalculator : RoiCalculator
+    -roiMaskBuilder : RoiMaskBuilder
+    -cloudDetector : CloudDetector
+    -weatherPoller : WeatherPoller
+    -weatherEvaluator : WeatherEvaluator
+    -conditions : SafetyConditionsBuilder
+    -engine : SafetyDecisionEngine
+    -decisionLogger : DecisionLogger
+    -recorder : TuningRecorder
+    +RunOnceAsync(ct) : Task<MonitorSnapshot>
+    .. UC-04 ..
+  }
+  class FailSafeGuard {
+    -clock : IClock
+    -log : ILogSink
+    -timeout : TimeSpan
+    +RunAsync(cycle, ct) : Task<MonitorSnapshot>
+    .. REQ-49 REQ-50 REQ-51 ..
+  }
+  class StatusHistory {
+    -points : RingBuffer<MonitorSnapshot>
+    +Add(s : MonitorSnapshot)
+    +ForNight(nowUtc) : IReadOnlyList<MonitorSnapshot>
+    .. REQ-45 ..
+  }
+  class MonitorServiceBuilder {
+    +Build(settings, ports) : MonitorService
+  }
+}
+
+SafetyDecisionEngine --> SafetyHysteresis
+SafetyDecisionEngine --> SlewHoldPolicy
+SafetyDecisionEngine --> ManualOverride
+MonitorService --> MonitoringCycle
+MonitorService --> FailSafeGuard
+MonitoringCycle --> SafetyConditionsBuilder
+MonitoringCycle --> SafetyDecisionEngine
+MonitorServiceBuilder ..> MonitorService : creates
+
+note bottom of FailSafeGuard
+  Wraps every cycle: timeout + catch-all.
+  Any exception or timeout yields an
+  Unsafe snapshot with the error as reason.
+  Never throws to the caller (REQ-49, REQ-50).
+end note
+note right of MonitorService
+  Loop runs on a background task
+  (never the NINA UI thread).
+  StopAsync cancels and awaits the loop.
+end note
+@enduml

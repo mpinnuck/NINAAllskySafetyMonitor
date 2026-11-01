@@ -1,0 +1,11 @@
+skin rose
+skinparam shadowing false
+skinparam defaultFontName Arial
+skinparam defaultFontSize 11
+skinparam classAttributeIconSize 0
+skinparam packageStyle rectangle
+skinparam linetype ortho
+skinparam noteFontSize 10
+skinparam sequenceMessageAlign left
+skinparam responseMessageBelowArrow true
+hide empty members

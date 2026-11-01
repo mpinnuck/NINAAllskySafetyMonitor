@@ -1,0 +1,19 @@
+# Design v1 (2026-11-01)
+
+Traced to `../requirements/requirements.md` v4 (REQ-01 … REQ-57).
+
+| File | Contents |
+|---|---|
+| `NINAAllskySafetyMonitor-Design-v1.pdf` | Software Design Document (reviewed baseline). |
+| `traceability.xlsx` | REQ → use case → design class → scenario. |
+| `uml/*.puml` | PlantUML sources in Rational Rose style (`uml/_style.iuml`). These are the editable masters. |
+
+Diagram index:
+
+- **Use cases:** UC01 operation, UC02 set-up and tuning, UC03a/UC03b requirement trace.
+- **Classes:** CL01 packages, CL02 domain, CL03a ports, CL03b settings, CL04 acquisition, CL05 weather, CL06 geometry, CL07 cloud detection, CL08 decision and monitoring, CL09 calibration/tuning/logging/traceability, CL10a plugin NINA integration, CL10b plugin view models, CL11 harness and tests.
+- **Scenarios:** SD01 connect, SD02 monitoring cycle, SD03 cloud detection, SD04 hysteresis, SD05 slew and fallback, SD06 acquire image, SD07 failure and idle, SD08 calibration, SD09 offline replay, SD10 override and disconnect, SD11 status and settings.
+
+## Rendering
+
+In VS Code install the **PlantUML** extension (jebbs.plantuml) plus Java and Graphviz (`brew install openjdk graphviz`). Open a `.puml` file and press Alt+D to preview. Rendered output goes to `svg/` or `png/`, which are git-ignored.

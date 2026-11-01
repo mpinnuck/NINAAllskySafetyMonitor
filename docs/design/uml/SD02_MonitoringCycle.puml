@@ -1,0 +1,60 @@
+@startuml SD02_MonitoringCycle
+!include _style.iuml
+title SD-02  Monitoring cycle — normal path (UC-04 … UC-10, UC-18)
+
+participant ":MonitorService" as Svc
+participant ":FailSafeGuard" as Guard
+participant ":MonitoringCycle" as Cyc
+participant ":SiteLocationResolver" as Site
+participant ":OperatingWindow" as Win
+participant ":ImageAcquirer" as Acq
+participant ":ImageFreshnessEvaluator" as Fresh
+participant ":IMountStateSource" as Mount
+participant ":RoiCalculator" as Roi
+participant ":RoiMaskBuilder" as Mask
+participant ":CloudDetector" as Cloud
+participant ":WeatherPoller" as WP
+participant ":WeatherEvaluator" as WE
+participant ":SafetyConditionsBuilder" as CB
+participant ":SafetyDecisionEngine" as Eng
+participant ":DecisionLogger" as Log
+
+loop every IntervalS [60 s]
+  Svc -> Guard : RunAsync(cycle, ct)
+  activate Guard
+  Guard -> Cyc : RunOnceAsync(ct)  [timeout]
+  activate Cyc
+  Cyc -> Site : Resolve()
+  Site --> Cyc : site  (profile, else config — REQ-04)
+  Cyc -> Win : Evaluate(site, now)
+  Win --> Cyc : ActiveWindow = passed  (sun < −18°, REQ-08)
+  Cyc -> Acq : AcquireAsync(ct)
+  Acq --> Cyc : SkyImage  (see SD-06)
+  Cyc -> Fresh : Evaluate(image, lastSuccess, now)
+  Fresh --> Cyc : FreshImage check (REQ-15, 18)
+  Cyc -> Mount : GetCurrent()
+  Mount --> Cyc : MountState
+  Cyc -> Roi : CalculateCentre(mount, site, now)
+  Roi --> Cyc : centre from RA/Dec (REQ-06, REQ-24)
+  Cyc -> Mask : Build(centre, 15°, ...)
+  Mask --> Cyc : RegionOfInterest (REQ-23, REQ-25)
+  Cyc -> Cloud : Assess(frame, roi, site, now, ref)
+  Cloud --> Cyc : CloudAssessment (see SD-03)
+  Cyc -> WP : PollIfDueAsync(now, ct)  (every 2 min, REQ-32, REQ-33)
+  Cyc -> WE : Evaluate(WP.Latest, now)
+  WE --> Cyc : NoRain, WindBelowLimit, WeatherCurrent\n(REQ-34, REQ-35, REQ-36)
+  Cyc -> CB : Build(window, fresh, cloud, weather)
+  CB --> Cyc : SafetyConditions (REQ-37)
+  Cyc -> Eng : Decide(conditions, mount, now)
+  Eng --> Cyc : SafetyStatus
+  Cyc -> Log : LogDecision(snapshot, mount)  (REQ-44)
+  opt tuning mode on
+    Cyc -> Cyc : recorder.Record(snapshot)  (REQ-41)
+  end
+  Cyc --> Guard : MonitorSnapshot
+  deactivate Cyc
+  Guard --> Svc : MonitorSnapshot
+  deactivate Guard
+  Svc -> Svc : CurrentStatus = snapshot.Status\nraise SnapshotAvailable
+end
+@enduml

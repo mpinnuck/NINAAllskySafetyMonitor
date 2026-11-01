@@ -1,0 +1,25 @@
+# Normalise line endings in the repository; check out with the platform's native endings.
+* text=auto
+
+# Visual Studio files keep Windows line endings everywhere.
+*.cs      text eol=crlf
+*.xaml    text eol=crlf
+*.csproj  text eol=crlf
+*.slnx    text eol=crlf
+*.props   text eol=crlf
+*.targets text eol=crlf
+*.config  text eol=crlf
+
+# Documentation and design sources
+*.md      text
+*.puml    text
+*.iuml    text
+*.json    text
+
+# Binary files
+*.pdf     binary
+*.xlsx    binary
+*.png     binary
+*.jpg     binary
+*.ico     binary
+*.dll     binary

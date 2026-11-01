@@ -1,0 +1,68 @@
+@startuml CL11_HarnessTests
+!include _style.iuml
+title CL-11  NINAAllskySafetyMonitor.Harness and NINAAllskySafetyMonitor.Tests
+
+package "NINAAllskySafetyMonitor.Harness" {
+  class Program {
+    +Main(args) : int
+  }
+  class ReplayCommand {
+    +FramesFolder : string
+    +SettingsFile : string
+    +OutputCsv : string
+    +RunAsync() : Task<int>
+    .. REQ-42 ..
+  }
+  class FixedMountStateSource {
+    +GetCurrent() : MountState?
+    .. REQ-42 ..
+  }
+  class ConfigSiteLocationSource {
+    +GetCurrent() : SiteLocation?
+  }
+  class ReplayClock {
+    +UtcNow : DateTime
+    .. REQ-42 ..
+  }
+  class ConsoleLogSink {
+    +Write(level, message)
+  }
+  class TraceabilityReportCommand {
+    +RequirementsFile : string
+    +OutputXlsx : string
+    +Run() : int
+  }
+}
+
+package "NINAAllskySafetyMonitor.Tests" {
+  class RequirementCoverageTests {
+    +EveryRequirementHasImplementation()
+    +EveryRequirementHasTest()
+    +NoUnknownRequirementIds()
+  }
+  class RequirementsParser {
+    +Parse(markdownPath) : IReadOnlyList<RequirementInfo>
+  }
+  class UnitTestFixtures <<namespace>> {
+    one test class per Core class
+    tagged [Requirement("REQ-xx")]
+  }
+}
+
+Program ..> ReplayCommand
+Program ..> TraceabilityReportCommand
+ReplayCommand ..> FixedMountStateSource
+ReplayCommand ..> ConfigSiteLocationSource
+ReplayCommand ..> ReplayClock
+ReplayCommand ..> ConsoleLogSink
+ReplayCommand ..> "ReplayImageSource"
+ReplayCommand ..> "MonitorServiceBuilder"
+TraceabilityReportCommand ..> RequirementsParser
+RequirementCoverageTests ..> RequirementsParser
+
+note bottom of ReplayClock
+  Clock set from each frame's capture time,
+  so the operating window, Moon and ROI are
+  evaluated as they were on the night.
+end note
+@enduml

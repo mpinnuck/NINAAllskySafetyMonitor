@@ -1,0 +1,159 @@
+@startuml CL02_Domain
+!include _style.iuml
+title CL-02  Core.Domain — value objects (immutable records)
+
+package "NINAAllskySafetyMonitor.Core.Domain" {
+  class SkyImage <<record>> {
+    +JpegBytes : byte[]
+    +CaptureTimeUtc : DateTime
+    +Source : ImageSourceKind
+    .. REQ-11 REQ-15 ..
+  }
+  class GrayFrame <<record>> {
+    +Width : int
+    +Height : int
+    +Pixels : float[]
+  }
+  class SiteLocation <<record>> {
+    +LatitudeDeg : double
+    +LongitudeDeg : double
+    +ElevationM : double
+    .. REQ-04 ..
+  }
+  class MountState <<record>> {
+    +Connected : bool
+    +AtPark : bool
+    +Tracking : bool
+    +Slewing : bool
+    +RaHours : double?
+    +DecDeg : double?
+    +Epoch : CoordinateEpoch
+    +ReportedAltDeg : double?
+    +ReportedAzDeg : double?
+    +TimestampUtc : DateTime
+    +HasValidPosition : bool
+    .. REQ-05 REQ-06 REQ-07 ..
+  }
+  class HorizontalCoordinate <<record>> {
+    +AltDeg : double
+    +AzDeg : double
+  }
+  class PixelPoint <<record>> {
+    +X : double
+    +Y : double
+  }
+  class RegionOfInterest <<record>> {
+    +Centre : HorizontalCoordinate
+    +RadiusDeg : double
+    +IsZenithFallback : bool
+    +Mask : PixelMask
+    .. REQ-23 REQ-26 ..
+  }
+  class PixelMask {
+    +Width : int
+    +Height : int
+    +Contains(x : int, y : int) : bool
+    +Count : int
+  }
+  class CatalogueStar <<record>> {
+    +Id : int
+    +RaHours : double
+    +DecDeg : double
+    +Magnitude : double
+  }
+  class DetectedStar <<record>> {
+    +Position : PixelPoint
+    +Flux : double
+  }
+  class WeatherObservation <<record>> {
+    +ObservationTimeUtc : DateTime
+    +PrecipRateMmH : double
+    +WindGustKmH : double
+    .. REQ-33 ..
+  }
+  class CloudAssessment <<record>> {
+    +ExpectedStars : int
+    +DetectedStars : int
+    +StarFraction : double?
+    +BrightnessRatio : double?
+    +UniformityRatio : double?
+    +StarTestInconclusive : bool
+    +CloudPresent : bool
+    .. REQ-28 ..
+  }
+  class ConditionCheck <<record>> {
+    +Condition : SafetyCondition
+    +Passed : bool
+    +Reason : string
+  }
+  class SafetyConditions <<record>> {
+    +Checks : IReadOnlyList<ConditionCheck>
+    +AllPassed : bool
+    .. REQ-37 ..
+  }
+  class SafetyStatus <<record>> {
+    +State : SafetyState
+    +IsSafe : bool
+    +Reason : string
+    +SecondsToSafe : int?
+    +Override : OverrideMode
+    +Untuned : bool
+    +TimestampUtc : DateTime
+    .. REQ-03 REQ-39 REQ-40 REQ-43 ..
+  }
+  class MonitorSnapshot <<record>> {
+    +Image : SkyImage?
+    +Roi : RegionOfInterest?
+    +Cloud : CloudAssessment?
+    +Weather : WeatherObservation?
+    +Conditions : SafetyConditions
+    +Status : SafetyStatus
+    .. REQ-41 REQ-45 ..
+  }
+
+  enum SafetyState {
+    Starting
+    Idle
+    Safe
+    Unsafe
+  }
+  enum SafetyCondition {
+    ActiveWindow
+    FreshImage
+    NoCloud
+    NoRain
+    WindBelowLimit
+    WeatherCurrent
+  }
+  enum OverrideMode {
+    Auto
+    ForceSafe
+    ForceUnsafe
+  }
+  enum ImageSourceKind {
+    Web
+    Direct
+    Replay
+  }
+  enum CoordinateEpoch {
+    JNow
+    J2000
+  }
+}
+
+RegionOfInterest *-- HorizontalCoordinate
+RegionOfInterest *-- PixelMask
+DetectedStar *-- PixelPoint
+SafetyConditions *-- "1..*" ConditionCheck
+ConditionCheck --> SafetyCondition
+SafetyStatus --> SafetyState
+SafetyStatus --> OverrideMode
+SkyImage --> ImageSourceKind
+MountState --> CoordinateEpoch
+MonitorSnapshot o-- SkyImage
+MonitorSnapshot o-- RegionOfInterest
+MonitorSnapshot o-- CloudAssessment
+MonitorSnapshot o-- WeatherObservation
+MonitorSnapshot *-- SafetyConditions
+MonitorSnapshot *-- SafetyStatus
+@enduml

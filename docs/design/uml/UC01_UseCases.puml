@@ -1,0 +1,52 @@
+@startuml UC01_UseCases
+!include _style.iuml
+skinparam linetype polyline
+left to right direction
+title UC-A  Operation — monitoring and reporting to NINA
+
+actor "Imager\n(Mark)" as Imager
+actor "NINA\nSequencer" as Nina
+actor "Timer" as Timer
+actor "Allsky Pi /\nWeb server" as Allsky <<system>>
+actor "Weather.com\nPWS API" as Weather <<system>>
+actor "Mount\n(via NINA)" as Mount <<system>>
+
+rectangle "NINAAllskySafetyMonitor" {
+  usecase "UC-01 Connect\nsafety monitor" as UC01
+  usecase "UC-02 Disconnect\nsafety monitor" as UC02
+  usecase "UC-03 Report\nsafety status" as UC03
+  usecase "UC-04 Run\nmonitoring cycle" as UC04
+  usecase "UC-05 Determine\noperating window" as UC05
+  usecase "UC-06 Acquire\nAllsky image" as UC06
+  usecase "UC-07 Determine\nregion of interest" as UC07
+  usecase "UC-08 Detect\ncloud in ROI" as UC08
+  usecase "UC-09 Assess\nweather" as UC09
+  usecase "UC-10 Decide\nsafety" as UC10
+  usecase "UC-11 Override\nsafety manually" as UC11
+  usecase "UC-18 Log\ndecision" as UC18
+  usecase "UC-19 Handle\nmonitor failure" as UC19
+}
+
+Imager --> UC01
+Imager --> UC02
+Imager --> UC11
+Nina --> UC01
+Nina --> UC02
+Nina --> UC03
+Timer --> UC04
+
+UC04 ..> UC05 : <<include>>
+UC04 ..> UC06 : <<include>>
+UC04 ..> UC07 : <<include>>
+UC04 ..> UC08 : <<include>>
+UC04 ..> UC09 : <<include>>
+UC04 ..> UC10 : <<include>>
+UC10 ..> UC03 : <<include>>
+UC10 ..> UC18 : <<include>>
+UC11 ..> UC10 : <<extend>>
+UC19 ..> UC04 : <<extend>>
+
+UC06 --> Allsky
+UC09 --> Weather
+UC07 --> Mount
+@enduml

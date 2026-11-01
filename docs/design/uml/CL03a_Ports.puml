@@ -1,0 +1,42 @@
+@startuml CL03a_Ports
+!include _style.iuml
+title CL-03a  Core.Abstractions — ports implemented by the host
+
+package "NINAAllskySafetyMonitor.Core.Abstractions" {
+  interface IClock {
+    +UtcNow : DateTime
+  }
+  interface IMountStateSource {
+    +GetCurrent() : MountState?
+    .. REQ-05 ..
+  }
+  interface ISiteLocationSource {
+    +GetCurrent() : SiteLocation?
+    .. REQ-04 ..
+  }
+  interface IAstroCalculator {
+    +SunAltitudeDeg(site, utc) : double
+    +MoonPosition(site, utc) : HorizontalCoordinate
+    +MoonIllumination(utc) : double
+    +ToHorizontal(raHours, decDeg, epoch, site, utc) : HorizontalCoordinate
+    +ToEquatorial(h : HorizontalCoordinate, site, utc) : (double, double)
+    .. REQ-08 REQ-24 REQ-31 ..
+  }
+  interface ICredentialStore {
+    +GetSecret(key : string) : string?
+    +SetSecret(key : string, value : string)
+    .. REQ-53 ..
+  }
+  interface ILogSink {
+    +Write(level : LogLevel, message : string)
+  }
+  class SystemClock implements IClock
+}
+
+
+note bottom of IAstroCalculator
+  Implemented by NovasAstroCalculator (NINAAllskySafetyMonitor.Astrometry).
+  Mount, site, credentials and logging are implemented by
+  the plugin (CL-10a) and by the harness (CL-11).
+end note
+@enduml

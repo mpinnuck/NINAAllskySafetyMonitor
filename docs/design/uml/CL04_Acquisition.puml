@@ -1,0 +1,88 @@
+@startuml CL04_Acquisition
+!include _style.iuml
+title CL-04  Core.Acquisition — image sources
+
+package "NINAAllskySafetyMonitor.Core.Acquisition" {
+  interface IImageSource {
+    +Kind : ImageSourceKind
+    +FetchAsync(ct : CancellationToken) : Task<FetchResult>
+  }
+  class FetchResult <<record>> {
+    +Outcome : FetchOutcome
+    +Image : SkyImage?
+    +Error : string?
+  }
+  enum FetchOutcome {
+    NewImage
+    Unchanged
+    Failed
+  }
+  class WebImageSource {
+    -http : HttpClient
+    -url : Uri
+    +FetchAsync(ct) : Task<FetchResult>
+    .. REQ-11 REQ-15 ..
+  }
+  class SftpImageSource {
+    -connector : SftpConnector
+    -remotePath : string
+    -lastModifiedUtc : DateTime?
+    +FetchAsync(ct) : Task<FetchResult>
+    .. REQ-11 REQ-15 REQ-16 ..
+  }
+  class SftpConnector {
+    -settings : DirectSourceSettings
+    -credentials : ICredentialStore
+    -verifier : HostKeyVerifier
+    +ConnectAsync(ct) : Task<SftpClient>
+    .. REQ-12 REQ-13 ..
+  }
+  class HostKeyVerifier {
+    -pinnedFingerprint : string
+    +Verify(e : HostKeyEventArgs) : bool
+    .. REQ-52 ..
+  }
+  class ImageSourceFactory {
+    +Create(s : ImageSourceSettings) : IImageSource
+    .. REQ-11 ..
+  }
+  class JpegIntegrityChecker {
+    +IsComplete(bytes : byte[]) : bool
+    .. REQ-17 ..
+  }
+  class ImageAcquirer {
+    -source : IImageSource
+    -checker : JpegIntegrityChecker
+    -clock : IClock
+    +LastSuccessUtc : DateTime?
+    +LatestImage : SkyImage?
+    +AcquireAsync(ct) : Task<SkyImage?>
+    .. REQ-14 REQ-17 REQ-51 ..
+  }
+  class ImageFreshnessEvaluator {
+    -staleAfter : TimeSpan
+    -failAfter : TimeSpan
+    +Evaluate(latest : SkyImage?, lastSuccessUtc, nowUtc) : ConditionCheck
+    .. REQ-15 REQ-18 ..
+  }
+  class JpegDecoder {
+    +Decode(bytes : byte[]) : GrayFrame
+  }
+}
+
+IImageSource <|.. WebImageSource
+IImageSource <|.. SftpImageSource
+IImageSource ..> FetchResult
+FetchResult --> FetchOutcome
+SftpImageSource --> SftpConnector
+SftpConnector --> HostKeyVerifier
+ImageSourceFactory ..> IImageSource : creates
+ImageAcquirer --> IImageSource
+ImageAcquirer --> JpegIntegrityChecker
+
+note bottom of SftpConnector
+  Tries Host, then FallbackIp.
+  Key file or password from ICredentialStore.
+  Connect/read timeouts from settings (REQ-51).
+end note
+@enduml

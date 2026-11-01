@@ -1,0 +1,15 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Console tool: offline replay of saved frames (REQ-42) and traceability report generation. -->
+  <PropertyGroup>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <OutputType>Exe</OutputType>
+    <RootNamespace>NINAAllskySafetyMonitor.Harness</RootNamespace>
+    <AssemblyName>NINAAllskySafetyMonitor.Harness</AssemblyName>
+    <EnableWindowsTargeting>true</EnableWindowsTargeting>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\NINAAllskySafetyMonitor.Core\NINAAllskySafetyMonitor.Core.csproj" />
+    <ProjectReference Include="..\..\src\NINAAllskySafetyMonitor.Astrometry\NINAAllskySafetyMonitor.Astrometry.csproj" />
+  </ItemGroup>
+</Project>

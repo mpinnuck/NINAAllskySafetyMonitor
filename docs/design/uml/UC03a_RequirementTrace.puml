@@ -1,0 +1,45 @@
+@startuml UC03a_RequirementTrace
+!include _style.iuml
+skinparam linetype polyline
+left to right direction
+title UC-Ca  Requirements §1–§8 → Use Cases (<<trace>>)
+skinparam rectangle {
+  BackgroundColor<<requirement>> #F4F4F4
+  BorderColor<<requirement>> #555555
+}
+
+rectangle "§1 NINA integration\nREQ-01, REQ-02" <<requirement>> as R1a
+rectangle "§1 NINA integration\nREQ-03" <<requirement>> as R1b
+rectangle "§2 Site and mount\nREQ-04 … REQ-07" <<requirement>> as R2
+rectangle "§3 Operating window\nREQ-08 … REQ-10" <<requirement>> as R3
+rectangle "§4 Image acquisition\nREQ-11 … REQ-18" <<requirement>> as R4
+rectangle "§5 Calibration\nREQ-19 … REQ-21" <<requirement>> as R5a
+rectangle "§5 Horizon mask\nREQ-22" <<requirement>> as R5b
+rectangle "§6 Region of interest\nREQ-23 … REQ-27" <<requirement>> as R6
+rectangle "§7 Cloud detection\nREQ-28 … REQ-31" <<requirement>> as R7
+rectangle "§8 Weather\nREQ-32 … REQ-36" <<requirement>> as R8
+
+usecase "UC-01 Connect" as UC01
+usecase "UC-02 Disconnect" as UC02
+usecase "UC-03 Report status" as UC03
+usecase "UC-05 Operating window" as UC05
+usecase "UC-06 Acquire image" as UC06
+usecase "UC-07 Determine ROI" as UC07
+usecase "UC-08 Detect cloud" as UC08
+usecase "UC-09 Assess weather" as UC09
+usecase "UC-12 Calibrate lens" as UC12
+usecase "UC-13 Horizon mask" as UC13
+
+R1a ..> UC01
+R1a ..> UC02
+R1b ..> UC03
+R2 ..> UC07
+R2 ..> UC05
+R3 ..> UC05
+R4 ..> UC06
+R5a ..> UC12
+R5b ..> UC13
+R6 ..> UC07
+R7 ..> UC08
+R8 ..> UC09
+@enduml

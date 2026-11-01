@@ -1,0 +1,35 @@
+@startuml UC02_UseCasesSetup
+!include _style.iuml
+skinparam linetype polyline
+left to right direction
+title UC-B  Set-up, review and tuning
+
+actor "Imager\n(Mark)" as Imager
+actor "Timer" as Timer
+actor "Allsky Pi /\nWeb server" as Allsky <<system>>
+
+rectangle "NINAAllskySafetyMonitor" {
+  usecase "UC-12 Calibrate\nlens" as UC12
+  usecase "UC-13 Define\nhorizon mask" as UC13
+  usecase "UC-14 View\nstatus" as UC14
+  usecase "UC-15 Edit\nsettings" as UC15
+  usecase "UC-16 Record\ntuning data" as UC16
+  usecase "UC-17 Replay frames\noffline" as UC17
+  usecase "UC-04 Run\nmonitoring cycle" as UC04
+  usecase "UC-06 Acquire\nAllsky image" as UC06
+  usecase "UC-08 Detect\ncloud in ROI" as UC08
+}
+
+Imager --> UC12
+Imager --> UC13
+Imager --> UC14
+Imager --> UC15
+Imager --> UC17
+Timer --> UC04
+
+UC12 ..> UC06 : <<include>>
+UC13 ..> UC06 : <<include>>
+UC16 ..> UC04 : <<extend>>\n[tuning mode on]
+UC17 ..> UC08 : <<include>>
+UC06 --> Allsky
+@enduml

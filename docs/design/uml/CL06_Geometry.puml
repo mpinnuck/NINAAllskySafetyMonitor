@@ -1,0 +1,75 @@
+@startuml CL06_Geometry
+!include _style.iuml
+title CL-06  Core.Geometry — site, operating window, lens projection, ROI
+
+package "NINAAllskySafetyMonitor.Core.Geometry" {
+  class SiteLocationResolver {
+    -profileSource : ISiteLocationSource
+    -fallback : SiteSettings
+    +Resolve() : SiteLocation
+    .. REQ-04 ..
+  }
+  class OperatingWindow {
+    -astro : IAstroCalculator
+    -sunLimitDeg : double
+    +Evaluate(site, nowUtc) : ConditionCheck
+    .. REQ-08 REQ-09 REQ-10 ..
+  }
+  class LensCalibration <<record>> {
+    +CentreX : double
+    +CentreY : double
+    +NorthRotationDeg : double
+    +EastIsClockwise : bool
+    +RadialCoefficients : double[]
+    .. REQ-19 ..
+  }
+  class LensProjection {
+    -calibration : LensCalibration
+    +ToPixel(h : HorizontalCoordinate) : PixelPoint
+    +ToHorizontal(p : PixelPoint) : HorizontalCoordinate
+    .. REQ-19 REQ-24 ..
+  }
+  class HorizonMaskDefinition <<record>> {
+    +MinAltitudeDeg : double
+    +Outline : IReadOnlyList<PixelPoint>
+    .. REQ-22 ..
+  }
+  class HorizonMask {
+    -definition : HorizonMaskDefinition
+    -projection : LensProjection
+    +IsVisible(h : HorizontalCoordinate) : bool
+    +IsVisible(p : PixelPoint) : bool
+    .. REQ-22 REQ-25 ..
+  }
+  class MountStateInterpreter {
+    +IsUsableForRoi(m : MountState?) : bool
+    .. REQ-07 REQ-26 ..
+  }
+  class RoiCalculator {
+    -astro : IAstroCalculator
+    -interpreter : MountStateInterpreter
+    -radiusDeg : double
+    +CalculateCentre(m : MountState?, site, nowUtc) : (HorizontalCoordinate, bool isFallback)
+    .. REQ-06 REQ-23 REQ-24 REQ-26 ..
+  }
+  class RoiMaskBuilder {
+    -projection : LensProjection
+    -horizon : HorizonMask
+    +Build(centre, radiusDeg, isFallback, width, height) : RegionOfInterest
+    .. REQ-23 REQ-25 ..
+  }
+}
+
+LensProjection --> LensCalibration
+HorizonMask --> HorizonMaskDefinition
+HorizonMask --> LensProjection
+RoiCalculator --> MountStateInterpreter
+RoiMaskBuilder --> LensProjection
+RoiMaskBuilder --> HorizonMask
+
+note bottom of RoiCalculator
+  Centre is always computed from RA/Dec via IAstroCalculator.
+  Mount-reported Alt/Az is never used for positioning (REQ-06):
+  it is passed to the decision log as a cross-check only.
+end note
+@enduml

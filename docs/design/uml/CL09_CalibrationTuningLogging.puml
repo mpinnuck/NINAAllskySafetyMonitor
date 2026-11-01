@@ -1,0 +1,103 @@
+@startuml CL09_CalibrationTuningLogging
+!include _style.iuml
+left to right direction
+title CL-09  Core.Calibration, Core.Tuning, Core.Logging, Core.Traceability
+
+package "NINAAllskySafetyMonitor.Core.Calibration" {
+  class StarIdentifier {
+    -catalogue : StarCatalogue
+    +Identify(detected, site, utc, approx : LensCalibration?) : IReadOnlyList<(CatalogueStar, DetectedStar)>
+    .. REQ-20 ..
+  }
+  class LensModelFitter {
+    +Fit(pairs, site, utc) : LensFitResult
+    .. REQ-19 REQ-20 ..
+  }
+  class LensFitResult <<record>> {
+    +Calibration : LensCalibration
+    +RmsErrorPx : double
+    +StarsUsed : int
+  }
+  class CalibrationOverlayRenderer {
+    +Render(frame, projection, site, utc) : OverlayImage
+    .. REQ-21 ..
+  }
+  class LensCalibrationSession {
+    -detector : StarDetector
+    -identifier : StarIdentifier
+    -fitter : LensModelFitter
+    +CalibrateAsync(image : SkyImage, site) : Task<LensFitResult>
+    .. REQ-19 REQ-20 ..
+  }
+}
+
+package "NINAAllskySafetyMonitor.Core.Tuning" {
+  class TuningRecorder {
+    -folder : string
+    -csv : MetricsCsvWriter
+    +Record(s : MonitorSnapshot)
+    .. REQ-41 ..
+  }
+  class MetricsCsvWriter {
+    +Append(s : MonitorSnapshot)
+    .. REQ-41 ..
+  }
+  class ReplayImageSource {
+    -frames : IEnumerator<string>
+    +Kind = Replay
+    +FetchAsync(ct) : Task<FetchResult>
+    .. REQ-42 ..
+  }
+  class TuningStateEvaluator {
+    -cloud : CloudDetectionSettings
+    +IsUntuned : bool
+    .. REQ-43 ..
+  }
+}
+
+package "NINAAllskySafetyMonitor.Core.Logging" {
+  class DecisionLogger {
+    -sink : ILogSink
+    -redactor : SecretRedactor
+    +LogDecision(s : MonitorSnapshot, m : MountState?)
+    +LogError(e : Exception)
+    .. REQ-44 REQ-06 ..
+  }
+  class RollingFileLogSink {
+    -folder : string
+    -retentionDays : int
+    +Write(level, message)
+    .. REQ-44 ..
+  }
+  class SecretRedactor {
+    -secrets : IReadOnlyList<string>
+    +Redact(text : string) : string
+    .. REQ-54 ..
+  }
+}
+
+package "NINAAllskySafetyMonitor.Core.Traceability" {
+  class RequirementAttribute <<Attribute>> {
+    +Ids : string[]
+    +RequirementAttribute(params string[] ids)
+  }
+}
+
+interface IImageSource
+interface ILogSink
+IImageSource <|.. ReplayImageSource
+ILogSink <|.. RollingFileLogSink
+LensCalibrationSession --> StarIdentifier
+LensCalibrationSession --> LensModelFitter
+LensModelFitter ..> LensFitResult
+TuningRecorder --> MetricsCsvWriter
+DecisionLogger --> ILogSink
+DecisionLogger --> SecretRedactor
+
+note bottom of RequirementAttribute
+  Applied to every class (and to methods where a class
+  covers several requirements), and to every test.
+  A coverage test fails the build if any REQ has
+  no implementing class or no test.
+end note
+@enduml

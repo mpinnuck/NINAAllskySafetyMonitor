@@ -1,0 +1,37 @@
+@startuml SD07_FailureAndIdle
+!include _style.iuml
+title SD-07  Monitor failure and idle window (UC-19, UC-05) — REQ-09, REQ-10, REQ-49 … REQ-51
+
+participant ":MonitorService" as Svc
+participant ":FailSafeGuard" as Guard
+participant ":MonitoringCycle" as Cyc
+participant ":OperatingWindow" as Win
+participant ":DecisionLogger" as Log
+participant ":AllskySafetyMonitorDevice" as Dev
+participant "NINA" as NINA
+
+== Exception or hang during a cycle ==
+Svc -> Guard : RunAsync(cycle, ct)
+activate Guard
+Guard -> Cyc : RunOnceAsync(linked ct with timeout)
+alt exception (e.g. SFTP socket error)
+  Cyc --> Guard : throws
+else exceeds cycle timeout
+  Guard -> Cyc : cancel
+end
+Guard -> Log : LogError(e)  (secrets redacted, REQ-54)
+Guard --> Svc : snapshot(Unsafe, "monitor error: …")  (REQ-50)
+deactivate Guard
+Svc -> Dev : SnapshotAvailable
+Dev -> NINA : IsSafe = false
+note right of NINA : Exception never reaches NINA;\nsequence continues normally (REQ-49)
+
+== Daytime / twilight ==
+Svc -> Guard : RunAsync(cycle, ct)
+Guard -> Cyc : RunOnceAsync(ct)
+Cyc -> Win : Evaluate(site, now)
+Win --> Cyc : ActiveWindow failed (sun > −18°)
+Cyc -> Cyc : skip acquisition, analysis, weather (REQ-10)
+Cyc --> Guard : snapshot(Idle, IsSafe = false)
+Guard --> Svc : snapshot
+@enduml

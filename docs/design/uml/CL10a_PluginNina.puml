@@ -1,0 +1,94 @@
+@startuml CL10a_PluginNina
+!include _style.iuml
+title CL-10a  NINAAllskySafetyMonitor.Plugin.Nina — NINA integration and adapters
+
+package "NINA (external)" <<external>> {
+  abstract class PluginBase
+  interface "IEquipmentProvider<ISafetyMonitor>" as IEP
+  interface ISafetyMonitor {
+    +IsSafe : bool
+  }
+  interface ITelescopeConsumer {
+    +UpdateDeviceInfo(info : TelescopeInfo)
+  }
+  interface ITelescopeMediator
+  interface IProfileService
+}
+
+package "NINAAllskySafetyMonitor.Plugin.Nina" {
+  class AllskySafetyPlugin {
+    +Settings : SettingsViewModel
+    .. REQ-46 REQ-48 ..
+  }
+  class AllskySafetyMonitorProvider <<Export(IEquipmentProvider)>> {
+    +Name = "Allsky Safety Monitor"
+    +GetEquipment() : IList<ISafetyMonitor>
+    .. REQ-01 ..
+  }
+  class AllskySafetyMonitorDevice {
+    -builder : MonitorServiceBuilder
+    -service : MonitorService?
+    +Id, Name, DisplayName, Category
+    +Connected : bool
+    +IsSafe : bool
+    +Connect(ct) : Task<bool>
+    +Disconnect()
+    .. REQ-01 REQ-02 REQ-03 REQ-49 ..
+  }
+  class NinaMountStateSource {
+    -mediator : ITelescopeMediator
+    -latest : TelescopeInfo?
+    +GetCurrent() : MountState?
+    +UpdateDeviceInfo(info)
+    .. REQ-05 REQ-07 ..
+  }
+  class NinaSiteLocationSource {
+    -profile : IProfileService
+    +GetCurrent() : SiteLocation?
+    .. REQ-04 ..
+  }
+  class NinaLogSink {
+    +Write(level, message)
+  }
+  class WindowsCredentialStore {
+    +GetSecret(key) : string?
+    +SetSecret(key, value)
+    .. REQ-53 ..
+  }
+  class PluginSettingsStore {
+    +Path : string
+    +Store : SettingsStore
+    .. REQ-55 REQ-56 ..
+  }
+}
+
+package "NINAAllskySafetyMonitor.Astrometry" {
+  class NovasAstroCalculator {
+    +SunAltitudeDeg(..)
+    +MoonPosition(..)
+    +MoonIllumination(..)
+    +ToHorizontal(..)
+    +ToEquatorial(..)
+    .. REQ-08 REQ-24 REQ-31 ..
+  }
+}
+
+
+interface IAstroCalculator
+IAstroCalculator <|.. NovasAstroCalculator
+PluginBase <|-- AllskySafetyPlugin
+IEP <|.. AllskySafetyMonitorProvider
+ISafetyMonitor <|.. AllskySafetyMonitorDevice
+ITelescopeConsumer <|.. NinaMountStateSource
+AllskySafetyMonitorProvider ..> AllskySafetyMonitorDevice : creates
+AllskySafetyMonitorDevice ..> "MonitorService" : starts / stops
+NinaMountStateSource --> ITelescopeMediator
+NinaSiteLocationSource --> IProfileService
+
+note bottom of AllskySafetyMonitorDevice
+  Connect(): load settings, build MonitorService via
+  MonitorServiceBuilder with the Nina* adapters, Start().
+  IsSafe = service?.CurrentStatus.IsSafe ?? false.
+  Raises PropertyChanged(IsSafe) on SnapshotAvailable.
+end note
+@enduml

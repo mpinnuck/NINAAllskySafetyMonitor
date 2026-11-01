@@ -1,0 +1,33 @@
+@startuml SD10_DisconnectOverride
+!include _style.iuml
+title SD-10  Manual override and disconnect (UC-11, UC-02) — REQ-02, REQ-40
+
+actor Imager
+participant ":StatusViewModel" as SVM
+participant ":ManualOverride" as Ovr
+participant ":MonitorService" as Svc
+participant ":AllskySafetyMonitorDevice" as Dev
+participant "NINA" as NINA
+participant ":NinaMountStateSource" as Mount
+
+== Manual override ==
+Imager -> SVM : OverrideMode = ForceUnsafe
+SVM -> Ovr : Mode = ForceUnsafe
+SVM -> SVM : show override banner
+note right of Ovr : Logged; applied to every decision;\nnot persisted — Auto after NINA restart (REQ-40)
+
+== Disconnect (or NINA closing) ==
+Imager -> NINA : Disconnect safety monitor
+NINA -> Dev : Disconnect()
+activate Dev
+Dev -> Svc : StopAsync()
+activate Svc
+Svc -> Svc : cancel token, await loop
+Svc --> Dev
+deactivate Svc
+Dev -> Mount : unregister from ITelescopeMediator
+Dev -> Dev : Connected = false, IsSafe = false
+Dev --> NINA
+deactivate Dev
+note over Dev : No separate process or window remains (REQ-02)
+@enduml

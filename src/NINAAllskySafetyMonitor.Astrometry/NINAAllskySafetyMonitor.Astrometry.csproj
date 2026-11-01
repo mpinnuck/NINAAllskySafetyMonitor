@@ -1,0 +1,18 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Thin adapter implementing Core's IAstroCalculator over NINA.Astrometry (NOVAS). -->
+  <PropertyGroup>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <OutputType>Library</OutputType>
+    <RootNamespace>NINAAllskySafetyMonitor.Astrometry</RootNamespace>
+    <AssemblyName>NINAAllskySafetyMonitor.Astrometry</AssemblyName>
+    <EnableWindowsTargeting>true</EnableWindowsTargeting>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="NINA.Plugin" Version="$(NinaPluginVersion)" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\NINAAllskySafetyMonitor.Core\NINAAllskySafetyMonitor.Core.csproj" />
+  </ItemGroup>
+</Project>

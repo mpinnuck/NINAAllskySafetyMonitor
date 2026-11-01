@@ -1,0 +1,52 @@
+@startuml UC03b_RequirementTrace
+!include _style.iuml
+skinparam linetype polyline
+left to right direction
+title UC-Cb  Requirements §9–§13 → Use Cases (<<trace>>)
+skinparam rectangle {
+  BackgroundColor<<requirement>> #F4F4F4
+  BorderColor<<requirement>> #555555
+}
+
+rectangle "§9 Safety decision\nREQ-37 … REQ-39" <<requirement>> as R9a
+rectangle "§9 Manual override\nREQ-40" <<requirement>> as R9b
+rectangle "§10 Tuning\nREQ-41, REQ-43" <<requirement>> as R10a
+rectangle "§10 Offline replay\nREQ-42" <<requirement>> as R10b
+rectangle "§11 Logging\nREQ-44" <<requirement>> as R11
+rectangle "§12 UI status\nREQ-45" <<requirement>> as R12a
+rectangle "§12 UI settings\nREQ-46" <<requirement>> as R12b
+rectangle "§12 UI calibration\nREQ-47" <<requirement>> as R12c
+rectangle "§13.1 Platform\nREQ-48" <<requirement>> as N1
+rectangle "§13.2 Reliability\nREQ-49 … REQ-51" <<requirement>> as N2
+rectangle "§13.3 Security\nREQ-52, REQ-53" <<requirement>> as N3a
+rectangle "§13.3 Security\nREQ-54" <<requirement>> as N3b
+rectangle "§13.4 Settings\nREQ-55 … REQ-57" <<requirement>> as N4
+
+usecase "UC-01 Connect" as UC01
+usecase "UC-06 Acquire image" as UC06
+usecase "UC-10 Decide safety" as UC10
+usecase "UC-11 Manual override" as UC11
+usecase "UC-12 Calibrate lens" as UC12
+usecase "UC-13 Horizon mask" as UC13
+usecase "UC-14 View status" as UC14
+usecase "UC-15 Edit settings" as UC15
+usecase "UC-16 Tuning data" as UC16
+usecase "UC-17 Offline replay" as UC17
+usecase "UC-18 Log decision" as UC18
+usecase "UC-19 Handle failure" as UC19
+
+R9a ..> UC10
+R9b ..> UC11
+R10a ..> UC16
+R10b ..> UC17
+R11 ..> UC18
+R12a ..> UC14
+R12b ..> UC15
+R12c ..> UC12
+R12c ..> UC13
+N1 ..> UC01
+N2 ..> UC19
+N3a ..> UC06
+N3b ..> UC18
+N4 ..> UC15
+@enduml

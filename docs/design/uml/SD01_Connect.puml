@@ -1,0 +1,41 @@
+@startuml SD01_Connect
+!include _style.iuml
+title SD-01  Connect safety monitor (UC-01)  — REQ-01, REQ-02, REQ-48, REQ-55
+
+actor Imager
+participant "NINA\nSafetyMonitorChooser" as NINA
+participant ":AllskySafetyMonitorProvider" as Prov
+participant ":AllskySafetyMonitorDevice" as Dev
+participant ":PluginSettingsStore" as Store
+participant ":MonitorServiceBuilder" as Builder
+participant ":MonitorService" as Svc
+participant ":NinaMountStateSource" as Mount
+participant "ITelescopeMediator" as TM
+
+== NINA start-up ==
+NINA -> Prov : GetEquipment()
+Prov -> Dev ** : new(builder, adapters)
+Prov --> NINA : [ AllskySafetyMonitorDevice ]
+note right of NINA : Device listed in\nEquipment → Safety Monitor (REQ-01)
+
+== Connect ==
+Imager -> NINA : select device, Connect
+NINA -> Dev : Connect(ct)
+activate Dev
+Dev -> Store : Load()
+Store --> Dev : MonitorSettings (JSON, REQ-56)
+Dev -> Mount : register()
+Mount -> TM : RegisterConsumer(this)
+Dev -> Builder : Build(settings, ports)
+Builder -> Svc ** : new(cycle, guard, interval)
+Builder --> Dev : service
+Dev -> Svc : Start()
+activate Svc
+Svc -> Svc : launch background loop\n(status = Starting, unsafe)
+Svc --> Dev
+Dev --> NINA : true
+deactivate Dev
+NINA -> Dev : IsSafe
+Dev --> NINA : false  (Starting)
+note over Svc : First cycle runs on the background task;\nIsSafe stays false until a decision is made.
+@enduml

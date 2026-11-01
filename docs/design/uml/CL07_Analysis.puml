@@ -1,0 +1,106 @@
+@startuml CL07_Analysis
+!include _style.iuml
+left to right direction
+title CL-07  Core.Analysis — cloud detection
+
+package "NINAAllskySafetyMonitor.Core.Analysis" {
+  class StarCatalogue {
+    -stars : IReadOnlyList<CatalogueStar>
+    +LoadEmbedded() : StarCatalogue
+    +BrighterThan(limitMag : double) : IEnumerable<CatalogueStar>
+    .. REQ-29 ..
+  }
+  class ExpectedStar <<record>> {
+    +Star : CatalogueStar
+    +Position : PixelPoint
+  }
+  class ExpectedStarPredictor {
+    -catalogue : StarCatalogue
+    -astro : IAstroCalculator
+    -projection : LensProjection
+    +Predict(roi, site, nowUtc, limitMag, moonExclusionDeg) : IReadOnlyList<ExpectedStar>
+    .. REQ-29 REQ-31 ..
+  }
+  class StarDetector {
+    +Detect(frame : GrayFrame, mask : PixelMask) : IReadOnlyList<DetectedStar>
+  }
+  class StarMatcher {
+    -tolerancePx : double
+    +Match(expected, detected) : IReadOnlyList<(ExpectedStar, DetectedStar)>
+  }
+  class StarFractionTest {
+    -minFraction : double
+    -minExpected : int
+    +Evaluate(expectedCount, matchedCount) : StarTestResult
+    .. REQ-29 ..
+  }
+  class BackgroundStatistics {
+    +Measure(frame, mask, starsToExclude) : (double median, double uniformity)
+  }
+  class MoonBrightnessAdjuster {
+    -astro : IAstroCalculator
+    +Factor(site, nowUtc) : double
+    .. REQ-31 ..
+  }
+  class BrightnessTest {
+    -maxBrightnessRatio : double
+    -maxUniformityRatio : double
+    +Evaluate(median, uniformity, reference : ClearSkyReference?, moonFactor) : BrightnessTestResult
+    .. REQ-30 ..
+  }
+  class ClearSkyReference <<record>> {
+    +Median : double
+    +Uniformity : double
+    +CapturedUtc : DateTime
+    .. REQ-30 REQ-57 ..
+  }
+  class ClearSkyReferenceBuilder {
+    +TryCapture(snapshot : MonitorSnapshot, tuned : bool) : ClearSkyReference?
+    .. REQ-30 ..
+  }
+  class StarTestResult <<record>> {
+    +Fraction : double?
+    +Inconclusive : bool
+    +Cloud : bool
+  }
+  class BrightnessTestResult <<record>> {
+    +BrightnessRatio : double?
+    +UniformityRatio : double?
+    +Skipped : bool
+    +Cloud : bool
+  }
+  class CloudDetector {
+    -predictor : ExpectedStarPredictor
+    -detector : StarDetector
+    -matcher : StarMatcher
+    -starTest : StarFractionTest
+    -background : BackgroundStatistics
+    -brightnessTest : BrightnessTest
+    -moonAdjuster : MoonBrightnessAdjuster
+    +Assess(frame, roi, site, nowUtc, reference) : CloudAssessment
+    .. REQ-28 ..
+  }
+}
+
+ExpectedStarPredictor --> StarCatalogue
+ExpectedStarPredictor ..> ExpectedStar
+StarMatcher ..> ExpectedStar
+StarFractionTest ..> StarTestResult
+BrightnessTest ..> BrightnessTestResult
+BrightnessTest ..> ClearSkyReference
+ClearSkyReferenceBuilder ..> ClearSkyReference
+CloudDetector --> ExpectedStarPredictor
+CloudDetector --> StarDetector
+CloudDetector --> StarMatcher
+CloudDetector --> StarFractionTest
+CloudDetector --> BackgroundStatistics
+CloudDetector --> BrightnessTest
+CloudDetector --> MoonBrightnessAdjuster
+
+note bottom of CloudDetector
+  Cloud = star test says cloud OR brightness test says cloud.
+  Star test inconclusive (< 8 expected) -> brightness test alone.
+  No clear-sky reference yet -> star test alone.
+  Both unavailable -> cloud assumed (fail-safe, REQ-50).
+end note
+@enduml
