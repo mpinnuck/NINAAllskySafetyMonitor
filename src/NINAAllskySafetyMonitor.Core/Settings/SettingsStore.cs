@@ -1,3 +1,4 @@
+using System.Text.Encodings.Web;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using NINAAllskySafetyMonitor.Core.Traceability;
@@ -19,6 +20,9 @@ public sealed class SettingsStore
         ReadCommentHandling = JsonCommentHandling.Skip,
         AllowTrailingCommas = true,
         Converters = { new JsonStringEnumConverter() },
+
+        // Keep characters such as + and ° readable in the file (the default escapes them as \uXXXX).
+        Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
     };
 
     /// <summary>Creates a store for the settings file at <paramref name="path"/>.</summary>

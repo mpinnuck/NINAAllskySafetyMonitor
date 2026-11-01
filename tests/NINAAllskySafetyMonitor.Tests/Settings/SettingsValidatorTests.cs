@@ -42,6 +42,27 @@ public sealed class SettingsValidatorTests
         Assert.Contains(new SettingsValidator().Validate(s), e => e.Contains("ROI radius"));
     }
 
+    [Theory]
+    [InlineData(-30.0)]
+    [InlineData(-18.0)]
+    [InlineData(90.0)]
+    public void SunLimitAcceptsTwilightToDaytimeTesting(double limit)
+    {
+        var s = ValidSettings();
+        s.Window.SunAltitudeLimitDeg = limit;
+        Assert.Empty(new SettingsValidator().Validate(s));
+    }
+
+    [Theory]
+    [InlineData(-31.0)]
+    [InlineData(91.0)]
+    public void SunLimitOutsideRangeIsReported(double limit)
+    {
+        var s = ValidSettings();
+        s.Window.SunAltitudeLimitDeg = limit;
+        Assert.Contains(new SettingsValidator().Validate(s), e => e.Contains("Sun altitude limit"));
+    }
+
     [Fact]
     public void WebSourceNeedsAbsoluteUrl()
     {

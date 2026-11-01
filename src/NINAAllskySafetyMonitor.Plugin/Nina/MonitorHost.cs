@@ -67,6 +67,7 @@ public sealed class MonitorHost
 
             lock (sync) service = built;
             built.Start();
+            NINA.Core.Utility.Logger.Info("[AllskySafetyMonitor] Monitor started");
         }
         finally
         {
@@ -93,6 +94,7 @@ public sealed class MonitorHost
             if (stopping is null) return;
             stopping.SnapshotAvailable -= OnSnapshot;
             await stopping.StopAsync().ConfigureAwait(false);
+            NINA.Core.Utility.Logger.Info("[AllskySafetyMonitor] Monitor stopped");
         }
         finally
         {

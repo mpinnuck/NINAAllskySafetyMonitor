@@ -93,7 +93,20 @@ public sealed class MonitorService
         while (!token.IsCancellationRequested)
         {
             MonitorSnapshot snapshot = await guard.RunAsync(cycle, token).ConfigureAwait(false);
-            lock (sync) currentStatus = snapshot.Status;
+            SafetyStatus previous;
+            lock (sync)
+            {
+                previous = currentStatus;
+                currentStatus = snapshot.Status;
+            }
+
+            // Log changes of state, and of reason except while idle (the idle reason carries the Sun altitude, which changes every cycle).
+            if (previous.State != snapshot.Status.State
+                || (snapshot.Status.State != SafetyState.Idle && previous.Reason != snapshot.Status.Reason))
+            {
+                log.Write(LogLevel.Info, $"State {snapshot.Status.State} (safe: {snapshot.Status.IsSafe}): {snapshot.Status.Reason}");
+            }
+
             Publish(snapshot);
             await Task.Delay(interval(), token).ConfigureAwait(false);
         }

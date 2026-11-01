@@ -58,12 +58,14 @@ public sealed class AllskySafetyMonitorDevice : BaseINPC, ISafetyMonitor
 
     public async Task<bool> Connect(CancellationToken token)
     {
+        Logger.Info("[AllskySafetyMonitor] Connect requested");
         try
         {
             await host.StartAsync(profileService).ConfigureAwait(false);
             host.SnapshotAvailable -= OnSnapshot;
             host.SnapshotAvailable += OnSnapshot;
             Connected = true;
+            Logger.Info("[AllskySafetyMonitor] Connected");
             return true;
         }
         catch (Exception e)
@@ -76,6 +78,7 @@ public sealed class AllskySafetyMonitorDevice : BaseINPC, ISafetyMonitor
 
     public void Disconnect()
     {
+        Logger.Info("[AllskySafetyMonitor] Disconnect requested");
         host.SnapshotAvailable -= OnSnapshot;
         try
         {
@@ -88,6 +91,7 @@ public sealed class AllskySafetyMonitorDevice : BaseINPC, ISafetyMonitor
         }
 
         Connected = false;
+        Logger.Info($"[AllskySafetyMonitor] Disconnected (monitor running: {host.IsRunning})");
     }
 
     public void SetupDialog()

@@ -124,6 +124,15 @@ public sealed class SettingsStoreTests : IDisposable
     }
 
     [Fact]
+    [Requirement("REQ-56")]
+    public void FileKeepsPlusSignsReadable()
+    {
+        string json = SettingsStore.ToJson(new MonitorSettings());
+        Assert.Contains("4+pcu7EpiK0Jrqg", json);
+        Assert.DoesNotContain("\\u002B", json);
+    }
+
+    [Fact]
     public void InvalidJsonIsReported()
     {
         Directory.CreateDirectory(folder);

@@ -15,7 +15,7 @@ public sealed class SettingsValidator
 
         Range(errors, s.Site.LatitudeDeg, -90, 90, "Site latitude must be between −90° and 90°.");
         Range(errors, s.Site.LongitudeDeg, -180, 180, "Site longitude must be between −180° and 180°.");
-        Range(errors, s.Window.SunAltitudeLimitDeg, -30, 0, "Sun altitude limit must be between −30° and 0°.");
+        Range(errors, s.Window.SunAltitudeLimitDeg, -30, 90, "Sun altitude limit must be between −30° and +90° (+90 keeps the monitor active in daylight, for testing).");
 
         ImageSourceSettings img = s.ImageSource;
         Range(errors, img.IntervalS, 10, 3600, "Image interval must be between 10 s and 3600 s.");

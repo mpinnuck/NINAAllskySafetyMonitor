@@ -1,6 +1,7 @@
 using System.ComponentModel.Composition;
 using System.Globalization;
 using System.Windows;
+using System.Windows.Threading;
 using NINA.Equipment.Interfaces.ViewModel;
 using NINA.Profile.Interfaces;
 using NINA.WPF.Base.ViewModel;
@@ -19,6 +20,7 @@ namespace NINAAllskySafetyMonitor.Plugin.ViewModels;
 public sealed class StatusViewModel : DockableVM
 {
     private readonly MonitorHost host = MonitorHost.Instance;
+    private readonly DispatcherTimer refreshTimer;
 
     [ImportingConstructor]
     public StatusViewModel(IProfileService profileService) : base(profileService)
@@ -26,6 +28,11 @@ public sealed class StatusViewModel : DockableVM
         Title = "Allsky Safety";
         host.SnapshotAvailable += (_, _) => OnUiThread(Refresh);
         host.RunningChanged += (_, _) => OnUiThread(Refresh);
+
+        // Safety net: also refresh every few seconds, so the panel can never stay stale if an event is missed.
+        refreshTimer = new DispatcherTimer(DispatcherPriority.Background, Application.Current?.Dispatcher ?? Dispatcher.CurrentDispatcher) { Interval = TimeSpan.FromSeconds(5) };
+        refreshTimer.Tick += (_, _) => Refresh();
+        refreshTimer.Start();
     }
 
     public bool IsConnected => host.IsRunning;
