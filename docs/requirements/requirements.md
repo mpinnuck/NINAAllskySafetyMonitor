@@ -2,7 +2,7 @@
 
 Version 5.2 · 2026-11-02
 
-A safety monitor for NINA on the AstroPC. It analyses images from Mark's Allsky camera, combines them with rain and wind data from his weather station, and reports a safe/unsafe status to NINA.
+A safety monitor for NINA on the AstroPC. It analyses images from an Allsky camera, combines them with rain and wind data from a weather station, and reports a safe/unsafe status to NINA.
 
 Defaults shown in *[brackets]* are configurable. How configurable values are stored is covered in §13.4.
 

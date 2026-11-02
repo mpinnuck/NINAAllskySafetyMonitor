@@ -23,6 +23,25 @@ package "NINAAllskySafetyMonitor.Core.Calibration" {
     +Star : CatalogueStar
     +Position : PixelPoint
   }
+  class SkyStar <<record>> {
+    +Star : CatalogueStar
+    +Position : HorizontalCoordinate
+  }
+  class SkyStars <<static>> {
+    +AboveHorizon(stars, site, utc, minAltDeg) : IReadOnlyList<SkyStar>
+    .. REQ-20 REQ-24 ..
+  }
+  class SpotIndex <<internal>> {
+    +Nearest(x, y, radius) : int
+  }
+  class StarMatch <<record>> {
+    +Star : SkyStar
+    +Detected, Predicted : PixelPoint
+    +ErrorPx, ErrorDeg : double
+  }
+  class LevenbergMarquardt <<static>> {
+    +Minimise(residuals, start, free) : double[]
+  }
   class LensFitter {
     -catalogue : StarCatalogue
     +Fit(detected, start : LensCalibration, site, utc) : LensFitResult
@@ -116,6 +135,11 @@ LensCalibrationSession --> LensFitter
 LensCalibrationSession --> CalibrationQualityCheck
 LensCalibrationSession ..> CalibrationOutcome
 LensFitter ..> LensFitResult
+LensFitter ..> LevenbergMarquardt
+LensFitter ..> SpotIndex
+InitialGuessSearch ..> SpotIndex
+LensFitResult o-- StarMatch
+LensCalibrationSession ..> SkyStars
 LensCalibrationSession ..> StarIdentification
 TuningRecorder --> MetricsCsvWriter
 RedactingLogSink --> SecretRedactor

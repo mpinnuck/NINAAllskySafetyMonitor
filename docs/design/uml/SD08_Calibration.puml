@@ -16,8 +16,8 @@ participant ":PluginSettingsStore" as Store
 
 Imager -> SVM : Calibrate from a frame…\n(allsky-20261020022133.jpg)
 SVM -> Time : FromFileName(name, local time zone)
-Time --> SVM : 2026-10-19 15:21:33 UTC (+ half exposure)
-note right of SVM : No time in the name → ask the imager.\n"Calibrate from current image" uses the\nimage's recorded capture time instead.
+Time --> SVM : 2026-10-19 15:21:33 UTC
+note right of SVM : No time in the name → message under the\ncalibration buttons; no window opens.\n"Calibrate from current image" uses the\nimage's recorded capture time instead.
 SVM -> View ** : open(CalibrationFrame)
 Imager -> View : Fit
 View -> CVM : FitCommand

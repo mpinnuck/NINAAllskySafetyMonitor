@@ -48,6 +48,7 @@ package "NINAAllskySafetyMonitor.Plugin.ViewModels" {
     +CalibrateFromCurrentImageCommand
     +EditOutlineCommand
     +CalibrationStatusText
+    +CalibrationMessage  (under the buttons)
     .. REQ-22 REQ-23 REQ-27 REQ-46 REQ-53 REQ-55 REQ-58 ..
   }
   class ImageViewerViewModel {
@@ -73,8 +74,20 @@ package "NINAAllskySafetyMonitor.Plugin.ViewModels" {
     .. REQ-19 REQ-20 REQ-21 REQ-22 REQ-47 REQ-57 ..
   }
   class OverlayImageComposer <<Plugin.Imaging>> {
-    +Compose(image, originalWidth, lens, area, roi, layers) : BitmapSource
+    +Compose(image, originalWidth, lens, content : OverlayContent) : BitmapSource
     .. REQ-21 REQ-22 REQ-23 REQ-45 ..
+  }
+  class OverlayContent <<record>> {
+    +WorkingArea, Roi, Compass, Grid
+    +Stars, DraftOutline, Picks
+  }
+  class WpfFrameDecoder <<Plugin.Imaging>> {
+    +Decode(jpeg) : GrayFrame
+    .. REQ-20 ..
+  }
+  class JpegBitmap <<static>> {
+    +Load(jpeg, decodeWidth?) : BitmapSource
+    +Size(jpeg) : (int, int)
   }
   class DelegateCommand {
     +Execute(parameter)
@@ -112,6 +125,8 @@ OptionsTemplates ..> SettingsViewModel
 ImageViewerWindow ..> ImageViewerViewModel
 ImageViewerViewModel o-- CalibrationViewModel : Calibration mode
 ImageViewerViewModel --> OverlayImageComposer
+OverlayImageComposer ..> OverlayContent
+SettingsViewModel ..> WpfFrameDecoder : IFrameDecoder
 StatusViewModel ..> ImageViewerWindow : click image (View mode)
 SettingsViewModel ..> ImageViewerWindow : calibrate / edit outline\n(Calibration mode)
 AllskySafetyPlugin --> SettingsViewModel
@@ -133,8 +148,10 @@ note bottom of SettingsViewModel
   then saves; Revert discards unsaved edits.
 end note
 note bottom of ImageViewerWindow
-  View mode: latest image + overlay; an outside click
-  or Esc closes it. Calibration mode: chosen frame, fit
+  Opened after the click has finished. View mode: latest
+  image + overlay; an outside click or Esc closes it (once,
+  deferred; focus loss in the first 0.6 s and while closing
+  is ignored). Every handler catches its own errors. Calibration mode: chosen frame, fit
   result, star circles and alt/az grid; closes only with
   Save or Cancel, so a stray click can't lose an outline.
   Cursor alt/az from LensProjection.ToHorizontal (REQ-59).

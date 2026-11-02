@@ -4,7 +4,7 @@ skinparam linetype polyline
 left to right direction
 title UC-B  Set-up, review and tuning
 
-actor "Imager\n(Mark)" as Imager
+actor "Imager" as Imager
 actor "Timer" as Timer
 actor "Allsky Pi /\nWeb server" as Allsky <<system>>
 

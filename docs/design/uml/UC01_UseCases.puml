@@ -4,7 +4,7 @@ skinparam linetype polyline
 left to right direction
 title UC-A  Operation — monitoring and reporting to NINA
 
-actor "Imager\n(Mark)" as Imager
+actor "Imager" as Imager
 actor "NINA\nSequencer" as Nina
 actor "Timer" as Timer
 actor "Allsky Pi /\nWeb server" as Allsky <<system>>

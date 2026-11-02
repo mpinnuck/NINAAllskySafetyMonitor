@@ -11,7 +11,7 @@ participant ":LensProjection" as Lens
 participant "MonitorHost" as Host
 
 Imager -> SVM : click the panel image
-SVM -> View ** : open(owner = NINA main window)
+SVM -> View ** : open(owner = NINA main window)\nafter the click has finished
 View -> VVM : load
 VVM -> Host : LatestSnapshot
 Host --> VVM : image, ROI, mount
@@ -28,5 +28,5 @@ loop while open
   Host -> VVM : SnapshotAvailable → refresh image and overlay
 end
 Imager -> View : click outside, or Esc
-View -> View : close
+View -> View : close once, deferred\n(ignored in the first 0.6 s and while closing)
 @enduml

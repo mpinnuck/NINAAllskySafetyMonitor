@@ -128,8 +128,9 @@ note bottom of MonitorService
   → publish. CurrentStatus applies the override live, so
   a change takes effect at once. State changes are logged.
   Waits for the image interval, or less when MountWatcher
-  reports a change (every 2 s: slew, park, tracking, move),
-  so a slew is held within seconds (REQ-27).
+  reports a change (every 2 s: slew start or end, park,
+  tracking, a move > 0.5° outside a slew), so a slew is
+  held within seconds (REQ-27).
 end note
 note right of FailSafeGuard
   Timeout + catch-all: any exception or

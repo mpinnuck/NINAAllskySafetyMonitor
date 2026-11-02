@@ -27,6 +27,10 @@ package "NINAAllskySafetyMonitor.Core.Abstractions" {
     +SetSecret(key : string, value : string)
     .. REQ-53 ..
   }
+  interface IFrameDecoder {
+    +Decode(jpeg : byte[]) : GrayFrame
+    .. REQ-20 ..
+  }
   interface ILogSink {
     +Write(level : LogLevel, message : string)
   }
@@ -38,6 +42,12 @@ package "NINAAllskySafetyMonitor.Core.Abstractions" {
 }
 
 
+note bottom of IFrameDecoder
+  Darkest of R, G, B per pixel: white stars keep their
+  brightness, the camera's coloured noisy pixels are
+  suppressed. Implemented over WPF by the plugin
+  (WpfFrameDecoder), so Core has no imaging library.
+end note
 note bottom of IAstroCalculator
   Implemented by NovasAstroCalculator (NINAAllskySafetyMonitor.Astrometry).
   Mount, site, credentials and logging are implemented by

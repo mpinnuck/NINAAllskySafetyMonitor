@@ -11,9 +11,7 @@ package "NINAAllskySafetyMonitor.Core.Analysis" {
     +Named() : IEnumerable<CatalogueStar>
     .. REQ-20 REQ-29 ..
   }
-  class GrayFrameDecoder {
-    +Decode(jpeg : byte[]) : GrayFrame
-  }
+
   class ExpectedStar <<record>> {
     +Star : CatalogueStar
     +Position : PixelPoint
@@ -110,10 +108,12 @@ note bottom of StarCatalogue
   (5b) and cloud detection (6).
 end note
 note bottom of StarDetector
-  3×3 median removes single hot pixels; background
-  subtracted; spots of 2–80 px above k·noise, roughly
-  round; centroid and flux. Unmatched spots (noise, tree
-  gaps) are ignored by matching.
+  Works on the darkest colour channel (IFrameDecoder).
+  3×3 median removes single hot pixels; background (median
+  of 32 px blocks) subtracted; spots of 2–80 px above
+  5 × noise, roughly round; centroid, flux and peak; sorted
+  by peak (stars are sharp). Unmatched spots (tree gaps,
+  lights) are ignored by matching.
 end note
 note bottom of CloudDetector
   Cloud = star test says cloud OR brightness test says cloud.

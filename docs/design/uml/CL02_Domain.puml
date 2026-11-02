@@ -67,6 +67,8 @@ package "NINAAllskySafetyMonitor.Core.Domain" {
   class DetectedStar <<record>> {
     +Position : PixelPoint
     +Flux : double
+    +Peak : double
+    +AreaPx : int
   }
   class WeatherObservation <<record>> {
     +ObservationTimeUtc : DateTime
