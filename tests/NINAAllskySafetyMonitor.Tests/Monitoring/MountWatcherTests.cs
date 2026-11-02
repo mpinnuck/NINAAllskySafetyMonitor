@@ -75,6 +75,18 @@ public sealed class MountWatcherTests
     }
 
     [Fact]
+    public void MovesDuringASlewAreNotChanges()
+    {
+        MountWatcher w = Watcher();
+        mount.Current = Tracking with { Slewing = true };
+        w.Poll();
+        mount.Current = Tracking with { Slewing = true, RaHours = 7, DecDeg = -60 };
+        Assert.False(w.Poll());
+        mount.Current = Tracking with { RaHours = 7, DecDeg = -60 };
+        Assert.True(w.Poll()); // slew finished
+    }
+
+    [Fact]
     public void MountAppearingOrDisappearingIsAChange()
     {
         MountWatcher w = Watcher();

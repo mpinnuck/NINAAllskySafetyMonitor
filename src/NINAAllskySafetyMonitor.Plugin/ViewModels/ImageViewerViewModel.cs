@@ -176,15 +176,22 @@ public sealed class ImageViewerViewModel : INotifyPropertyChanged
     {
         Application.Current?.Dispatcher.InvokeAsync(() =>
         {
-            if (snapshot.Image is { } img && !ReferenceEquals(img, shownImage))
+            try
             {
-                shownImage = img;
-                (originalWidth, originalHeight) = JpegBitmap.Size(img.JpegBytes);
-                source = JpegBitmap.Load(img.JpegBytes);
-            }
+                if (snapshot.Image is { } img && !ReferenceEquals(img, shownImage))
+                {
+                    shownImage = img;
+                    (originalWidth, originalHeight) = JpegBitmap.Size(img.JpegBytes);
+                    source = JpegBitmap.Load(img.JpegBytes);
+                }
 
-            roi = snapshot.Roi;
-            Recompose();
+                roi = snapshot.Roi;
+                Recompose();
+            }
+            catch (Exception e)
+            {
+                NINA.Core.Utility.Logger.Warning($"[AllskySafetyMonitor] Could not update the image viewer: {e.Message}");
+            }
         });
     }
 

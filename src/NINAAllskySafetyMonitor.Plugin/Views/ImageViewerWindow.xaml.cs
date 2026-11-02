@@ -1,5 +1,6 @@
 using System.Windows;
 using System.Windows.Input;
+using System.Windows.Threading;
 using NINAAllskySafetyMonitor.Core.Domain;
 using NINAAllskySafetyMonitor.Plugin.ViewModels;
 
@@ -9,17 +10,20 @@ namespace NINAAllskySafetyMonitor.Plugin.Views;
 /// Large image viewer over NINA's window (REQ-59). Zoom (wheel), pan (drag) and mouse-to-pixel mapping
 /// are view concerns handled here; everything else is in <see cref="ImageViewerViewModel"/>. In view mode
 /// a click outside the window (it loses focus) or Esc closes it; calibration mode closes only through its
-/// Save and Cancel buttons.
+/// Save and Cancel buttons. No exception from this window may reach NINA.
 /// </summary>
 public partial class ImageViewerWindow : Window
 {
     private const double DragThreshold = 4;
+    private static readonly TimeSpan OpeningGrace = TimeSpan.FromMilliseconds(600);
     private readonly ImageViewerViewModel vm;
+    private readonly DateTime openedUtc = DateTime.UtcNow;
     private Point downAt;
     private Point panAtDown;
     private bool mouseDown;
     private bool dragged;
     private bool activated;
+    private bool closing;
 
     public ImageViewerWindow(ImageViewerViewModel vm)
     {
@@ -28,7 +32,7 @@ public partial class ImageViewerWindow : Window
         DataContext = vm;
 
         Window? owner = Application.Current?.MainWindow;
-        if (owner is not null && !ReferenceEquals(owner, this))
+        if (owner is not null && !ReferenceEquals(owner, this) && owner.IsLoaded)
         {
             Owner = owner;
             Width = Math.Max(600, owner.ActualWidth * 0.9);
@@ -40,28 +44,45 @@ public partial class ImageViewerWindow : Window
             Height = 900;
         }
 
-        vm.CloseRequested += (_, _) => Close();
+        vm.CloseRequested += (_, _) => RequestClose();
         Activated += (_, _) => activated = true;
         Deactivated += (_, _) =>
         {
-            if (vm.CloseOnDeactivate && activated) Close();
+            // A window is also deactivated while it closes, and just after opening when the click that
+            // opened it finishes in NINA's window; neither may close it (again).
+            if (vm.CloseOnDeactivate && activated && !closing && DateTime.UtcNow - openedUtc > OpeningGrace) RequestClose();
         };
         KeyDown += (_, e) =>
         {
-            if (e.Key == Key.Escape && vm.CloseOnDeactivate) Close();
+            if (e.Key == Key.Escape && vm.CloseOnDeactivate) RequestClose();
         };
-        Closed += (_, _) => vm.Closed();
+        Closing += (_, _) => closing = true;
+        Closed += (_, _) => Guard(vm.Closed);
     }
 
-    /// <summary>Opens the viewer for <paramref name="vm"/>.</summary>
+    /// <summary>Opens the viewer for <paramref name="vm"/> once the current input event has finished.</summary>
     public static void Open(ImageViewerViewModel vm)
     {
-        var window = new ImageViewerWindow(vm);
-        window.Show();
-        window.Activate();
+        Dispatcher dispatcher = Application.Current?.Dispatcher ?? Dispatcher.CurrentDispatcher;
+        dispatcher.BeginInvoke(DispatcherPriority.Background, new Action(() => Guard(() =>
+        {
+            var window = new ImageViewerWindow(vm);
+            window.Show();
+            window.Activate();
+        })));
     }
 
-    private void OnMouseDown(object sender, MouseButtonEventArgs e)
+    /// <summary>Closes the window later on the dispatcher, once, never while it is already closing.</summary>
+    private void RequestClose()
+    {
+        if (closing) return;
+        Dispatcher.BeginInvoke(DispatcherPriority.Background, new Action(() =>
+        {
+            if (!closing) Guard(Close);
+        }));
+    }
+
+    private void OnMouseDown(object sender, MouseButtonEventArgs e) => Guard(() =>
     {
         if (e.ClickCount == 2)
         {
@@ -75,17 +96,17 @@ public partial class ImageViewerWindow : Window
         downAt = e.GetPosition(Viewport);
         panAtDown = new Point(Pan.X, Pan.Y);
         Viewport.CaptureMouse();
-    }
+    });
 
-    private void OnMouseUp(object sender, MouseButtonEventArgs e)
+    private void OnMouseUp(object sender, MouseButtonEventArgs e) => Guard(() =>
     {
         if (!mouseDown) return;
         mouseDown = false;
         Viewport.ReleaseMouseCapture();
         if (!dragged && ImagePixel(e) is PixelPoint p) vm.OnClick(p);
-    }
+    });
 
-    private void OnMouseMove(object sender, MouseEventArgs e)
+    private void OnMouseMove(object sender, MouseEventArgs e) => Guard(() =>
     {
         if (mouseDown)
         {
@@ -99,9 +120,9 @@ public partial class ImageViewerWindow : Window
         }
 
         if (ImagePixel(e) is PixelPoint p) vm.OnMouseMove(p);
-    }
+    });
 
-    private void OnMouseWheel(object sender, MouseWheelEventArgs e)
+    private void OnMouseWheel(object sender, MouseWheelEventArgs e) => Guard(() =>
     {
         double old = Zoom.ScaleX;
         double next = Math.Clamp(old * (e.Delta > 0 ? 1.25 : 0.8), 1, 30);
@@ -113,14 +134,26 @@ public partial class ImageViewerWindow : Window
         {
             Pan.X = Pan.Y = 0;
         }
-    }
+    });
 
     /// <summary>The original-image pixel under the mouse, or null when outside the image.</summary>
     private PixelPoint? ImagePixel(MouseEventArgs e)
     {
-        if (Picture.ActualWidth <= 0 || Picture.ActualHeight <= 0) return null;
+        if (Picture.ActualWidth <= 0 || Picture.ActualHeight <= 0 || vm.OriginalWidth <= 0) return null;
         Point u = e.GetPosition(Picture);
         if (u.X < 0 || u.Y < 0 || u.X > Picture.ActualWidth || u.Y > Picture.ActualHeight) return null;
         return new PixelPoint(u.X * vm.OriginalWidth / Picture.ActualWidth, u.Y * vm.OriginalHeight / Picture.ActualHeight);
+    }
+
+    private static void Guard(Action action)
+    {
+        try
+        {
+            action();
+        }
+        catch (Exception e)
+        {
+            NINA.Core.Utility.Logger.Error($"[AllskySafetyMonitor] Image viewer: {e}");
+        }
     }
 }

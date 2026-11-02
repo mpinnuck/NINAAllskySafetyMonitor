@@ -8,7 +8,8 @@ namespace NINAAllskySafetyMonitor.Core.Monitoring;
 /// <summary>
 /// Reads the mount state at its own short interval, independent of the image cycle, and raises
 /// <see cref="Changed"/> when something that matters changes: connected, parked, tracking or slewing,
-/// whether there is a position, or a move of more than <see cref="MoveThresholdDeg"/>. The monitor then
+/// whether there is a position, or a move of more than <see cref="MoveThresholdDeg"/> (not counted
+/// during a slew). The monitor then
 /// re-evaluates at once, so a slew is held as soon as it starts and the ROI moves as soon as it ends.
 /// </summary>
 [Requirement("REQ-05", "REQ-27")]
@@ -99,6 +100,9 @@ public sealed class MountWatcher
         if (a.Connected != b.Connected || a.AtPark != b.AtPark || a.Tracking != b.Tracking || a.Slewing != b.Slewing) return true;
         if (a.HasValidPosition != b.HasValidPosition) return true;
         if (!a.HasValidPosition) return false;
+
+        // While slewing the position changes constantly; the end of the slew is what matters.
+        if (a.Slewing && b.Slewing) return false;
 
         // RA/Dec treated as longitude/latitude on the sphere.
         var pa = new HorizontalCoordinate(a.DecDeg!.Value, a.RaHours!.Value * 15.0);

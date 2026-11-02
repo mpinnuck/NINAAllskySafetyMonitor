@@ -8,11 +8,17 @@
     API keys) appear anywhere in the NINA logs or the plugin's decision logs (REQ-54). Lines
     containing a secret are never printed, only counted per file.
 
+    With -Exceptions it also prints every exception in those logs that involves the plugin,
+    with its full stack trace (the indented "at ..." lines that follow it).
+
 .EXAMPLE
     .\Check-NinaLog.ps1 -Secret test123,5356e369
 
 .EXAMPLE
     .\Check-NinaLog.ps1 -Since (Get-Date).AddDays(-2) -Tail 100
+
+.EXAMPLE
+    .\Check-NinaLog.ps1 -Exceptions -NoSecrets
 #>
 [CmdletBinding()]
 param(
@@ -20,7 +26,9 @@ param(
     [string]   $DecisionFolder = (Join-Path $env:LOCALAPPDATA 'NINAAllskySafetyMonitor\Logs'),
     [datetime] $Since     = (Get-Date).Date,
     [string[]] $Secret,
-    [int]      $Tail      = 60
+    [int]      $Tail      = 60,
+    [switch]   $Exceptions,
+    [switch]   $NoSecrets
 )
 
 $tag = '[AllskySafetyMonitor]'
@@ -60,8 +68,35 @@ Write-Host ""
 Write-Host "Summary" -ForegroundColor Cyan
 Write-Host ("  Warnings: {0}   Errors: {1}   Image fetch failures: {2}" -f $warnings, $errors, $fetchFailures)
 
+# ---- Exceptions with stack traces ----
+if ($Exceptions) {
+    Write-Host ""
+    Write-Host "Exceptions involving the plugin" -ForegroundColor Cyan
+    $entryStart = '^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}'   # every NINA log entry starts with its time
+    $found = 0
+    foreach ($f in $files) {
+        $all = Get-Content -LiteralPath $f.FullName
+        for ($i = 0; $i -lt $all.Count; $i++) {
+            if ($all[$i] -notmatch 'Exception') { continue }
+            if ($all[$i] -notmatch $entryStart) { continue }      # only the first line of an entry
+            # Collect the entry: this line and the following lines up to the next entry.
+            $block = @($all[$i])
+            $j = $i + 1
+            while ($j -lt $all.Count -and $all[$j] -notmatch $entryStart) { $block += $all[$j]; $j++ }
+            if (($block -join "`n") -notmatch 'AllskySafetyMonitor') { continue }
+            $found++
+            Write-Host ""
+            Write-Host "--- $($f.Name), line $($i + 1) ---" -ForegroundColor Yellow
+            $block | Select-Object -First 60 | ForEach-Object { Write-Host $_ -ForegroundColor Red }
+            if ($block.Count -gt 60) { Write-Host "  ... $($block.Count - 60) more lines" }
+            $i = $j - 1
+        }
+    }
+    if ($found -eq 0) { Write-Host "  None found." -ForegroundColor Green }
+}
+
 # ---- Secrets (REQ-54) ----
-if (-not $Secret) {
+if (-not $Secret -and -not $NoSecrets) {
     $entered = Read-Host "Secrets to check, comma separated (Enter to skip)"
     if ($entered) { $Secret = $entered -split ',' | ForEach-Object { $_.Trim() } | Where-Object { $_ } }
 }
