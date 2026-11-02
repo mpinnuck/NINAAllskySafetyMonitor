@@ -60,6 +60,19 @@ public sealed class DecisionLoggerTests : IDisposable
     }
 
     [Fact]
+    public void FileStartedByAnOlderVersionGetsTheCurrentHeader()
+    {
+        Directory.CreateDirectory(folder);
+        File.WriteAllLines(TodayFile(), new[] { "Local time,UTC time,Event,State", "2026-11-01 22:00:00,2026-11-01 11:00:00,Start,Unsafe" });
+        Logger().Write(Snapshot(SafetyState.Unsafe, "x"));
+
+        string[] lines = File.ReadAllLines(TodayFile());
+        Assert.Equal(3, lines.Length);
+        Assert.EndsWith(",ROI inside (%),ROI note", lines[0]);
+        Assert.Equal("2026-11-01 22:00:00,2026-11-01 11:00:00,Start,Unsafe", lines[1]);
+    }
+
+    [Fact]
     public void WholeWorkingAreaFallbackIsLoggedWithItsReason()
     {
         var mount = new MountState(true, true, false, false, null, null, CoordinateEpoch.JNow, null, null, clock.UtcNow);

@@ -24,6 +24,7 @@ public sealed class DecisionLogger
     private readonly object sync = new();
     private SafetyState? lastState;
     private DateTime? lastPurgeDay;
+    private string? headerCheckedPath;
     private bool writeFailureLogged;
 
     public DecisionLogger(Func<LoggingSettings> settings, IClock clock, SecretRedactor redactor, ILogSink log)
@@ -67,6 +68,8 @@ public sealed class DecisionLogger
 
         string path = Path.Combine(s.Folder, FileName(local.Date));
         bool isNew = !File.Exists(path);
+        if (!isNew && headerCheckedPath != path) UpgradeHeader(path);
+        headerCheckedPath = path;
         SafetyStatus st = snapshot.Status;
         string evt = lastState is null ? "Start" : lastState != st.State ? "State change" : string.Empty;
         lastState = st.State;
@@ -108,6 +111,18 @@ public sealed class DecisionLogger
         using var writer = new StreamWriter(path, append: true, new UTF8Encoding(encoderShouldEmitUTF8Identifier: true));
         if (isNew) writer.WriteLine(Header);
         writer.WriteLine(row.ToString());
+    }
+
+    /// <summary>
+    /// A file started by an older version has fewer column names than its new rows have values; replace
+    /// its header with the current one so every column is named in Excel.
+    /// </summary>
+    private static void UpgradeHeader(string path)
+    {
+        string[] lines = File.ReadAllLines(path);
+        if (lines.Length == 0 || lines[0] == Header) return;
+        lines[0] = Header;
+        File.WriteAllLines(path, lines, new UTF8Encoding(encoderShouldEmitUTF8Identifier: true));
     }
 
     /// <summary>Deletes decision files older than the retention period, once per local day.</summary>
