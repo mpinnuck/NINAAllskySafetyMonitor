@@ -56,6 +56,17 @@ package "NINAAllskySafetyMonitor.Core.Domain" {
     +Height : int
     +Contains(x : int, y : int) : bool
     +Count : int
+    +Bounds : PixelRect?
+  }
+  class PixelRect <<record struct>> {
+    +X, Y, Width, Height : int
+    +Inflate(margin, w, h) : PixelRect
+  }
+  class MoonState <<record>> {
+    +Position : HorizontalCoordinate
+    +Illumination : double
+    +IsUp : bool
+    .. REQ-31 ..
   }
   class CatalogueStar <<record>> {
     +Id : int
@@ -85,9 +96,11 @@ package "NINAAllskySafetyMonitor.Core.Domain" {
     +StarTestInconclusive : bool
     +BrightnessTestSkipped : bool
     +CloudPresent : bool
+    +Summary : string
     +Expected : IReadOnlyList<PixelPoint>
     +Found : IReadOnlyList<bool>
-    .. REQ-28 ..
+    +Moon : MoonState?
+    .. REQ-28 REQ-45 ..
   }
   class ConditionCheck <<record>> {
     +Condition : SafetyCondition
@@ -162,6 +175,8 @@ MountState --> CoordinateEpoch
 MonitorSnapshot o-- SkyImage
 MonitorSnapshot o-- RegionOfInterest
 MonitorSnapshot o-- CloudAssessment
+CloudAssessment o-- MoonState
+PixelMask ..> PixelRect
 MonitorSnapshot o-- WeatherObservation
 MonitorSnapshot o-- MountState
 MonitorSnapshot *-- SafetyConditions

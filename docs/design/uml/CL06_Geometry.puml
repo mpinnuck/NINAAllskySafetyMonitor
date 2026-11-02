@@ -23,6 +23,7 @@ package "NINAAllskySafetyMonitor.Core.Geometry" {
   class MoonCalculator <<static>> {
     +Position(site, utc) : HorizontalCoordinate
     +Illumination(utc) : double
+    +State(site, utc) : MoonState
     .. REQ-31 ..
   }
   class SkyGeometry <<static>> {
@@ -41,7 +42,8 @@ package "NINAAllskySafetyMonitor.Core.Geometry" {
     +RmsErrorDeg : double
     +CalibratedUtc : DateTime
     +Manual : bool
-    .. REQ-19 ..
+    +ImageWidth, ImageHeight : int  (0 = unknown)
+    .. REQ-19 REQ-60 ..
   }
   class LensProjection {
     -lens : LensCalibration

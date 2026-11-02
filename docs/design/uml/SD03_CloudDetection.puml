@@ -14,19 +14,23 @@ participant ":StarFractionTest" as ST
 participant ":BackgroundStatistics" as BG
 participant ":BrightnessTest" as BT
 participant ":ClearSkyReferenceBuilder" as Ref
+participant "ReferenceCaptured\n(host)" as Host
 
-Cyc -> Dec : Decode(jpeg)  (new image only)
+alt no decoder, no image or no lens
+  Cyc -> Cyc : NoCloud failed with the reason
+end
+Cyc -> Dec : Decode(jpeg)  (new image only; same image reuses the frame)
 Dec --> Cyc : GrayFrame (darkest channel)
 Cyc -> SF : Evaluate(frame, area, lens)
 alt not a sky frame (wrong size, or flat background)
   SF --> Cyc : NoCloud failed: "Not a sky frame (Allsky notice image?)"  REQ-60
   note right of Cyc : No cloud assessment this cycle; unsafe.
 else sky frame
-  Cyc -> CD : Assess(frame, roi, area, lens, site, now, moon, reference)
+  Cyc -> CD : Assess(frame, roi, workingArea, lens, site, now, moon, reference)
   activate CD
-  CD -> Mask : Build(roi, area, projection)
-  Mask --> CD : ROI pixels (circle ∩ working area ∩ outline)
-  CD -> Pred : Predict(roi, area, …, mag 4.4, moon, 15°)
+  CD -> Mask : BuildArea(area, projection), Build(roi, …)
+  Mask --> CD : working-area pixels (kept until lens/area/size change);\nROI pixels (circle ∩ working area ∩ outline)
+  CD -> Pred : Predict(ROI mask, …, mag 4.4, moon, 15°)
   Pred --> CD : expected stars (inside ROI and working area, away from the Moon)
   CD -> Det : Detect(frame, ROI mask, ROI bounds)
   Det --> CD : detected stars
@@ -40,9 +44,9 @@ else sky frame
   else
     ST --> CD : Clear
   end
-  CD -> BG : Measure(frame, working-area mask, stars removed)
+  CD -> BG : Measure(frame, working-area mask)
   BG --> CD : block medians and non-uniformity
-  CD -> BT : Evaluate(blocks, reference, ROI, area, moon factor)
+  CD -> BT : Evaluate(blocks, reference, ROI mask, moon factor)
   alt no reference yet
     BT --> CD : Skipped
   else ROI relative brightness > 1.3  or  non-uniformity ratio > 1.5
@@ -50,12 +54,20 @@ else sky frame
   else
     BT --> CD : Clear
   end
-  opt tuned, star test clear (≥ 0.9), Moon down, no reference yet
-    CD -> Ref : TryCapture(blocks, …)
-    Ref --> CD : clear-sky reference (saved with the settings, REQ-57)
+  opt no reference yet, tuned, Moon down, ROI not cloudy
+    CD -> Pred : Predict(working-area mask, …)
+    CD -> Det : Detect(frame, working-area mask)
+    CD -> ST : Evaluate (whole working area)
+    CD -> Ref : TryCapture(blocks, whole-area result, …)
+    Ref --> CD : clear-sky reference when ≥ 0.9 found
   end
   CD -> CD : cloud = starCloud OR brightnessCloud\n(both unavailable → cloud, fail-safe)
-  CD --> Cyc : CloudAssessment → NoCloud check with the reason
+  CD --> Cyc : CloudDetection (CloudAssessment, CapturedReference?)
   deactivate CD
+  opt reference captured
+    Cyc -> Cyc : use it from now on (this session)
+    Cyc -> Host : ReferenceCaptured(reference)\n→ PluginSettingsStore.SaveReference (REQ-57)
+  end
+  Cyc -> Cyc : NoCloud check = !CloudPresent, reason = Summary
 end
 @enduml

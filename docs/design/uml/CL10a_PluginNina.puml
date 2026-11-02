@@ -56,8 +56,9 @@ package "NINAAllskySafetyMonitor.Plugin.Nina" {
     +FilePath : string
     +Current : MonitorSettings
     +Save(settings : MonitorSettings)
+    +SaveReference(reference : ClearSkyReference?)
     +event Saved
-    .. REQ-55 REQ-56 ..
+    .. REQ-30 REQ-55 REQ-56 REQ-57 ..
   }
   class NinaMountStateSource {
     -telescope : ITelescopeMediator

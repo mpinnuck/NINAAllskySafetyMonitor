@@ -76,8 +76,11 @@ package "NINAAllskySafetyMonitor.Core.Monitoring" {
     -decoder : IFrameDecoder
     -skyFrameCheck : SkyFrameCheck
     -cloudDetector : CloudDetector
-    -recorder : TuningRecorder
+    -astro : IAstroCalculator  (Moon)
+    -referenceCaptured : Action<ClearSkyReference>?
     -lastImageFetchUtc : DateTime?
+    -decodedImage, decodedFrame  (decode once per image)
+    -sessionReference : ClearSkyReference?
     +RunOnceAsync(ct) : Task<MonitorSnapshot>
     .. REQ-05 REQ-10 REQ-14 REQ-28 REQ-37 REQ-60 ..
   }
@@ -85,12 +88,6 @@ package "NINAAllskySafetyMonitor.Core.Monitoring" {
     -timeout : Func<TimeSpan>
     +RunAsync(cycle : IMonitoringCycle, ct) : Task<MonitorSnapshot>
     .. REQ-49 REQ-50 REQ-51 ..
-  }
-  class StatusHistory {
-    -points : RingBuffer<MonitorSnapshot>
-    +Add(s : MonitorSnapshot)
-    +ForNight(nowUtc) : IReadOnlyList<MonitorSnapshot>
-    .. REQ-45 ..
   }
   class MonitorServiceBuilder {
     +Build(settings, ports, manualOverride?) : MonitorService
@@ -104,6 +101,7 @@ package "NINAAllskySafetyMonitor.Core.Monitoring" {
     +Credentials : ICredentialStore
     +Mount : IMountStateSource?
     +FrameDecoder : IFrameDecoder?
+    +ReferenceCaptured : Action<ClearSkyReference>?
   }
 }
 
@@ -118,13 +116,18 @@ IMonitoringCycle <|.. MonitoringCycle
 MonitorServiceBuilder ..> MonitorService : creates
 MonitorServiceBuilder ..> MonitorPorts
 MonitorServiceBuilder ..> "DecisionLogger" : subscribes to SnapshotAvailable
+MonitorServiceBuilder ..> "TuningRecorder" : subscribes to SnapshotAvailable
 
 note bottom of MonitoringCycle
   Reads settings at the start of every cycle. Outside the
   window: Idle, nothing fetched. Inside: image (at most once per
   image interval) and weather fetched in parallel; ROI placed
-  from the mount; conditions gathered; the provisional reason
-  lists every failed condition.
+  from the mount; then, off the caller's thread: decode (once
+  per image), sky-frame check, cloud detection (SD-03). A
+  captured clear-sky reference is used at once and handed to
+  ReferenceCaptured to save. No decoder, image or lens → NoCloud
+  fails with the reason. The provisional reason lists every
+  failed condition.
 end note
 note bottom of MonitorService
   Each snapshot: FailSafeGuard → engine.Decide → override.Apply

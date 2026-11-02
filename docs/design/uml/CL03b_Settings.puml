@@ -5,7 +5,7 @@ title CL-03b  Core.Settings — JSON settings tree and defaults
 
 package "NINAAllskySafetyMonitor.Core.Settings" {
   class MonitorSettings {
-    +SchemaVersion = 1
+    +SchemaVersion = 2
     +Site : SiteSettings
     +Window : OperatingWindowSettings
     +ImageSource : ImageSourceSettings
@@ -116,6 +116,11 @@ package "NINAAllskySafetyMonitor.Core.Settings" {
     +{static} Clone(s) : MonitorSettings
     .. REQ-55 REQ-56 ..
   }
+  class SettingsMigrator <<static>> {
+    +CurrentVersion = 2
+    +Migrate(s : MonitorSettings) : MonitorSettings
+    .. REQ-29 REQ-55 ..
+  }
   class SettingsValidator {
     +Validate(s : MonitorSettings) : IReadOnlyList<string>
     .. REQ-22 REQ-27 REQ-46 REQ-58 ..
@@ -138,6 +143,7 @@ ImageSourceSettings *-- WebSourceSettings
 ImageSourceSettings *-- DirectSourceSettings
 SettingsStore ..> MonitorSettings : JSON
 SettingsStore ..> SettingsValidator
+SettingsStore ..> SettingsMigrator : Load
 
 note bottom of DirectSourceSettings
   Password is never in the JSON file:
@@ -147,6 +153,7 @@ note bottom of SettingsStore
   Save writes a temporary file, then replaces
   the old one, so a crash can't leave a half-written file.
   Load falls back to defaults if the file is missing.
-  SchemaVersion allows later migration.
+  Load passes the file through SettingsMigrator: version 2
+  moves a saved default limiting magnitude 4.0 to 4.4.
 end note
 @enduml

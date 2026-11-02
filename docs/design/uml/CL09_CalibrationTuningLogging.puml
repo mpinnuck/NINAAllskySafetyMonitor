@@ -79,12 +79,13 @@ package "NINAAllskySafetyMonitor.Core.Tuning" {
   class TuningRecorder {
     -settings : Func<TuningSettings>
     -csv : MetricsCsvWriter
-    +Record(s : MonitorSnapshot, jpeg : byte[])
-    -Purge(retentionDays)
+    +Record(s : MonitorSnapshot)
+    +{static} NightOf(local) : DateTime
+    -Purge(settings, night)
     .. REQ-41 ..
   }
   class MetricsCsvWriter {
-    +Append(s : MonitorSnapshot)
+    +Append(path, s : MonitorSnapshot, imageFile, utc)
     .. REQ-41 ..
   }
   class ReplayImageSource {
@@ -167,11 +168,14 @@ note bottom of LensCalibrationSession
   Prototype on 20 Oct frame: 33 stars, RMS 2.7 px (0.15°).
 end note
 note bottom of TuningRecorder
-  Tuning on: every frame saved as <folder>\yyyy-MM-dd\allsky-<UTC>.jpg
-  with one CSV row per cycle (Excel): time, state, reason, ROI,
-  expected/detected stars, fraction, relative brightness,
-  non-uniformity ratio, Moon, rain, gust. Daily folders older
-  than RetentionDays [30] are deleted. ~700 MB per night.
+  Subscribed to SnapshotAvailable, so rows carry the decided
+  state. Tuning on, inside the window: every frame saved once as
+  <folder>\<night>\allsky-<capture UTC>.jpg (night = local date
+  12 h earlier, so a night is not split at midnight), and one CSV
+  row per cycle in tuning-<night>.csv (Excel): time, state, reason,
+  ROI, expected/found stars, fraction, relative brightness,
+  non-uniformity ratio, Moon, rain, gust. Night folders older than
+  RetentionDays [30] are deleted. ~700 MB per night. Never throws.
 end note
 note bottom of RequirementAttribute
   Applied to every class (and to methods where a class

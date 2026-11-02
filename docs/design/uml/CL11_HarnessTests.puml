@@ -70,6 +70,16 @@ package "NINAAllskySafetyMonitor.Tests" {
     class FakeCredentialStore
     class FakeHttpHandler
     class FakeWeatherProvider
+    class FakeMountStateSource
+    class FakeFrameDecoder
+    class SyntheticSky <<static>> {
+      catalogue at the 20 Oct 2026 frame
+      through the fitted lens: spots, frames
+    }
+    class SyntheticCloudSky <<static>> {
+      1000 px frames: clear, thick or thin cloud
+      patch, exposure scale, notice image
+    }
   }
   class UnitTestFixtures <<namespace>> {
     one test class per Core class, in a folder

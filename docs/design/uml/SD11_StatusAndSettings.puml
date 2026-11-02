@@ -7,7 +7,8 @@ participant ":MonitorService" as Svc
 participant "MonitorHost" as Host
 participant ":StatusViewModel" as SVM
 participant ":OverlayImageComposer" as Comp
-participant ":StatusHistory" as Hist
+participant ":MetricsViewModel" as Met
+participant ":HistoryChartViewModel" as Hist
 participant ":OptionsTemplates" as OV
 participant ":SettingsViewModel" as SetVM
 participant ":SettingsValidator" as Val
@@ -19,8 +20,9 @@ Svc -> Host : SnapshotAvailable(snapshot)  [background thread]
 Host -> SVM : SnapshotAvailable(snapshot)
 SVM -> SVM : marshal to UI dispatcher
 SVM -> Comp : Compose(snapshot, projection)
-Comp --> SVM : image + ROI circle + mask + expected/detected stars
-SVM -> Hist : Add(snapshot)
+Comp --> SVM : image + working area + ROI + expected stars (green found, red missing)
+SVM -> Met : Update(snapshot, Store.Current)
+SVM -> Hist : Add(snapshot)  (tonight's chart)
 SVM -> SVM : update state, reason, image info, weather line,\ncountdown, override banner, history chart, UNTUNED (REQ-45)
 Imager -> SVM : view
 
@@ -42,6 +44,7 @@ else valid
   opt SFTP password changed
     SetVM -> Cred : SetSecret("sftp-password", value)  (REQ-53)
   end
+  SetVM -> SetVM : keep the saved clear-sky reference\n(captured by the monitor meanwhile)
   SetVM -> Store : Save(copy)  (JSON, REQ-55, REQ-56, REQ-57)
   SetVM --> OV : Message = "Saved hh:mm:ss"
   note right of Store : A connected monitor applies new settings\non its next cycle; no reconnect needed.
@@ -53,6 +56,12 @@ opt Test image / Test weather (settings on screen, saved or not)
   Imager -> OV : Test weather
   OV -> SetVM : TestWeatherCommand
   SetVM -> SetVM : WeatherFetchTester.TestAsync(copy)  → "Weather OK (ISYDNEY478): …"
+end
+opt Clear the clear-sky reference
+  Imager -> OV : Clear the clear-sky reference
+  OV -> SetVM : ClearReferenceCommand
+  SetVM -> Store : SaveReference(null)  (REQ-30)
+  SetVM --> OV : "none yet …"; recaptured on the next tuned clear night
 end
 opt Revert
   Imager -> OV : Revert

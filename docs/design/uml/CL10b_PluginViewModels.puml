@@ -26,17 +26,21 @@ package "NINAAllskySafetyMonitor.Plugin.ViewModels" {
     .. REQ-40 REQ-43 REQ-45 REQ-58 REQ-59 ..
   }
   class MetricsViewModel {
-    +StarsText  "9 of 11 stars (82%)"
-    +RelativeBrightness, UniformityRatio
-    +Rain, Gust, ImageAge, WeatherAge, SecondsToSafe
-    +ReferenceText  "Clear-sky reference: 2026-11-05"
+    +StarsText  "Stars: 9 of 11 found (82%) · cloud below 70% · mag ≤ 4.4"
+    +BrightnessText  "Brightness 1.04× clear sky (limit 1.30×) · non-uniformity …"
+    +MoonText  "Moon up 34°, 62% lit: …" | "Moon down"
+    +ReferenceText  "Clear-sky reference: 2026-11-05 22:14"
+    +HasMetrics : bool
+    +Update(snapshot?, settings)
     .. REQ-45 ..
   }
   class HistoryChartViewModel {
-    -points : StatusHistory (tonight)
-    +Model : PlotModel  (OxyPlot)
-    star fraction, relative brightness,
-    safe/unsafe band, against local time
+    -stars, brightness : LineSeries
+    -safe : StairStepSeries
+    +Model : PlotModel  (OxyPlot, from NINA)
+    +Add(snapshot?)
+    tonight only (restarts each night, this session),
+    against local time
     .. REQ-45 ..
   }
   class SettingsViewModel {
@@ -54,6 +58,9 @@ package "NINAAllskySafetyMonitor.Plugin.ViewModels" {
     +EditOutlineCommand
     +CalibrationStatusText
     +CalibrationMessage  (under the buttons)
+    +cloud thresholds, CloudTuned, tuning mode fields
+    +ReferenceStatusText
+    +ClearReferenceCommand
     .. REQ-22 REQ-23 REQ-27 REQ-46 REQ-53 REQ-55 REQ-58 ..
   }
   class ImageViewerViewModel {
@@ -62,7 +69,8 @@ package "NINAAllskySafetyMonitor.Plugin.ViewModels" {
     +Zoom, PanX, PanY
     +CursorText  "alt 47.3° az 212.8°"
     +ShowWorkingArea, ShowOutline, ShowRoi,
-     ShowCompass, ShowGrid, ShowCatalogueStars
+     ShowCompass, ShowGrid, ShowStars
+     (calibration: catalogue stars; view: expected stars)
     +CloseOnOutsideClick : bool  (View only)
     .. REQ-21 REQ-59 ..
   }
@@ -85,6 +93,7 @@ package "NINAAllskySafetyMonitor.Plugin.ViewModels" {
   class OverlayContent <<record>> {
     +WorkingArea, Roi, Compass, Grid
     +Stars, DraftOutline, Picks
+    +CloudStars : (PixelPoint, Found)[]  green / red
   }
   class WpfFrameDecoder <<Plugin.Imaging>> {
     +Decode(jpeg) : GrayFrame

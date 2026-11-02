@@ -18,6 +18,7 @@ participant ":CloudDetector" as Cloud
 participant ":SafetyDecisionEngine" as Eng
 participant ":ManualOverride" as Ovr
 participant ":DecisionLogger" as Log
+participant ":TuningRecorder" as Tune
 
 loop every IntervalS [60 s]
   Svc -> Guard : RunAsync(cycle, ct)
@@ -44,12 +45,9 @@ loop every IntervalS [60 s]
   Roi --> Cyc : centre from RA/Dec, or null  (REQ-06, REQ-24, REQ-26)
   Cyc -> RB : Build(centre, 15°, 0.5, w, h)
   RB --> Cyc : RegionOfInterest: circle within the working area,\nor whole working area  (REQ-23, REQ-25, REQ-58)
-  Cyc -> Cloud : decode, sky-frame check, Assess(…)
-  Cloud --> Cyc : NoCloud  (see SD-03; REQ-28 … REQ-31, REQ-60)
+  Cyc -> Cloud : decode (once per image), sky-frame check, Assess(…)\n[off the caller's thread]
+  Cloud --> Cyc : NoCloud with the reason  (see SD-03; REQ-28 … REQ-31, REQ-60)
   Cyc -> Cyc : provisional reason = every failed condition
-  opt tuning mode on
-    Cyc -> Cyc : recorder.Record(snapshot, jpeg)\nevery frame + CSV row; purge > 30 days  (REQ-41)
-  end
   Cyc --> Guard : MonitorSnapshot
   deactivate Cyc
   Guard --> Svc : MonitorSnapshot
@@ -60,5 +58,8 @@ loop every IntervalS [60 s]
   Ovr --> Svc : reported status
   Svc -> Svc : log state change; raise SnapshotAvailable
   Svc -> Log : Write(snapshot)  [subscriber]  (REQ-44, REQ-54)
+  opt tuning mode on
+    Svc -> Tune : Record(snapshot)  [subscriber]\nframe once + CSV row; purge nights > 30 days  (REQ-41)
+  end
 end
 @enduml
