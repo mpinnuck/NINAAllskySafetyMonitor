@@ -20,6 +20,11 @@ package "NINAAllskySafetyMonitor.Core.Geometry" {
     +ToEquatorial(h, site, utc, epoch) : (double, double)
     .. REQ-24 ..
   }
+  class MoonCalculator <<static>> {
+    +Position(site, utc) : HorizontalCoordinate
+    +Illumination(utc) : double
+    .. REQ-31 ..
+  }
   class SkyGeometry <<static>> {
     +SeparationDeg(a, b : HorizontalCoordinate) : double
     +Destination(start, bearingDeg, distanceDeg) : HorizontalCoordinate

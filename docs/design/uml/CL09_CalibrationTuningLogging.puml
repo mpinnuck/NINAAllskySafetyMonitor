@@ -77,9 +77,10 @@ package "NINAAllskySafetyMonitor.Core.Calibration" {
 
 package "NINAAllskySafetyMonitor.Core.Tuning" {
   class TuningRecorder {
-    -folder : string
+    -settings : Func<TuningSettings>
     -csv : MetricsCsvWriter
-    +Record(s : MonitorSnapshot)
+    +Record(s : MonitorSnapshot, jpeg : byte[])
+    -Purge(retentionDays)
     .. REQ-41 ..
   }
   class MetricsCsvWriter {
@@ -164,6 +165,13 @@ note bottom of LensCalibrationSession
   4. CalibrationQualityCheck warns below MinMatchedStars [15]
      or above MaxFitErrorDeg [0.2°] (REQ-20).
   Prototype on 20 Oct frame: 33 stars, RMS 2.7 px (0.15°).
+end note
+note bottom of TuningRecorder
+  Tuning on: every frame saved as <folder>\yyyy-MM-dd\allsky-<UTC>.jpg
+  with one CSV row per cycle (Excel): time, state, reason, ROI,
+  expected/detected stars, fraction, relative brightness,
+  non-uniformity ratio, Moon, rain, gust. Daily folders older
+  than RetentionDays [30] are deleted. ~700 MB per night.
 end note
 note bottom of RequirementAttribute
   Applied to every class (and to methods where a class

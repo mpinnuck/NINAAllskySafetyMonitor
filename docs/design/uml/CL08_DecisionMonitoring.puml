@@ -73,11 +73,13 @@ package "NINAAllskySafetyMonitor.Core.Monitoring" {
     -mount : IMountStateSource
     -roiCalculator : RoiCalculator
     -roiBuilder : RoiBuilder
+    -decoder : IFrameDecoder
+    -skyFrameCheck : SkyFrameCheck
     -cloudDetector : CloudDetector
     -recorder : TuningRecorder
     -lastImageFetchUtc : DateTime?
     +RunOnceAsync(ct) : Task<MonitorSnapshot>
-    .. REQ-05 REQ-10 REQ-14 REQ-37 ..
+    .. REQ-05 REQ-10 REQ-14 REQ-28 REQ-37 REQ-60 ..
   }
   class FailSafeGuard {
     -timeout : Func<TimeSpan>
@@ -101,6 +103,7 @@ package "NINAAllskySafetyMonitor.Core.Monitoring" {
     +Log : ILogSink
     +Credentials : ICredentialStore
     +Mount : IMountStateSource?
+    +FrameDecoder : IFrameDecoder?
   }
 }
 

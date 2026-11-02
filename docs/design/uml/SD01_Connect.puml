@@ -31,7 +31,7 @@ alt already running
   Host --> Dev : (no change)
 else not running
   Host -> Mount ** : new(telescopeMediator)
-  Host -> Host : ports = SystemClock, NinaSiteLocationSource,\nNovasAstroCalculator, NinaLogSink, mount, credentials
+  Host -> Host : ports = SystemClock, NinaSiteLocationSource,\nNovasAstroCalculator, NinaLogSink, mount, credentials,\nWpfFrameDecoder
   Host -> Builder : Build(() => Store.Current, ports)
   Builder -> MW ** : new(mount, () => Mount.PollIntervalS)
   Builder -> Svc ** : new(cycle, guard, interval, …, MW)

@@ -26,12 +26,17 @@ package "NINAAllskySafetyMonitor.Plugin.ViewModels" {
     .. REQ-40 REQ-43 REQ-45 REQ-58 REQ-59 ..
   }
   class MetricsViewModel {
-    +StarFraction, Brightness, Rain, Gust
-    +ImageAge, WeatherAge, SecondsToSafe
+    +StarsText  "9 of 11 stars (82%)"
+    +RelativeBrightness, UniformityRatio
+    +Rain, Gust, ImageAge, WeatherAge, SecondsToSafe
+    +ReferenceText  "Clear-sky reference: 2026-11-05"
     .. REQ-45 ..
   }
   class HistoryChartViewModel {
-    +Series : PlotModel
+    -points : StatusHistory (tonight)
+    +Model : PlotModel  (OxyPlot)
+    star fraction, relative brightness,
+    safe/unsafe band, against local time
     .. REQ-45 ..
   }
   class SettingsViewModel {

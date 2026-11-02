@@ -1,11 +1,11 @@
-# Design v1.4 (2026-11-02)
+# Design v1.5 (2026-11-02)
 
-Traced to `../requirements/requirements.md` v5.2 (REQ-01 … REQ-59). Version 1.4 matches slices 1–5 as built and verified; §1.5 of the PDF lists the changes from v1.3.
+Traced to `../requirements/requirements.md` v5.3 (REQ-01 … REQ-60). Version 1.5 adds the slice 6 design (cloud detection); §1.5 of the PDF lists the changes from v1.4.
 
 | File | Contents |
 |---|---|
 | `uml/*.puml` | PlantUML sources in Rational Rose style (`uml/_style.iuml`). These are the editable masters. |
-| `review/NINAAllskySafetyMonitor-Design-v1.4.pdf` | Software Design Document for review, generated from the sources. Earlier versions are in `review/superseded/`. |
+| `review/NINAAllskySafetyMonitor-Design-v1.5.pdf` | Software Design Document for review, generated from the sources. Earlier versions are in `review/superseded/`. |
 | `review/traceability.xlsx` | REQ → use case → design class → scenario, generated from the sources. Do not edit by hand. |
 
 Diagram index:

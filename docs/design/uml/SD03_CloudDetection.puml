@@ -1,53 +1,61 @@
 @startuml SD03_CloudDetection
 !include _style.iuml
-title SD-03  Detect cloud in ROI (UC-08) — REQ-28 … REQ-31
+title SD-03  Check the frame and detect cloud in the ROI (UC-08) — REQ-28 … REQ-31, REQ-60
 
 participant ":MonitoringCycle" as Cyc
+participant ":IFrameDecoder" as Dec
+participant ":SkyFrameCheck" as SF
 participant ":CloudDetector" as CD
+participant ":RoiMaskBuilder" as Mask
 participant ":ExpectedStarPredictor" as Pred
-participant ":IAstroCalculator" as Astro
-participant ":LensProjection" as Proj
 participant ":StarDetector" as Det
 participant ":StarMatcher" as Match
 participant ":StarFractionTest" as ST
 participant ":BackgroundStatistics" as BG
-participant ":MoonBrightnessAdjuster" as Moon
 participant ":BrightnessTest" as BT
+participant ":ClearSkyReferenceBuilder" as Ref
 
-Cyc -> CD : Assess(frame, roi, site, now, reference)
-activate CD
-CD -> Pred : Predict(roi, site, now, mag 4.0, moon 15°)
-loop catalogue stars brighter than limit
-  Pred -> Astro : ToHorizontal(ra, dec, J2000, site, now)
-  Pred -> Proj : ToPixel(altaz)
-  Pred -> Pred : keep if inside ROI mask\nand > 15° from Moon (REQ-31)
+Cyc -> Dec : Decode(jpeg)  (new image only)
+Dec --> Cyc : GrayFrame (darkest channel)
+Cyc -> SF : Evaluate(frame, area, lens)
+alt not a sky frame (wrong size, or flat background)
+  SF --> Cyc : NoCloud failed: "Not a sky frame (Allsky notice image?)"  REQ-60
+  note right of Cyc : No cloud assessment this cycle; unsafe.
+else sky frame
+  Cyc -> CD : Assess(frame, roi, area, lens, site, now, moon, reference)
+  activate CD
+  CD -> Mask : Build(roi, area, projection)
+  Mask --> CD : ROI pixels (circle ∩ working area ∩ outline)
+  CD -> Pred : Predict(roi, area, …, mag 4.4, moon, 15°)
+  Pred --> CD : expected stars (inside ROI and working area, away from the Moon)
+  CD -> Det : Detect(frame, ROI mask, ROI bounds)
+  Det --> CD : detected stars
+  CD -> Match : Match(expected, detected, max(3 × fit RMS, 4 px))
+  Match --> CD : matched
+  CD -> ST : Evaluate(expected, matched)
+  alt expected < 8
+    ST --> CD : Inconclusive
+  else fraction < 0.70
+    ST --> CD : Cloud  "Cloud: 3 of 11 stars"
+  else
+    ST --> CD : Clear
+  end
+  CD -> BG : Measure(frame, working-area mask, stars removed)
+  BG --> CD : block medians and non-uniformity
+  CD -> BT : Evaluate(blocks, reference, ROI, area, moon factor)
+  alt no reference yet
+    BT --> CD : Skipped
+  else ROI relative brightness > 1.3  or  non-uniformity ratio > 1.5
+    BT --> CD : Cloud
+  else
+    BT --> CD : Clear
+  end
+  opt tuned, star test clear (≥ 0.9), Moon down, no reference yet
+    CD -> Ref : TryCapture(blocks, …)
+    Ref --> CD : clear-sky reference (saved with the settings, REQ-57)
+  end
+  CD -> CD : cloud = starCloud OR brightnessCloud\n(both unavailable → cloud, fail-safe)
+  CD --> Cyc : CloudAssessment → NoCloud check with the reason
+  deactivate CD
 end
-Pred --> CD : expected stars
-CD -> Det : Detect(frame, roi.Mask)
-Det --> CD : detected stars
-CD -> Match : Match(expected, detected)
-Match --> CD : matched pairs
-CD -> ST : Evaluate(expected.Count, matched.Count)
-alt expected < 8
-  ST --> CD : Inconclusive
-else fraction < 0.70
-  ST --> CD : Cloud
-else
-  ST --> CD : Clear
-end
-CD -> BG : Measure(frame, roi.Mask, detected)
-BG --> CD : median, uniformity
-CD -> Moon : Factor(site, now)
-Moon --> CD : moon factor
-CD -> BT : Evaluate(median, uniformity, reference, factor)
-alt no clear-sky reference yet
-  BT --> CD : Skipped
-else median > 1.3×ref  or  uniformity > 1.5×ref
-  BT --> CD : Cloud
-else
-  BT --> CD : Clear
-end
-CD -> CD : cloud = starCloud OR brightnessCloud\n(both unavailable → cloud, fail-safe)
-CD --> Cyc : CloudAssessment
-deactivate CD
 @enduml

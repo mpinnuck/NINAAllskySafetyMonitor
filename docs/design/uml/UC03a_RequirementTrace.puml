@@ -12,7 +12,7 @@ rectangle "§1 NINA integration\nREQ-01, REQ-02" <<requirement>> as R1a
 rectangle "§1 NINA integration\nREQ-03" <<requirement>> as R1b
 rectangle "§2 Site and mount\nREQ-04 … REQ-07" <<requirement>> as R2
 rectangle "§3 Operating window\nREQ-08 … REQ-10" <<requirement>> as R3
-rectangle "§4 Image acquisition\nREQ-11 … REQ-18" <<requirement>> as R4
+rectangle "§4 Image acquisition\nREQ-11 … REQ-18, REQ-60" <<requirement>> as R4
 rectangle "§5 Calibration\nREQ-19 … REQ-21" <<requirement>> as R5a
 rectangle "§5 Working area\nREQ-22" <<requirement>> as R5b
 rectangle "§6 Region of interest\nREQ-23 … REQ-27, REQ-58" <<requirement>> as R6

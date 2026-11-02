@@ -80,10 +80,13 @@ package "NINAAllskySafetyMonitor.Core.Domain" {
     +ExpectedStars : int
     +DetectedStars : int
     +StarFraction : double?
-    +BrightnessRatio : double?
+    +RelativeBrightness : double?
     +UniformityRatio : double?
     +StarTestInconclusive : bool
+    +BrightnessTestSkipped : bool
     +CloudPresent : bool
+    +Expected : IReadOnlyList<PixelPoint>
+    +Found : IReadOnlyList<bool>
     .. REQ-28 ..
   }
   class ConditionCheck <<record>> {

@@ -70,13 +70,14 @@ package "NINAAllskySafetyMonitor.Core.Settings" {
     .. REQ-20 ..
   }
   class CloudDetectionSettings {
-    +LimitingMagnitude = 4.0
+    +LimitingMagnitude = 4.4
     +MinStarFraction = 0.70
     +MinExpectedStars = 8
     +MaxBrightnessRatio = 1.3
     +MaxUniformityRatio = 1.5
     +MoonExclusionDeg = 15
     +Tuned = false
+    .. REQ-29 REQ-30 REQ-31 REQ-43 ..
   }
   class WeatherSettings {
     +Enabled = true
@@ -93,6 +94,8 @@ package "NINAAllskySafetyMonitor.Core.Settings" {
   class TuningSettings {
     +Enabled = false
     +OutputFolder
+    +RetentionDays = 30
+    .. REQ-41 ..
   }
   class LoggingSettings {
     +RetentionDays = 7

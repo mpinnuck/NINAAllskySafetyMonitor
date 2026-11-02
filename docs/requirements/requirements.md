@@ -1,6 +1,6 @@
 # NINAAllskySafetyMonitor — Requirements
 
-Version 5.2 · 2026-11-02
+Version 5.3 · 2026-11-02
 
 A safety monitor for NINA on the AstroPC. It analyses images from an Allsky camera, combines them with rain and wind data from a weather station, and reports a safe/unsafe status to NINA.
 
@@ -41,6 +41,7 @@ Defaults shown in *[brackets]* are configurable. How configurable values are sto
 - **REQ-16** For direct access, the file's modification time is checked before downloading, and the image is skipped if it is unchanged since the last fetch.
 - **REQ-17** An image caught part-way through being written (an incomplete JPEG) is discarded and fetched again after *[5 s]*, up to *[3]* attempts.
 - **REQ-18** If no image can be fetched for *[10 min]*, reports **unsafe**.
+- **REQ-60** An image that is not a sky frame, such as the notice image Allsky shows when its software is not running, is recognised and reported **unsafe** with that reason.
 
 ## 5. Lens calibration and working area
 
@@ -61,9 +62,9 @@ Defaults shown in *[brackets]* are configurable. How configurable values are sto
 ## 7. Cloud detection
 
 - **REQ-28** **Any cloud in the ROI means unsafe.**
-- **REQ-29** Primary test: predict which catalogue stars should be visible in the ROI (down to a limiting magnitude *[4.0]*), detect stars in the image, and compute the detected fraction. If the fraction falls below *[0.70]*, there is cloud. If fewer than *[8]* stars are expected in the ROI, this test is inconclusive and only REQ-30 applies.
-- **REQ-30** Secondary test, comparing the ROI with a clear-sky reference captured automatically on the first tuned clear night (cloud lit by city glow appears brighter and blotchier):
-  - median brightness above *[1.3×]* the reference → cloud;
+- **REQ-29** Primary test: predict which catalogue stars should be visible in the ROI (down to a limiting magnitude *[4.4]*), detect stars in the image, and compute the detected fraction. If the fraction falls below *[0.70]*, there is cloud. If fewer than *[8]* stars are expected in the ROI, this test is inconclusive and only REQ-30 applies.
+- **REQ-30** Secondary test, comparing the ROI with a clear-sky reference: a map of sky brightness and non-uniformity over the working area, captured automatically on the first tuned clear night. Cloud lit by city glow appears brighter and blotchier than clear sky. Because the Allsky camera adjusts its exposure to keep overall image brightness steady, the test does not depend on exposure:
+  - brightness of the ROI relative to the rest of the working area, both compared with the reference, above *[1.3×]* → cloud;
   - non-uniformity (standard deviation ÷ median, after removing stars) above *[1.5×]* the reference → cloud.
   Until a reference exists, this test is skipped and REQ-29 alone decides.
 - **REQ-31** Stars within *[15°]* of the Moon are excluded from the expected list, and brightness thresholds are adjusted for lunar phase and altitude, to avoid false unsafes from moonlight.
@@ -85,7 +86,7 @@ Defaults shown in *[brackets]* are configurable. How configurable values are sto
 
 ## 10. Tuning and offline analysis
 
-- **REQ-41** A tuning mode saves frames together with their computed metrics, in a format readable by Excel, so thresholds can be tuned from real nights. It can run alongside normal operation *[off]*.
+- **REQ-41** A tuning mode saves every frame together with its computed metrics, in a format readable by Excel, so thresholds can be tuned from real nights. It can run alongside normal operation *[off]*. Saved tuning data older than *[30 days]* is deleted.
 - **REQ-42** Saved frames can be re-analysed offline, without the rig or a live NINA session, to test threshold changes.
 - **REQ-43** Until the thresholds have been tuned, conservative defaults (biased towards unsafe) are used and an "UNTUNED" warning is shown.
 

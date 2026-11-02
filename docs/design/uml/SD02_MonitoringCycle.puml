@@ -44,11 +44,11 @@ loop every IntervalS [60 s]
   Roi --> Cyc : centre from RA/Dec, or null  (REQ-06, REQ-24, REQ-26)
   Cyc -> RB : Build(centre, 15°, 0.5, w, h)
   RB --> Cyc : RegionOfInterest: circle within the working area,\nor whole working area  (REQ-23, REQ-25, REQ-58)
-  Cyc -> Cloud : Assess(frame, roi, site, now, ref)
-  Cloud --> Cyc : NoCloud  (see SD-03)
+  Cyc -> Cloud : decode, sky-frame check, Assess(…)
+  Cloud --> Cyc : NoCloud  (see SD-03; REQ-28 … REQ-31, REQ-60)
   Cyc -> Cyc : provisional reason = every failed condition
   opt tuning mode on
-    Cyc -> Cyc : recorder.Record(snapshot)  (REQ-41)
+    Cyc -> Cyc : recorder.Record(snapshot, jpeg)\nevery frame + CSV row; purge > 30 days  (REQ-41)
   end
   Cyc --> Guard : MonitorSnapshot
   deactivate Cyc
