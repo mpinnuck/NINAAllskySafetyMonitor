@@ -1,6 +1,7 @@
 using NINA.Profile.Interfaces;
 using NINAAllskySafetyMonitor.Astrometry;
 using NINAAllskySafetyMonitor.Core.Abstractions;
+using NINAAllskySafetyMonitor.Core.Decision;
 using NINAAllskySafetyMonitor.Core.Domain;
 using NINAAllskySafetyMonitor.Core.Monitoring;
 using NINAAllskySafetyMonitor.Core.Traceability;
@@ -25,6 +26,12 @@ public sealed class MonitorHost
 
     /// <summary>The shared instance.</summary>
     public static MonitorHost Instance { get; } = new();
+
+    /// <summary>
+    /// Manual override (REQ-40). Kept for the whole NINA session, across disconnect and reconnect,
+    /// but never saved, so it is Auto again after NINA restarts.
+    /// </summary>
+    public ManualOverride Override { get; } = new(new NinaLogSink());
 
     /// <summary>Raised on a background thread after every monitoring cycle.</summary>
     public event EventHandler<MonitorSnapshot>? SnapshotAvailable;
@@ -62,7 +69,7 @@ public sealed class MonitorHost
             if (IsRunning) return;
 
             var ports = new MonitorPorts(new SystemClock(), new NinaSiteLocationSource(profileService), new NovasAstroCalculator(), new NinaLogSink(), new WindowsCredentialStore());
-            MonitorService built = new MonitorServiceBuilder().Build(() => PluginSettingsStore.Instance.Current, ports);
+            MonitorService built = new MonitorServiceBuilder().Build(() => PluginSettingsStore.Instance.Current, ports, Override);
             built.SnapshotAvailable += OnSnapshot;
 
             lock (sync) service = built;

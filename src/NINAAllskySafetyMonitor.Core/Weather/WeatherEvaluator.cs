@@ -32,8 +32,8 @@ public sealed class WeatherEvaluator
             string why = lastError is null ? "No weather data yet" : $"No weather data: {lastError}";
             return new[]
             {
-                new ConditionCheck(SafetyCondition.NoRain, false, "Rain unknown"),
-                new ConditionCheck(SafetyCondition.WindBelowLimit, false, "Wind unknown"),
+                new ConditionCheck(SafetyCondition.NoRain, false, why),
+                new ConditionCheck(SafetyCondition.WindBelowLimit, false, why),
                 new ConditionCheck(SafetyCondition.WeatherCurrent, false, why),
             };
         }

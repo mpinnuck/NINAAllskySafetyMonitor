@@ -30,10 +30,26 @@
                         Foreground="White"
                         Text="{Binding StateText}" />
                 </Border>
+                <Border
+                    Margin="0,6,0,0"
+                    Padding="8,4"
+                    Background="#B36B00"
+                    CornerRadius="3"
+                    Visibility="{Binding OverrideActive, Converter={StaticResource AllskySafety_BoolToVisibility}}">
+                    <TextBlock
+                        FontWeight="Bold"
+                        Foreground="White"
+                        Text="{Binding OverrideBanner}"
+                        TextWrapping="Wrap" />
+                </Border>
                 <TextBlock
                     Margin="0,8,0,0"
                     Text="{Binding ReasonText}"
                     TextWrapping="Wrap" />
+                <TextBlock
+                    Margin="0,4,0,0"
+                    FontWeight="Bold"
+                    Text="{Binding CountdownText}" />
                 <TextBlock
                     Margin="0,4,0,0"
                     Opacity="0.7"
@@ -60,6 +76,16 @@
                     Opacity="0.7"
                     Text="{Binding ImageInfoText}"
                     TextWrapping="Wrap" />
+                <StackPanel Margin="0,10,0,0" Orientation="Horizontal">
+                    <TextBlock
+                        Margin="0,0,8,0"
+                        VerticalAlignment="Center"
+                        Text="Override" />
+                    <ComboBox
+                        MinWidth="120"
+                        ItemsSource="{Binding OverrideModes}"
+                        SelectedItem="{Binding OverrideMode}" />
+                </StackPanel>
             </StackPanel>
         </ScrollViewer>
     </DataTemplate>

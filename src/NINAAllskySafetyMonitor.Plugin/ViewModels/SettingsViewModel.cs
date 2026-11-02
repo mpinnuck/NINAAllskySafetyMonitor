@@ -205,6 +205,26 @@ public sealed class SettingsViewModel : INotifyPropertyChanged
         set { edit.ImageSource.Web.FileName = value; OnPropertyChanged(); }
     }
 
+    // ---- Decision and log ----
+
+    public int SafeAfterMin
+    {
+        get => edit.Decision.SafeAfterMin;
+        set { edit.Decision.SafeAfterMin = value; OnPropertyChanged(); }
+    }
+
+    public int LogRetentionDays
+    {
+        get => edit.Logging.RetentionDays;
+        set { edit.Logging.RetentionDays = value; OnPropertyChanged(); }
+    }
+
+    public string LogFolder
+    {
+        get => edit.Logging.Folder;
+        set { edit.Logging.Folder = value; OnPropertyChanged(); }
+    }
+
     // ---- Fallback site ----
 
     public double FallbackLatitudeDeg

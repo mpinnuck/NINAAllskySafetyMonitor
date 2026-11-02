@@ -87,6 +87,18 @@ public sealed class MonitoringCycleTests
     }
 
     [Fact]
+    public async Task NoWeatherDataIsReportedOnce()
+    {
+        astro.SunAltitude = -30;
+        direct.Then(FreshImage());
+        weather.Then(WeatherFetchResult.Failed("Weather API key was rejected (HTTP 401)"));
+        MonitorSnapshot s = await Cycle().RunOnceAsync(CancellationToken.None);
+
+        Assert.Equal("No weather data: Weather API key was rejected (HTTP 401) · Cloud detection not implemented yet", s.Status.Reason);
+        Assert.Equal(3, s.Conditions.Checks.Count(c => !c.Passed && c.Condition != SafetyCondition.NoCloud));
+    }
+
+    [Fact]
     public async Task WeatherCheckingOffIsNotPolledAndNotShown()
     {
         astro.SunAltitude = -30;

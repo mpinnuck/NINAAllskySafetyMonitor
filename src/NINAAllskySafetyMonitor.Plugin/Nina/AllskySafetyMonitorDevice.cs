@@ -64,6 +64,8 @@ public sealed class AllskySafetyMonitorDevice : BaseINPC, ISafetyMonitor
             await host.StartAsync(profileService).ConfigureAwait(false);
             host.SnapshotAvailable -= OnSnapshot;
             host.SnapshotAvailable += OnSnapshot;
+            host.Override.Changed -= OnOverrideChanged;
+            host.Override.Changed += OnOverrideChanged;
             Connected = true;
             Logger.Info("[AllskySafetyMonitor] Connected");
             return true;
@@ -80,6 +82,7 @@ public sealed class AllskySafetyMonitorDevice : BaseINPC, ISafetyMonitor
     {
         Logger.Info("[AllskySafetyMonitor] Disconnect requested");
         host.SnapshotAvailable -= OnSnapshot;
+        host.Override.Changed -= OnOverrideChanged;
         try
         {
             // Run on the thread pool so a caller on the UI thread cannot deadlock.
@@ -111,4 +114,6 @@ public sealed class AllskySafetyMonitorDevice : BaseINPC, ISafetyMonitor
         throw new NotSupportedException("Commands are not supported.");
 
     private void OnSnapshot(object? sender, MonitorSnapshot snapshot) => RaisePropertyChanged(nameof(IsSafe));
+
+    private void OnOverrideChanged(object? sender, EventArgs e) => RaisePropertyChanged(nameof(IsSafe));
 }

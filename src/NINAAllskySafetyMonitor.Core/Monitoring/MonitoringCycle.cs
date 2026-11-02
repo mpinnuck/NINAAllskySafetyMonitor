@@ -76,7 +76,8 @@ public sealed class MonitoringCycle : IMonitoringCycle
         checks.AddRange(weatherEvaluator.Evaluate(weather.Latest, weather.LastError, now, s.Weather));
         checks.Add(new ConditionCheck(SafetyCondition.NoCloud, false, "Cloud detection not implemented yet"));
 
-        string reason = string.Join(" · ", checks.Where(c => !c.Passed).Select(c => c.Reason));
+        // Distinct: with no weather data, rain, wind and data age all fail for the same reason.
+        string reason = string.Join(" · ", checks.Where(c => !c.Passed).Select(c => c.Reason).Distinct());
         var status = new SafetyStatus(SafetyState.Unsafe, false, reason, null, OverrideMode.Auto, untuned, now);
         WeatherObservation? obs = s.Weather.Enabled ? weather.Latest : null;
         return new MonitorSnapshot(acquirer.LatestImage, null, null, obs, new SafetyConditions(checks), status);

@@ -1,4 +1,5 @@
 using NINAAllskySafetyMonitor.Core.Abstractions;
+using NINAAllskySafetyMonitor.Core.Decision;
 using NINAAllskySafetyMonitor.Core.Domain;
 using NINAAllskySafetyMonitor.Core.Traceability;
 
@@ -6,38 +7,55 @@ namespace NINAAllskySafetyMonitor.Core.Monitoring;
 
 /// <summary>
 /// Runs the monitoring cycle repeatedly on a background task (never the caller's thread) until
-/// stopped. Publishes each snapshot through <see cref="SnapshotAvailable"/>. Status is Starting
-/// (unsafe) until the first cycle completes.
+/// stopped. Each cycle's snapshot goes through the decision engine (immediate unsafe, delayed safe) and
+/// the manual override, then is published through <see cref="SnapshotAvailable"/>. Status is Starting
+/// (unsafe) until the first cycle completes. A manual override takes effect at once, not at the next cycle.
 /// </summary>
-[Requirement("REQ-02", "REQ-49")]
+[Requirement("REQ-02", "REQ-38", "REQ-40", "REQ-49")]
 public sealed class MonitorService
 {
     private readonly IMonitoringCycle cycle;
     private readonly FailSafeGuard guard;
     private readonly Func<TimeSpan> interval;
     private readonly ILogSink log;
+    private readonly SafetyDecisionEngine? engine;
+    private readonly ManualOverride? manualOverride;
     private readonly object sync = new();
     private CancellationTokenSource? cts;
     private Task? loop;
-    private SafetyStatus currentStatus;
+    private SafetyStatus decidedStatus;
 
-    public MonitorService(IMonitoringCycle cycle, FailSafeGuard guard, Func<TimeSpan> interval, IClock clock, ILogSink log)
+    public MonitorService(
+        IMonitoringCycle cycle,
+        FailSafeGuard guard,
+        Func<TimeSpan> interval,
+        IClock clock,
+        ILogSink log,
+        SafetyDecisionEngine? engine = null,
+        ManualOverride? manualOverride = null)
     {
         this.cycle = cycle ?? throw new ArgumentNullException(nameof(cycle));
         this.guard = guard ?? throw new ArgumentNullException(nameof(guard));
         this.interval = interval ?? throw new ArgumentNullException(nameof(interval));
         this.log = log ?? throw new ArgumentNullException(nameof(log));
+        this.engine = engine;
+        this.manualOverride = manualOverride;
         ArgumentNullException.ThrowIfNull(clock);
-        currentStatus = SafetyStatus.Starting(clock.UtcNow);
+        decidedStatus = SafetyStatus.Starting(clock.UtcNow);
     }
 
-    /// <summary>Raised on the background thread after every cycle.</summary>
+    /// <summary>Raised on the background thread after every cycle, with the final (decided, overridden) status.</summary>
     public event EventHandler<MonitorSnapshot>? SnapshotAvailable;
 
-    /// <summary>The latest decision.</summary>
+    /// <summary>The latest decision, with the current manual override applied.</summary>
     public SafetyStatus CurrentStatus
     {
-        get { lock (sync) return currentStatus; }
+        get
+        {
+            SafetyStatus s;
+            lock (sync) s = decidedStatus;
+            return manualOverride?.Apply(s) ?? s;
+        }
     }
 
     /// <summary>True while the background loop is running.</summary>
@@ -93,22 +111,24 @@ public sealed class MonitorService
         while (!token.IsCancellationRequested)
         {
             MonitorSnapshot snapshot = await guard.RunAsync(cycle, token).ConfigureAwait(false);
+            SafetyStatus decided = engine?.Decide(snapshot) ?? snapshot.Status;
+
             SafetyStatus previous;
             lock (sync)
             {
-                previous = currentStatus;
-                currentStatus = snapshot.Status;
+                previous = decidedStatus;
+                decidedStatus = decided;
             }
 
-            // Log changes of state or of the kind of reason. Numbers (image age, Sun altitude) change every
-            // cycle, so they are ignored when comparing reasons.
-            if (previous.State != snapshot.Status.State
-                || ReasonKind(previous.Reason) != ReasonKind(snapshot.Status.Reason))
+            // Log changes of state or of the kind of reason. Numbers (image age, Sun altitude, countdown)
+            // change every cycle, so they are ignored when comparing reasons.
+            if (previous.State != decided.State || ReasonKind(previous.Reason) != ReasonKind(decided.Reason))
             {
-                log.Write(LogLevel.Info, $"State {snapshot.Status.State} (safe: {snapshot.Status.IsSafe}): {snapshot.Status.Reason}");
+                log.Write(LogLevel.Info, $"State {decided.State} (safe: {decided.IsSafe}): {decided.Reason}");
             }
 
-            Publish(snapshot);
+            SafetyStatus reported = manualOverride?.Apply(decided) ?? decided;
+            Publish(snapshot with { Status = reported });
             await Task.Delay(interval(), token).ConfigureAwait(false);
         }
     }

@@ -1,3 +1,4 @@
+using NINAAllskySafetyMonitor.Core.Decision;
 using NINAAllskySafetyMonitor.Core.Domain;
 using NINAAllskySafetyMonitor.Core.Monitoring;
 using NINAAllskySafetyMonitor.Core.Traceability;
@@ -6,7 +7,7 @@ using Xunit;
 
 namespace NINAAllskySafetyMonitor.Tests.Monitoring;
 
-[Requirement("REQ-02", "REQ-49")]
+[Requirement("REQ-02", "REQ-38", "REQ-40", "REQ-49")]
 public sealed class MonitorServiceTests
 {
     private readonly ListLogSink log = new();
@@ -73,6 +74,43 @@ public sealed class MonitorServiceTests
         Assert.NotEqual(
             MonitorService.ReasonKind("Cloud detection not implemented yet · Image 0.3 min old"),
             MonitorService.ReasonKind("Image is 12.0 min old (limit 10 min)"));
+
+    [Fact]
+    public async Task DecisionEngineDecidesThePublishedStatus()
+    {
+        var cycle = new DelegateCycle(_ => Task.FromResult(AllClear()));
+        var engine = new SafetyDecisionEngine(clock, () => TimeSpan.FromMinutes(4));
+        var service = new MonitorService(cycle, new FailSafeGuard(clock, log, () => TimeSpan.FromSeconds(5)), () => TimeSpan.FromMilliseconds(20), clock, log, engine);
+        MonitorSnapshot? published = null;
+        service.SnapshotAvailable += (_, s) => published = s;
+
+        service.Start();
+        Assert.True(await WaitFor(() => published is not null));
+        await service.StopAsync();
+
+        Assert.False(service.CurrentStatus.IsSafe);
+        Assert.Equal(240, service.CurrentStatus.SecondsToSafe);
+        Assert.Equal(240, published!.Status.SecondsToSafe);
+    }
+
+    [Fact]
+    public void ManualOverrideTakesEffectImmediately()
+    {
+        var manual = new ManualOverride(log);
+        var service = new MonitorService(new DelegateCycle(_ => Task.FromResult(AllClear())), new FailSafeGuard(clock, log, () => TimeSpan.FromSeconds(5)), () => TimeSpan.FromSeconds(60), clock, log, null, manual);
+        Assert.False(service.CurrentStatus.IsSafe);
+
+        manual.Mode = OverrideMode.ForceSafe;
+        Assert.True(service.CurrentStatus.IsSafe);
+
+        manual.Mode = OverrideMode.Auto;
+        Assert.False(service.CurrentStatus.IsSafe);
+    }
+
+    private static MonitorSnapshot AllClear() =>
+        new(null, null, null, null,
+            new SafetyConditions(new[] { new ConditionCheck(SafetyCondition.ActiveWindow, true, "ok"), new ConditionCheck(SafetyCondition.NoCloud, true, "ok") }),
+            new SafetyStatus(SafetyState.Unsafe, false, string.Empty, null, OverrideMode.Auto, false, DateTime.UtcNow));
 
     [Fact]
     public async Task StopWithoutStartIsHarmless() =>

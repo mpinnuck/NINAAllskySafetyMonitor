@@ -32,6 +32,7 @@ public sealed class StatusViewModel : DockableVM
         Title = "Allsky Safety";
         host.SnapshotAvailable += (_, _) => OnUiThread(Refresh);
         host.RunningChanged += (_, _) => OnUiThread(Refresh);
+        host.Override.Changed += (_, _) => OnUiThread(Refresh);
 
         // Safety net: also refresh every few seconds, so the panel can never stay stale if an event is
         // missed, and so the image age keeps counting.
@@ -62,6 +63,38 @@ public sealed class StatusViewModel : DockableVM
     }
 
     public bool UntunedVisible => host.IsRunning && host.CurrentStatus.Untuned;
+
+    // ---- Manual override (REQ-40) ----
+
+    public IReadOnlyList<OverrideMode> OverrideModes { get; } = new[] { OverrideMode.Auto, OverrideMode.ForceSafe, OverrideMode.ForceUnsafe };
+
+    public OverrideMode OverrideMode
+    {
+        get => host.Override.Mode;
+        set => host.Override.Mode = value;
+    }
+
+    public bool OverrideActive => host.Override.Mode != OverrideMode.Auto;
+
+    public string OverrideBanner => host.Override.Mode switch
+    {
+        OverrideMode.ForceSafe => "MANUAL OVERRIDE: FORCE SAFE. NINA is told it is safe, whatever the sky. Set Auto when testing is done.",
+        OverrideMode.ForceUnsafe => "MANUAL OVERRIDE: FORCE UNSAFE. Set Auto when testing is done.",
+        _ => string.Empty,
+    };
+
+    /// <summary>Time left until safe while every condition is clear (REQ-39), counting down between cycles.</summary>
+    public string CountdownText
+    {
+        get
+        {
+            if (!host.IsRunning) return string.Empty;
+            SafetyStatus s = host.CurrentStatus;
+            if (s.SecondsToSafe is not int seconds) return string.Empty;
+            int left = Math.Max(0, seconds - (int)(DateTime.UtcNow - s.TimestampUtc).TotalSeconds);
+            return $"Safe in {left / 60}:{left % 60:00} if conditions stay clear";
+        }
+    }
 
     /// <summary>The latest Allsky image, or null when there is none (idle, not connected or not fetched yet).</summary>
     public BitmapSource? AllskyImage => image;
@@ -115,6 +148,10 @@ public sealed class StatusViewModel : DockableVM
         RaisePropertyChanged(nameof(UntunedVisible));
         RaisePropertyChanged(nameof(ImageInfoText));
         RaisePropertyChanged(nameof(WeatherInfoText));
+        RaisePropertyChanged(nameof(OverrideMode));
+        RaisePropertyChanged(nameof(OverrideActive));
+        RaisePropertyChanged(nameof(OverrideBanner));
+        RaisePropertyChanged(nameof(CountdownText));
     }
 
     /// <summary>Decodes at panel resolution; a JPEG that can't be decoded is simply not shown.</summary>
