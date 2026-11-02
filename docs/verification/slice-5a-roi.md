@@ -6,7 +6,7 @@ Each cycle now reads the mount from NINA and places the **ROI**, a 15° circle o
 
 The working area and ROI are drawn on the panel image. Until the lens is calibrated (5b) the drawing uses a rough lens model from the image size, so **positions on the image are approximate**; the ROI itself is computed on the sky and doesn't depend on the drawing. Cloud detection still fails until slice 6, so the state stays UNSAFE.
 
-Record results in `verification.xlsx`, sheet **Slice 5a**. Daytime is fine: limit +90 and cycle interval 10 s. The mount must be connected in NINA for checks 4–11 (the AM5, or NINA's telescope simulator if the rig isn't set up).
+Record results in `verification.xlsx`, sheet **Slice 5a**. Daytime is fine: limit +90 and cycle interval 10 s (check 15 uses 60 s). The mount must be connected in NINA for checks 4–11 (the AM5, or NINA's telescope simulator if the rig isn't set up).
 
 ## A. Mac / B. AstroPC
 
@@ -32,6 +32,7 @@ Build and test on the Mac (all pass, two skipped), commit and push; pull, rebuil
 | 12 | Untick "Show working area and ROI on the image", then tick it again | Plain image, then the overlay again | 45 |
 | 13 | Optional: Lens model → **Enter the lens model by hand** on; adjust **North rotation** (and East clockwise) until N/E/S/W sit over the right landmarks; Save | Starting values come from the latest image size; the drawing follows the new values next cycle. Note the values that fit | 19 |
 | 14 | Park the mount; disconnect the monitor | "Mount parked: judging the whole working area"; then NOT CONNECTED | 26 |
+| 15 | Options: cycle interval **60 s**, mount check interval **2 s** (new row under the cycle interval), Save. Connect the monitor, then slew | Within a few seconds of the slew starting: "Mount slewing: holding last decision (…)"; within a few seconds of it ending, the ROI at the new target, without waiting for the 60 s cycle. NINA log has "Mount changed (slewing): re-evaluating now" lines. The image is still fetched only once a minute | 27 |
 
 Unit tests behind this slice: `CoordinateConverterTests` (checked against astropy), `SkyGeometryTests`, `LensProjectionTests`, `WorkingAreaTests`, `MountStateInterpreterTests`, `RoiCalculatorTests`, `RoiBuilderTests`, `SlewHoldTests`, `MonitoringCycleTests`, `DecisionLoggerTests`.
 

@@ -4,7 +4,7 @@ using NINAAllskySafetyMonitor.Core.Traceability;
 namespace NINAAllskySafetyMonitor.Core.Settings;
 
 /// <summary>Checks settings for values that would stop the monitor working. Returns readable error messages.</summary>
-[Requirement("REQ-22", "REQ-46", "REQ-58")]
+[Requirement("REQ-22", "REQ-27", "REQ-46", "REQ-58")]
 public sealed class SettingsValidator
 {
     /// <summary>Returns one message per problem; an empty list means the settings are valid.</summary>
@@ -60,6 +60,7 @@ public sealed class SettingsValidator
         }
 
         Range(errors, s.Roi.RadiusDeg, 1, 90, "ROI radius must be between 1° and 90°.");
+        Range(errors, s.Mount.PollIntervalS, 1, 60, "Mount check interval must be between 1 s and 60 s.");
         Range(errors, s.Roi.MinInsideFraction, 0, 1, "Minimum ROI fraction inside the working area must be between 0% and 100%.");
 
         Geometry.WorkingAreaDefinition area = s.Calibration.WorkingArea;

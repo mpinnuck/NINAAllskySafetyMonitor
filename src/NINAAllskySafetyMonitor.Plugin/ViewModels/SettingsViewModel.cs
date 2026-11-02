@@ -76,6 +76,12 @@ public sealed class SettingsViewModel : INotifyPropertyChanged
         set { edit.ImageSource.IntervalS = value; OnPropertyChanged(); }
     }
 
+    public int MountPollIntervalS
+    {
+        get => edit.Mount.PollIntervalS;
+        set { edit.Mount.PollIntervalS = value; OnPropertyChanged(); }
+    }
+
     // ---- Image source ----
 
     public IReadOnlyList<ImageSourceKind> ImageSourceKinds { get; } = new[] { ImageSourceKind.Direct, ImageSourceKind.Web };

@@ -193,4 +193,23 @@ public sealed class MonitoringCycleTests
         Assert.Null(s.Roi);
         Assert.Same(mount.Current, s.Mount);
     }
+
+    [Fact]
+    public async Task EarlyCycleReusesTheImageUntilTheImageIntervalHasPassed()
+    {
+        astro.SunAltitude = -30;
+        settings.ImageSource.IntervalS = 30;
+        direct.Then(FreshImage());
+        MonitoringCycle cycle = Cycle();
+
+        await cycle.RunOnceAsync(CancellationToken.None);
+        clock.UtcNow = Now.AddSeconds(5);   // e.g. triggered by a mount change
+        MonitorSnapshot early = await cycle.RunOnceAsync(CancellationToken.None);
+        Assert.Equal(1, direct.Fetches);
+        Assert.NotNull(early.Image);
+
+        clock.UtcNow = Now.AddSeconds(30);
+        await cycle.RunOnceAsync(CancellationToken.None);
+        Assert.Equal(2, direct.Fetches);
+    }
 }

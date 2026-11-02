@@ -64,6 +64,16 @@ public sealed class SettingsValidatorTests
         Assert.Contains(new SettingsValidator().Validate(s), e => e.Contains("inside the working area"));
     }
 
+    [Theory, Requirement("REQ-27")]
+    [InlineData(0)]
+    [InlineData(61)]
+    public void OutOfRangeMountIntervalIsReported(int seconds)
+    {
+        var s = ValidSettings();
+        s.Mount.PollIntervalS = seconds;
+        Assert.Contains(new SettingsValidator().Validate(s), e => e.Contains("Mount check interval"));
+    }
+
     [Fact, Requirement("REQ-19")]
     public void LensModelWithoutARadiusIsReported()
     {

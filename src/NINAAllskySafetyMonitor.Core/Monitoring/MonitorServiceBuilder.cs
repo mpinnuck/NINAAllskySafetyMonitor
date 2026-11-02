@@ -55,7 +55,10 @@ public sealed class MonitorServiceBuilder
 
         var guard = new FailSafeGuard(ports.Clock, log, () => CycleTimeout(settings()));
         var engine = new SafetyDecisionEngine(ports.Clock, () => TimeSpan.FromMinutes(settings().Decision.SafeAfterMin), new SlewHoldPolicy());
-        var service = new MonitorService(cycle, guard, () => TimeSpan.FromSeconds(settings().ImageSource.IntervalS), ports.Clock, log, engine, manualOverride);
+        MountWatcher? watcher = ports.Mount is null
+            ? null
+            : new MountWatcher(ports.Mount, () => TimeSpan.FromSeconds(settings().Mount.PollIntervalS), log);
+        var service = new MonitorService(cycle, guard, () => TimeSpan.FromSeconds(settings().ImageSource.IntervalS), ports.Clock, log, engine, manualOverride, watcher);
 
         var decisions = new DecisionLogger(() => settings().Logging, ports.Clock, redactor, log);
         service.SnapshotAvailable += (_, s) => decisions.Write(s);

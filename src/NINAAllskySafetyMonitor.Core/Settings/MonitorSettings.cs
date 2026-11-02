@@ -13,6 +13,7 @@ public sealed class MonitorSettings
     public OperatingWindowSettings Window { get; set; } = new();
     public ImageSourceSettings ImageSource { get; set; } = new();
     public RoiSettings Roi { get; set; } = new();
+    public MountSettings Mount { get; set; } = new();
     public CloudDetectionSettings Cloud { get; set; } = new();
     public WeatherSettings Weather { get; set; } = new();
     public DecisionSettings Decision { get; set; } = new();

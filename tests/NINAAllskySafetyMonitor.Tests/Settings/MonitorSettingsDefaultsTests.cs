@@ -89,6 +89,9 @@ public sealed class MonitorSettingsDefaultsTests
     public void WorkingAreaIsSixtyDegreesAroundFifteenDegreesSouthOfTheZenith() =>
         Assert.Equal((75.0, 180.0, 60.0), (s.Calibration.WorkingArea.CentreAltDeg, s.Calibration.WorkingArea.CentreAzDeg, s.Calibration.WorkingArea.RadiusDeg));
 
+    [Fact, Requirement("REQ-27")]
+    public void MountIsCheckedEveryTwoSeconds() => Assert.Equal(2, s.Mount.PollIntervalS);
+
     [Fact, Requirement("REQ-58")]
     public void HalfTheRoiMustBeInsideTheWorkingArea() => Assert.Equal(0.5, s.Roi.MinInsideFraction);
 

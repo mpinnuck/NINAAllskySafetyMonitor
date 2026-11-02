@@ -10,7 +10,8 @@ namespace NINAAllskySafetyMonitor.Core.Monitoring;
 
 /// <summary>
 /// One monitoring pass (UC-04). Outside the operating window the status is Idle and nothing is
-/// fetched. Inside it, the image is fetched and checked for freshness, the weather is polled (at its
+/// fetched. Inside it, the image is fetched (at most once per image interval, so a cycle triggered early
+/// by a mount change reuses the latest image) and checked for freshness, the weather is polled (at its
 /// own interval) and checked, and the ROI is placed from the mount's RA/Dec within the working area.
 /// The reason lists every failed condition. Until cloud detection is added (slice 6) the status stays
 /// Unsafe even when everything else passes. Settings are read at the start of every cycle.
@@ -29,6 +30,7 @@ public sealed class MonitoringCycle : IMonitoringCycle
     private readonly IMountStateSource? mount;
     private readonly RoiCalculator roiCalculator;
     private readonly RoiBuilder roiBuilder;
+    private DateTime? lastImageFetchUtc;
 
     public MonitoringCycle(
         Func<MonitorSettings> settings,
@@ -75,7 +77,7 @@ public sealed class MonitoringCycle : IMonitoringCycle
         }
 
         // Image and weather are independent, so fetch them together.
-        await Task.WhenAll(acquirer.AcquireAsync(ct), weather.PollIfDueAsync(ct)).ConfigureAwait(false);
+        await Task.WhenAll(AcquireImageIfDueAsync(s, ct), weather.PollIfDueAsync(ct)).ConfigureAwait(false);
 
         DateTime now = clock.UtcNow;
         RegionOfInterest roi = PlaceRoi(s, mountState, site, now);
@@ -93,6 +95,19 @@ public sealed class MonitoringCycle : IMonitoringCycle
         var status = new SafetyStatus(SafetyState.Unsafe, false, reason, null, OverrideMode.Auto, untuned, now);
         WeatherObservation? obs = s.Weather.Enabled ? weather.Latest : null;
         return new MonitorSnapshot(acquirer.LatestImage, roi, null, obs, new SafetyConditions(checks), status, mountState);
+    }
+
+    /// <summary>Fetches a new image once the image interval has passed (1 s tolerance for loop timing).</summary>
+    private Task AcquireImageIfDueAsync(MonitorSettings s, CancellationToken ct)
+    {
+        DateTime now = clock.UtcNow;
+        if (lastImageFetchUtc is DateTime last && now - last < TimeSpan.FromSeconds(s.ImageSource.IntervalS - 1))
+        {
+            return Task.CompletedTask;
+        }
+
+        lastImageFetchUtc = now;
+        return acquirer.AcquireAsync(ct);
     }
 
     private RegionOfInterest PlaceRoi(MonitorSettings s, MountState? mountState, SiteLocation site, DateTime now)

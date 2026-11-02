@@ -10,8 +10,10 @@ namespace NINAAllskySafetyMonitor.Core.Monitoring;
 /// stopped. Each cycle's snapshot goes through the decision engine (immediate unsafe, delayed safe) and
 /// the manual override, then is published through <see cref="SnapshotAvailable"/>. Status is Starting
 /// (unsafe) until the first cycle completes. A manual override takes effect at once, not at the next cycle.
+/// A change of mount state, or <see cref="RequestEvaluation"/>, runs the next cycle at once instead of
+/// waiting for the interval.
 /// </summary>
-[Requirement("REQ-02", "REQ-38", "REQ-40", "REQ-49")]
+[Requirement("REQ-02", "REQ-27", "REQ-38", "REQ-40", "REQ-49")]
 public sealed class MonitorService
 {
     private readonly IMonitoringCycle cycle;
@@ -20,6 +22,8 @@ public sealed class MonitorService
     private readonly ILogSink log;
     private readonly SafetyDecisionEngine? engine;
     private readonly ManualOverride? manualOverride;
+    private readonly MountWatcher? mountWatcher;
+    private readonly SemaphoreSlim wake = new(0, 1);
     private readonly object sync = new();
     private CancellationTokenSource? cts;
     private Task? loop;
@@ -32,7 +36,8 @@ public sealed class MonitorService
         IClock clock,
         ILogSink log,
         SafetyDecisionEngine? engine = null,
-        ManualOverride? manualOverride = null)
+        ManualOverride? manualOverride = null,
+        MountWatcher? mountWatcher = null)
     {
         this.cycle = cycle ?? throw new ArgumentNullException(nameof(cycle));
         this.guard = guard ?? throw new ArgumentNullException(nameof(guard));
@@ -40,6 +45,8 @@ public sealed class MonitorService
         this.log = log ?? throw new ArgumentNullException(nameof(log));
         this.engine = engine;
         this.manualOverride = manualOverride;
+        this.mountWatcher = mountWatcher;
+        if (mountWatcher is not null) mountWatcher.Changed += OnMountChanged;
         ArgumentNullException.ThrowIfNull(clock);
         decidedStatus = SafetyStatus.Starting(clock.UtcNow);
     }
@@ -74,11 +81,28 @@ public sealed class MonitorService
             CancellationToken token = cts.Token;
             loop = Task.Run(() => RunLoopAsync(token), token);
         }
+
+        mountWatcher?.Start();
+    }
+
+    /// <summary>Runs the next cycle now instead of waiting for the interval (at most one request is queued).</summary>
+    public void RequestEvaluation()
+    {
+        try
+        {
+            wake.Release();
+        }
+        catch (SemaphoreFullException)
+        {
+            // A request is already waiting.
+        }
     }
 
     /// <summary>Stops the loop and waits for the current cycle to finish.</summary>
     public async Task StopAsync()
     {
+        if (mountWatcher is not null) await mountWatcher.StopAsync().ConfigureAwait(false);
+
         Task? running;
         lock (sync)
         {
@@ -129,9 +153,19 @@ public sealed class MonitorService
 
             SafetyStatus reported = manualOverride?.Apply(decided) ?? decided;
             Publish(snapshot with { Status = reported });
-            await Task.Delay(interval(), token).ConfigureAwait(false);
+            await wake.WaitAsync(interval(), token).ConfigureAwait(false);
         }
     }
+
+    private void OnMountChanged(object? sender, MountState? mount)
+    {
+        string what = mount is null ? "no information" : DescribeMount(mount);
+        log.Write(LogLevel.Info, $"Mount changed ({what}): re-evaluating now");
+        RequestEvaluation();
+    }
+
+    private static string DescribeMount(MountState m) =>
+        !m.Connected ? "not connected" : m.AtPark ? "parked" : m.Slewing ? "slewing" : m.Tracking ? "tracking" : "not tracking";
 
     /// <summary>The reason with its numbers removed, e.g. "Image # min old".</summary>
     internal static string ReasonKind(string reason) =>
