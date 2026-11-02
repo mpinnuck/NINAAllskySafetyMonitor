@@ -39,7 +39,7 @@ docs/design/out/
 
 # Local settings and tuning output — never commit credentials or captured frames
 *.local.json
-tuning/
+/tuning/
 
 # macOS / Windows
 .DS_Store
