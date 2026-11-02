@@ -1,3 +1,4 @@
+using NINA.Equipment.Interfaces.Mediator;
 using NINA.Profile.Interfaces;
 using NINAAllskySafetyMonitor.Astrometry;
 using NINAAllskySafetyMonitor.Core.Abstractions;
@@ -12,7 +13,7 @@ namespace NINAAllskySafetyMonitor.Plugin.Nina;
 /// Owns the running <see cref="MonitorService"/> and relays its snapshots to the device and the
 /// dock panel. One shared instance, because NINA creates those parts independently.
 /// </summary>
-[Requirement("REQ-02", "REQ-03")]
+[Requirement("REQ-02", "REQ-03", "REQ-05")]
 public sealed class MonitorHost
 {
     private readonly SemaphoreSlim gate = new(1, 1);
@@ -61,14 +62,15 @@ public sealed class MonitorHost
     }
 
     /// <summary>Builds and starts the monitor. Does nothing if already running.</summary>
-    public async Task StartAsync(IProfileService profileService)
+    public async Task StartAsync(IProfileService profileService, ITelescopeMediator telescopeMediator)
     {
         await gate.WaitAsync().ConfigureAwait(false);
         try
         {
             if (IsRunning) return;
 
-            var ports = new MonitorPorts(new SystemClock(), new NinaSiteLocationSource(profileService), new NovasAstroCalculator(), new NinaLogSink(), new WindowsCredentialStore());
+            var ports = new MonitorPorts(new SystemClock(), new NinaSiteLocationSource(profileService), new NovasAstroCalculator(), new NinaLogSink(), new WindowsCredentialStore(),
+                new NinaMountStateSource(telescopeMediator));
             MonitorService built = new MonitorServiceBuilder().Build(() => PluginSettingsStore.Instance.Current, ports, Override);
             built.SnapshotAvailable += OnSnapshot;
 

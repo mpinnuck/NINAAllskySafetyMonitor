@@ -4,7 +4,7 @@ using NINAAllskySafetyMonitor.Core.Traceability;
 namespace NINAAllskySafetyMonitor.Core.Settings;
 
 /// <summary>Checks settings for values that would stop the monitor working. Returns readable error messages.</summary>
-[Requirement("REQ-46")]
+[Requirement("REQ-22", "REQ-46", "REQ-58")]
 public sealed class SettingsValidator
 {
     /// <summary>Returns one message per problem; an empty list means the settings are valid.</summary>
@@ -60,6 +60,22 @@ public sealed class SettingsValidator
         }
 
         Range(errors, s.Roi.RadiusDeg, 1, 90, "ROI radius must be between 1° and 90°.");
+        Range(errors, s.Roi.MinInsideFraction, 0, 1, "Minimum ROI fraction inside the working area must be between 0% and 100%.");
+
+        Geometry.WorkingAreaDefinition area = s.Calibration.WorkingArea;
+        Range(errors, area.CentreAltDeg, 0, 90, "Working area centre altitude must be between 0° and 90°.");
+        Range(errors, area.CentreAzDeg, 0, 360, "Working area centre azimuth must be between 0° and 360°.");
+        Range(errors, area.RadiusDeg, 5, 90, "Working area radius must be between 5° and 90°.");
+
+        if (s.Calibration.Lens is { } lens)
+        {
+            if (lens.RadialCoefficients.Length == 0 || !(lens.RadialCoefficients[0] > 0))
+            {
+                errors.Add("The lens model needs a positive horizon radius.");
+            }
+
+            Range(errors, lens.NorthRotationDeg, -360, 360, "Lens north rotation must be between −360° and 360°.");
+        }
 
         CloudDetectionSettings c = s.Cloud;
         Range(errors, c.LimitingMagnitude, 0, 7, "Limiting magnitude must be between 0 and 7.");

@@ -45,11 +45,14 @@ public sealed class SettingsStoreTests : IDisposable
             RmsErrorPx = 1.4,
             CalibratedUtc = new DateTime(2026, 11, 1, 12, 0, 0, DateTimeKind.Utc),
         };
-        s.Calibration.Mask = new HorizonMaskDefinition
+        s.Calibration.WorkingArea = new WorkingAreaDefinition
         {
-            MinAltitudeDeg = 25,
+            CentreAltDeg = 70,
+            CentreAzDeg = 170,
+            RadiusDeg = 55,
             Outline = new[] { new PixelPoint(10, 20), new PixelPoint(30, 40), new PixelPoint(50, 10) },
         };
+        s.Roi.MinInsideFraction = 0.4;
         s.Calibration.ClearSkyReference = new ClearSkyReference { Median = 812.0, Uniformity = 0.06 };
 
         store.Save(s);
@@ -61,9 +64,10 @@ public sealed class SettingsStoreTests : IDisposable
         Assert.NotNull(loaded.Calibration.Lens);
         Assert.Equal(1520.5, loaded.Calibration.Lens!.CentreX);
         Assert.Equal(new[] { 980.0, -12.5 }, loaded.Calibration.Lens.RadialCoefficients);
-        Assert.Equal(25.0, loaded.Calibration.Mask.MinAltitudeDeg);
-        Assert.Equal(3, loaded.Calibration.Mask.Outline.Count);
-        Assert.Equal(new PixelPoint(30, 40), loaded.Calibration.Mask.Outline[1]);
+        Assert.Equal((70.0, 170.0, 55.0), (loaded.Calibration.WorkingArea.CentreAltDeg, loaded.Calibration.WorkingArea.CentreAzDeg, loaded.Calibration.WorkingArea.RadiusDeg));
+        Assert.Equal(3, loaded.Calibration.WorkingArea.Outline.Count);
+        Assert.Equal(new PixelPoint(30, 40), loaded.Calibration.WorkingArea.Outline[1]);
+        Assert.Equal(0.4, loaded.Roi.MinInsideFraction);
         Assert.Equal(812.0, loaded.Calibration.ClearSkyReference!.Median);
     }
 

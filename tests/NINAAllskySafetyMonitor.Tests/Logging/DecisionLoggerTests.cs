@@ -7,7 +7,7 @@ using Xunit;
 
 namespace NINAAllskySafetyMonitor.Tests.Logging;
 
-[Requirement("REQ-44", "REQ-54")]
+[Requirement("REQ-06", "REQ-44", "REQ-54")]
 public sealed class DecisionLoggerTests : IDisposable
 {
     private readonly string folder = Path.Combine(Path.GetTempPath(), "allsky-decisions-" + Guid.NewGuid().ToString("N"));
@@ -44,7 +44,29 @@ public sealed class DecisionLoggerTests : IDisposable
         Assert.Equal(3, lines.Length);
         Assert.StartsWith("Local time,UTC time,Event,State,Safe", lines[0]);
         Assert.Contains(",Start,Unsafe,FALSE,Auto,,Cloud detection not implemented yet,", lines[1]);
-        Assert.EndsWith(",1.0,Direct,0.0,7,2.0", lines[1]);
+        Assert.EndsWith(",1.0,Direct,0.0,7,2.0,,,,,,,,,,", lines[1]);
+    }
+
+    [Fact]
+    public void MountAndRoiAreLoggedWithTheMountsOwnAltAzForDiagnostics()
+    {
+        var mount = new MountState(true, false, true, false, 20.142777, -89.5, CoordinateEpoch.JNow, 45.0, 0.0, clock.UtcNow);
+        var roi = new RegionOfInterest(new HorizontalCoordinate(34.21, 180.5), 15, false, 0.97, string.Empty);
+        Logger().Write(Snapshot(SafetyState.Unsafe, "x") with { Mount = mount, Roi = roi });
+
+        string[] lines = File.ReadAllLines(TodayFile());
+        Assert.EndsWith(",Mount,Mount RA (h),Mount Dec (°),Mount reported Alt (°),Mount reported Az (°),ROI Alt (°),ROI Az (°),ROI mode,ROI inside (%),ROI note", lines[0]);
+        Assert.EndsWith(",Tracking,20.1428,-89.500,45.00,0.00,34.21,180.50,Circle,97,", lines[1]);
+    }
+
+    [Fact]
+    public void WholeWorkingAreaFallbackIsLoggedWithItsReason()
+    {
+        var mount = new MountState(true, true, false, false, null, null, CoordinateEpoch.JNow, null, null, clock.UtcNow);
+        var roi = new RegionOfInterest(null, 15, true, 0, "Mount parked: judging the whole working area");
+        Logger().Write(Snapshot(SafetyState.Unsafe, "x") with { Mount = mount, Roi = roi });
+
+        Assert.EndsWith(",Parked,,,,,,,Whole working area,,Mount parked: judging the whole working area", File.ReadAllLines(TodayFile())[1]);
     }
 
     [Fact]

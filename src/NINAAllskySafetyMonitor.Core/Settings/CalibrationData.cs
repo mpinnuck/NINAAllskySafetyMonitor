@@ -8,10 +8,11 @@ namespace NINAAllskySafetyMonitor.Core.Settings;
 [Requirement("REQ-57")]
 public sealed class CalibrationData
 {
-    /// <summary>Lens calibration, or null until calibrated.</summary>
+    /// <summary>Lens model, or null until set (a rough model from the image size is used meanwhile).</summary>
     public LensCalibration? Lens { get; set; }
 
-    public HorizonMaskDefinition Mask { get; set; } = new();
+    /// <summary>The part of the sky the monitor assesses.</summary>
+    public WorkingAreaDefinition WorkingArea { get; set; } = new();
 
     /// <summary>Clear-sky reference, or null until captured.</summary>
     public ClearSkyReference? ClearSkyReference { get; set; }

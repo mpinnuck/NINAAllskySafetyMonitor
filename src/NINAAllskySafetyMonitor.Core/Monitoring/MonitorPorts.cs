@@ -8,4 +8,5 @@ namespace NINAAllskySafetyMonitor.Core.Monitoring;
 /// <param name="Astro">Astronomical calculations.</param>
 /// <param name="Log">Log destination.</param>
 /// <param name="Credentials">Secure storage for the SFTP password.</param>
-public sealed record MonitorPorts(IClock Clock, ISiteLocationSource Site, IAstroCalculator Astro, ILogSink Log, ICredentialStore Credentials);
+/// <param name="Mount">Mount state from the host, or null when there is none.</param>
+public sealed record MonitorPorts(IClock Clock, ISiteLocationSource Site, IAstroCalculator Astro, ILogSink Log, ICredentialStore Credentials, IMountStateSource? Mount = null);

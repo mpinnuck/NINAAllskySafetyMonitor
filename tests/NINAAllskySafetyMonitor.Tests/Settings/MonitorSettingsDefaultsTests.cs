@@ -85,6 +85,13 @@ public sealed class MonitorSettingsDefaultsTests
     [Fact, Requirement("REQ-41")]
     public void TuningOffByDefault() => Assert.False(s.Tuning.Enabled);
 
+    [Fact, Requirement("REQ-22")]
+    public void WorkingAreaIsSixtyDegreesAroundFifteenDegreesSouthOfTheZenith() =>
+        Assert.Equal((75.0, 180.0, 60.0), (s.Calibration.WorkingArea.CentreAltDeg, s.Calibration.WorkingArea.CentreAzDeg, s.Calibration.WorkingArea.RadiusDeg));
+
+    [Fact, Requirement("REQ-58")]
+    public void HalfTheRoiMustBeInsideTheWorkingArea() => Assert.Equal(0.5, s.Roi.MinInsideFraction);
+
     [Fact, Requirement("REQ-44")]
     public void LogsKeptSevenDays() => Assert.Equal(7, s.Logging.RetentionDays);
 }

@@ -42,6 +42,36 @@ public sealed class SettingsValidatorTests
         Assert.Contains(new SettingsValidator().Validate(s), e => e.Contains("ROI radius"));
     }
 
+    [Theory, Requirement("REQ-22")]
+    [InlineData(-1, 180, 60, "centre altitude")]
+    [InlineData(75, 361, 60, "centre azimuth")]
+    [InlineData(75, 180, 4, "radius")]
+    [InlineData(75, 180, 91, "radius")]
+    public void OutOfRangeWorkingAreaIsReported(double alt, double az, double radius, string expected)
+    {
+        var s = ValidSettings();
+        s.Calibration.WorkingArea = s.Calibration.WorkingArea with { CentreAltDeg = alt, CentreAzDeg = az, RadiusDeg = radius };
+        Assert.Contains(new SettingsValidator().Validate(s), e => e.Contains("Working area " + expected));
+    }
+
+    [Theory, Requirement("REQ-58")]
+    [InlineData(-0.1)]
+    [InlineData(1.1)]
+    public void OutOfRangeInsideFractionIsReported(double fraction)
+    {
+        var s = ValidSettings();
+        s.Roi.MinInsideFraction = fraction;
+        Assert.Contains(new SettingsValidator().Validate(s), e => e.Contains("inside the working area"));
+    }
+
+    [Fact, Requirement("REQ-19")]
+    public void LensModelWithoutARadiusIsReported()
+    {
+        var s = ValidSettings();
+        s.Calibration.Lens = new Core.Geometry.LensCalibration { CentreX = 100, CentreY = 100 };
+        Assert.Contains(new SettingsValidator().Validate(s), e => e.Contains("horizon radius"));
+    }
+
     [Theory]
     [InlineData(-30.0)]
     [InlineData(-18.0)]

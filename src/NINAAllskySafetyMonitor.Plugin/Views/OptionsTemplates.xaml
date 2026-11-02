@@ -249,6 +249,118 @@
                 <TextBox Grid.Column="1" Text="{Binding WebFileName}" />
                 <TextBlock Grid.Column="2" Margin="10,0,0,0" VerticalAlignment="Center" Opacity="0.65" Text="" TextWrapping="Wrap" />
             </Grid>
+            <TextBlock Margin="0,14,0,4" FontWeight="Bold" Text="Working area and ROI" />
+            <Grid Margin="0,2">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto" SharedSizeGroup="AllskyLabel" />
+                    <ColumnDefinition Width="300" />
+                    <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+                <TextBlock Margin="0,0,12,0" VerticalAlignment="Center" Text="Working area centre altitude (°)" />
+                <TextBox Grid.Column="1" Text="{Binding WorkingAreaCentreAltDeg}" />
+                <TextBlock Grid.Column="2" Margin="10,0,0,0" VerticalAlignment="Center" Opacity="0.65" Text="Centre of the part of the sky the monitor judges; 75 with azimuth 180 = 15° south of the zenith (0–90)" TextWrapping="Wrap" />
+            </Grid>
+            <Grid Margin="0,2">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto" SharedSizeGroup="AllskyLabel" />
+                    <ColumnDefinition Width="300" />
+                    <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+                <TextBlock Margin="0,0,12,0" VerticalAlignment="Center" Text="Working area centre azimuth (°)" />
+                <TextBox Grid.Column="1" Text="{Binding WorkingAreaCentreAzDeg}" />
+                <TextBlock Grid.Column="2" Margin="10,0,0,0" VerticalAlignment="Center" Opacity="0.65" Text="From north through east: 180 = south (0–360)" TextWrapping="Wrap" />
+            </Grid>
+            <Grid Margin="0,2">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto" SharedSizeGroup="AllskyLabel" />
+                    <ColumnDefinition Width="300" />
+                    <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+                <TextBlock Margin="0,0,12,0" VerticalAlignment="Center" Text="Working area radius (°)" />
+                <TextBox Grid.Column="1" Text="{Binding WorkingAreaRadiusDeg}" />
+                <TextBlock Grid.Column="2" Margin="10,0,0,0" VerticalAlignment="Center" Opacity="0.65" Text="Radius on the sky (5–90). Sky below the horizon is always excluded" TextWrapping="Wrap" />
+            </Grid>
+            <Grid Margin="0,2">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto" SharedSizeGroup="AllskyLabel" />
+                    <ColumnDefinition Width="300" />
+                    <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+                <TextBlock Margin="0,0,12,0" VerticalAlignment="Center" Text="ROI radius (°)" />
+                <TextBox Grid.Column="1" Text="{Binding RoiRadiusDeg}" />
+                <TextBlock Grid.Column="2" Margin="10,0,0,0" VerticalAlignment="Center" Opacity="0.65" Text="Circle around where the telescope points (1–90)" TextWrapping="Wrap" />
+            </Grid>
+            <Grid Margin="0,2">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto" SharedSizeGroup="AllskyLabel" />
+                    <ColumnDefinition Width="300" />
+                    <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+                <TextBlock Margin="0,0,12,0" VerticalAlignment="Center" Text="Minimum ROI inside working area (%)" />
+                <TextBox Grid.Column="1" Text="{Binding RoiMinInsidePercent}" />
+                <TextBlock Grid.Column="2" Margin="10,0,0,0" VerticalAlignment="Center" Opacity="0.65" Text="Below this, the whole working area is judged instead (0–100)" TextWrapping="Wrap" />
+            </Grid>
+            <TextBlock Margin="0,14,0,4" FontWeight="Bold" Text="Lens model (until calibrated)" />
+            <Grid Margin="0,2">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto" SharedSizeGroup="AllskyLabel" />
+                    <ColumnDefinition Width="300" />
+                    <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+                <TextBlock Margin="0,0,12,0" VerticalAlignment="Center" Text="Enter the lens model by hand" />
+                <CheckBox Grid.Column="1" VerticalAlignment="Center" IsChecked="{Binding ManualLensEnabled}" />
+                <TextBlock Grid.Column="2" Margin="10,0,0,0" VerticalAlignment="Center" Opacity="0.65" Text="Off: estimated from the image size (zenith at the centre, horizon touching the short edges, north up, east left). Only affects the drawing on the panel image until cloud detection (slice 6)" TextWrapping="Wrap" />
+            </Grid>
+            <Grid Margin="0,2">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto" SharedSizeGroup="AllskyLabel" />
+                    <ColumnDefinition Width="300" />
+                    <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+                <TextBlock Margin="0,0,12,0" VerticalAlignment="Center" Text="Zenith X (pixels)" />
+                <TextBox Grid.Column="1" IsEnabled="{Binding ManualLensEnabled}" Text="{Binding LensCentreX}" />
+                <TextBlock Grid.Column="2" Margin="10,0,0,0" VerticalAlignment="Center" Opacity="0.65" Text="Column of the zenith in the full-size Allsky image" TextWrapping="Wrap" />
+            </Grid>
+            <Grid Margin="0,2">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto" SharedSizeGroup="AllskyLabel" />
+                    <ColumnDefinition Width="300" />
+                    <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+                <TextBlock Margin="0,0,12,0" VerticalAlignment="Center" Text="Zenith Y (pixels)" />
+                <TextBox Grid.Column="1" IsEnabled="{Binding ManualLensEnabled}" Text="{Binding LensCentreY}" />
+                <TextBlock Grid.Column="2" Margin="10,0,0,0" VerticalAlignment="Center" Opacity="0.65" Text="Row of the zenith in the full-size Allsky image" TextWrapping="Wrap" />
+            </Grid>
+            <Grid Margin="0,2">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto" SharedSizeGroup="AllskyLabel" />
+                    <ColumnDefinition Width="300" />
+                    <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+                <TextBlock Margin="0,0,12,0" VerticalAlignment="Center" Text="Horizon radius (pixels)" />
+                <TextBox Grid.Column="1" IsEnabled="{Binding ManualLensEnabled}" Text="{Binding LensHorizonRadiusPx}" />
+                <TextBlock Grid.Column="2" Margin="10,0,0,0" VerticalAlignment="Center" Opacity="0.65" Text="Distance from the zenith to the horizon in the full-size image" TextWrapping="Wrap" />
+            </Grid>
+            <Grid Margin="0,2">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto" SharedSizeGroup="AllskyLabel" />
+                    <ColumnDefinition Width="300" />
+                    <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+                <TextBlock Margin="0,0,12,0" VerticalAlignment="Center" Text="North rotation (°)" />
+                <TextBox Grid.Column="1" IsEnabled="{Binding ManualLensEnabled}" Text="{Binding LensNorthRotationDeg}" />
+                <TextBlock Grid.Column="2" Margin="10,0,0,0" VerticalAlignment="Center" Opacity="0.65" Text="Angle of north from image up, towards image right (−360 to 360)" TextWrapping="Wrap" />
+            </Grid>
+            <Grid Margin="0,2">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto" SharedSizeGroup="AllskyLabel" />
+                    <ColumnDefinition Width="300" />
+                    <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+                <TextBlock Margin="0,0,12,0" VerticalAlignment="Center" Text="East clockwise from north" />
+                <CheckBox Grid.Column="1" VerticalAlignment="Center" IsEnabled="{Binding ManualLensEnabled}" IsChecked="{Binding LensEastClockwise}" />
+                <TextBlock Grid.Column="2" Margin="10,0,0,0" VerticalAlignment="Center" Opacity="0.65" Text="Off for the usual looking-up view (east to the left of north)" TextWrapping="Wrap" />
+            </Grid>
             <TextBlock Margin="0,14,0,4" FontWeight="Bold" Text="Fallback site (used when the NINA profile has no location)" />
             <Grid Margin="0,2">
                 <Grid.ColumnDefinitions>

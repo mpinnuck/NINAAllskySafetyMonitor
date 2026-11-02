@@ -9,13 +9,14 @@ namespace NINAAllskySafetyMonitor.Core.Logging;
 
 /// <summary>
 /// Rolling decision log: one CSV file per local day (decisions-yyyy-MM-dd.csv, readable by Excel) with
-/// a row for every decision: state, safe, override, countdown, reason and the metrics behind it. A
+/// a row for every decision: state, safe, override, countdown, reason and the metrics behind it, including
+/// the mount position and the ROI. The mount-reported Alt/Az are logged for diagnostics only (REQ-06). A
 /// change of state is marked. Files older than the retention period are deleted. Secrets are redacted.
 /// </summary>
-[Requirement("REQ-44", "REQ-54")]
+[Requirement("REQ-06", "REQ-44", "REQ-54")]
 public sealed class DecisionLogger
 {
-    private const string Header = "Local time,UTC time,Event,State,Safe,Override,Seconds to safe,Reason,Image captured (UTC),Image age (min),Image source,Rain (mm/h),Gust (km/h),Weather age (min)";
+    private const string Header = "Local time,UTC time,Event,State,Safe,Override,Seconds to safe,Reason,Image captured (UTC),Image age (min),Image source,Rain (mm/h),Gust (km/h),Weather age (min),Mount,Mount RA (h),Mount Dec (°),Mount reported Alt (°),Mount reported Az (°),ROI Alt (°),ROI Az (°),ROI mode,ROI inside (%),ROI note";
     private readonly Func<LoggingSettings> settings;
     private readonly IClock clock;
     private readonly SecretRedactor redactor;
@@ -88,7 +89,21 @@ public sealed class DecisionLogger
         WeatherObservation? w = snapshot.Weather;
         Append(row, w is null ? string.Empty : Number(w.PrecipRateMmH, "0.0"));
         Append(row, w is null ? string.Empty : Number(w.WindGustKmH, "0"));
-        Append(row, w is null ? string.Empty : Number((utc - w.ObservationTimeUtc).TotalMinutes, "0.0"), last: true);
+        Append(row, w is null ? string.Empty : Number((utc - w.ObservationTimeUtc).TotalMinutes, "0.0"));
+
+        MountState? m = snapshot.Mount;
+        Append(row, MountSummary(m));
+        Append(row, Signed(m?.RaHours, "0.0000"));
+        Append(row, Signed(m?.DecDeg, "0.000"));
+        Append(row, Signed(m?.ReportedAltDeg, "0.00"));
+        Append(row, Signed(m?.ReportedAzDeg, "0.00"));
+
+        RegionOfInterest? roi = snapshot.Roi;
+        Append(row, Signed(roi?.Centre?.AltDeg, "0.00"));
+        Append(row, Signed(roi?.Centre?.AzDeg, "0.00"));
+        Append(row, roi is null ? string.Empty : roi.UsesWholeWorkingArea ? "Whole working area" : "Circle");
+        Append(row, roi?.Centre is null ? string.Empty : Number(roi.InsideFraction * 100, "0"));
+        Append(row, roi?.Note ?? string.Empty, last: true);
 
         using var writer = new StreamWriter(path, append: true, new UTF8Encoding(encoderShouldEmitUTF8Identifier: true));
         if (isNew) writer.WriteLine(Header);
@@ -113,6 +128,19 @@ public sealed class DecisionLogger
             }
         }
     }
+
+    /// <summary>"Not connected", "Parked", "Slewing", "Tracking" or "Not tracking"; empty without mount information.</summary>
+    internal static string MountSummary(MountState? m) => m switch
+    {
+        null => string.Empty,
+        { Connected: false } => "Not connected",
+        { AtPark: true } => "Parked",
+        { Slewing: true } => "Slewing",
+        { Tracking: true } => "Tracking",
+        _ => "Not tracking",
+    };
+
+    private static string Signed(double? v, string format) => v is double d && double.IsFinite(d) ? d.ToString(format, CultureInfo.InvariantCulture) : string.Empty;
 
     private static string Number(double v, string format) => Math.Max(0, v).ToString(format, CultureInfo.InvariantCulture);
 

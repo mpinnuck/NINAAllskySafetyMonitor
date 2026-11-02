@@ -1,6 +1,7 @@
 using System.Reflection;
 using NINA.Core.Utility;
 using NINA.Equipment.Interfaces;
+using NINA.Equipment.Interfaces.Mediator;
 using NINA.Profile.Interfaces;
 using NINAAllskySafetyMonitor.Core.Domain;
 using NINAAllskySafetyMonitor.Core.Traceability;
@@ -15,12 +16,14 @@ namespace NINAAllskySafetyMonitor.Plugin.Nina;
 public sealed class AllskySafetyMonitorDevice : BaseINPC, ISafetyMonitor
 {
     private readonly IProfileService profileService;
+    private readonly ITelescopeMediator telescopeMediator;
     private readonly MonitorHost host = MonitorHost.Instance;
     private bool connected;
 
-    public AllskySafetyMonitorDevice(IProfileService profileService)
+    public AllskySafetyMonitorDevice(IProfileService profileService, ITelescopeMediator telescopeMediator)
     {
         this.profileService = profileService ?? throw new ArgumentNullException(nameof(profileService));
+        this.telescopeMediator = telescopeMediator ?? throw new ArgumentNullException(nameof(telescopeMediator));
         DriverVersion = Assembly.GetExecutingAssembly().GetName().Version?.ToString() ?? "1.0";
     }
 
@@ -61,7 +64,7 @@ public sealed class AllskySafetyMonitorDevice : BaseINPC, ISafetyMonitor
         Logger.Info("[AllskySafetyMonitor] Connect requested");
         try
         {
-            await host.StartAsync(profileService).ConfigureAwait(false);
+            await host.StartAsync(profileService, telescopeMediator).ConfigureAwait(false);
             host.SnapshotAvailable -= OnSnapshot;
             host.SnapshotAvailable += OnSnapshot;
             host.Override.Changed -= OnOverrideChanged;

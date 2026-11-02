@@ -4,6 +4,7 @@ using System.Windows.Input;
 using NINAAllskySafetyMonitor.Core.Abstractions;
 using NINAAllskySafetyMonitor.Core.Acquisition;
 using NINAAllskySafetyMonitor.Core.Domain;
+using NINAAllskySafetyMonitor.Core.Geometry;
 using NINAAllskySafetyMonitor.Core.Settings;
 using NINAAllskySafetyMonitor.Core.Traceability;
 using NINAAllskySafetyMonitor.Core.Weather;
@@ -16,7 +17,7 @@ namespace NINAAllskySafetyMonitor.Plugin.ViewModels;
 /// and persists them, Revert discards unsaved edits. The SFTP password goes to the credential store,
 /// never into the settings. Each slice adds the settings it uses.
 /// </summary>
-[Requirement("REQ-46", "REQ-53", "REQ-55")]
+[Requirement("REQ-22", "REQ-23", "REQ-46", "REQ-53", "REQ-55", "REQ-58")]
 public sealed class SettingsViewModel : INotifyPropertyChanged
 {
     private readonly PluginSettingsStore store;
@@ -223,6 +224,116 @@ public sealed class SettingsViewModel : INotifyPropertyChanged
     {
         get => edit.Logging.Folder;
         set { edit.Logging.Folder = value; OnPropertyChanged(); }
+    }
+
+    // ---- Working area and ROI ----
+
+    public double WorkingAreaCentreAltDeg
+    {
+        get => edit.Calibration.WorkingArea.CentreAltDeg;
+        set { edit.Calibration.WorkingArea = edit.Calibration.WorkingArea with { CentreAltDeg = value }; OnPropertyChanged(); }
+    }
+
+    public double WorkingAreaCentreAzDeg
+    {
+        get => edit.Calibration.WorkingArea.CentreAzDeg;
+        set { edit.Calibration.WorkingArea = edit.Calibration.WorkingArea with { CentreAzDeg = value }; OnPropertyChanged(); }
+    }
+
+    public double WorkingAreaRadiusDeg
+    {
+        get => edit.Calibration.WorkingArea.RadiusDeg;
+        set { edit.Calibration.WorkingArea = edit.Calibration.WorkingArea with { RadiusDeg = value }; OnPropertyChanged(); }
+    }
+
+    public double RoiRadiusDeg
+    {
+        get => edit.Roi.RadiusDeg;
+        set { edit.Roi.RadiusDeg = value; OnPropertyChanged(); }
+    }
+
+    /// <summary>Minimum ROI fraction inside the working area, shown as a percentage.</summary>
+    public double RoiMinInsidePercent
+    {
+        get => Math.Round(edit.Roi.MinInsideFraction * 100, 1);
+        set { edit.Roi.MinInsideFraction = value / 100.0; OnPropertyChanged(); }
+    }
+
+    // ---- Lens model, entered by hand until calibrated (slice 5b) ----
+
+    /// <summary>On: use the values below. Off: estimate the model from the image size.</summary>
+    public bool ManualLensEnabled
+    {
+        get => edit.Calibration.Lens is not null;
+        set
+        {
+            if (value == ManualLensEnabled) return;
+            edit.Calibration.Lens = value ? StartingLens() : null;
+            OnPropertyChanged(string.Empty);
+        }
+    }
+
+    public double LensCentreX
+    {
+        get => edit.Calibration.Lens?.CentreX ?? 0;
+        set => SetLens(value, LensCentreY, LensHorizonRadiusPx, LensNorthRotationDeg, LensEastClockwise);
+    }
+
+    public double LensCentreY
+    {
+        get => edit.Calibration.Lens?.CentreY ?? 0;
+        set => SetLens(LensCentreX, value, LensHorizonRadiusPx, LensNorthRotationDeg, LensEastClockwise);
+    }
+
+    public double LensHorizonRadiusPx
+    {
+        get => edit.Calibration.Lens is { RadialCoefficients: [> 0, ..] } lens ? Math.Round(new LensProjection(lens).HorizonRadiusPx, 1) : 0;
+        set => SetLens(LensCentreX, LensCentreY, value, LensNorthRotationDeg, LensEastClockwise);
+    }
+
+    public double LensNorthRotationDeg
+    {
+        get => edit.Calibration.Lens?.NorthRotationDeg ?? 0;
+        set => SetLens(LensCentreX, LensCentreY, LensHorizonRadiusPx, value, LensEastClockwise);
+    }
+
+    public bool LensEastClockwise
+    {
+        get => edit.Calibration.Lens?.EastIsClockwise ?? false;
+        set => SetLens(LensCentreX, LensCentreY, LensHorizonRadiusPx, LensNorthRotationDeg, value);
+    }
+
+    private void SetLens(double x, double y, double radius, double rotation, bool clockwise)
+    {
+        if (edit.Calibration.Lens is null) return;
+        edit.Calibration.Lens = LensProjection.FromHorizonRadius(x, y, radius, rotation, clockwise) with { CalibratedUtc = DateTime.UtcNow };
+        OnPropertyChanged(nameof(LensCentreX));
+        OnPropertyChanged(nameof(LensCentreY));
+        OnPropertyChanged(nameof(LensHorizonRadiusPx));
+        OnPropertyChanged(nameof(LensNorthRotationDeg));
+        OnPropertyChanged(nameof(LensEastClockwise));
+    }
+
+    /// <summary>Starting values for a hand-entered model: the estimate for the latest image, if there is one.</summary>
+    private static LensCalibration StartingLens()
+    {
+        try
+        {
+            byte[]? jpeg = MonitorHost.Instance.LatestSnapshot?.Image?.JpegBytes;
+            if (jpeg is not null)
+            {
+                using var stream = new System.IO.MemoryStream(jpeg);
+                var frame = System.Windows.Media.Imaging.BitmapDecoder.Create(
+                    stream, System.Windows.Media.Imaging.BitmapCreateOptions.DelayCreation, System.Windows.Media.Imaging.BitmapCacheOption.None).Frames[0];
+                return LensProjection.Approximate(frame.PixelWidth, frame.PixelHeight) with { CalibratedUtc = DateTime.UtcNow };
+            }
+        }
+        catch (Exception)
+        {
+            // Fall through to generic values.
+        }
+
+        return LensProjection.FromHorizonRadius(1500, 1000, 1000, 0, false) with { CalibratedUtc = DateTime.UtcNow };
     }
 
     // ---- Fallback site ----

@@ -1,16 +1,17 @@
 using NINA.Astrometry;
 using NINAAllskySafetyMonitor.Core.Abstractions;
 using NINAAllskySafetyMonitor.Core.Domain;
+using NINAAllskySafetyMonitor.Core.Geometry;
 using NINAAllskySafetyMonitor.Core.Traceability;
 
 namespace NINAAllskySafetyMonitor.Astrometry;
 
 /// <summary>
-/// Implements <see cref="IAstroCalculator"/> over NINA.Astrometry (NOVAS/SOFA).
-/// Slice 1 implements the Sun altitude used by the operating window; the Moon and
-/// coordinate conversions are added with geometry (slice 5) and cloud detection (slice 6).
+/// Implements <see cref="IAstroCalculator"/>. The Sun altitude comes from NINA.Astrometry (NOVAS/SOFA);
+/// RA/Dec ↔ alt/az uses Core's <see cref="CoordinateConverter"/> (about 0.1°, ample for a 15° ROI, and
+/// testable without NINA). The Moon is added with cloud detection (slice 6).
 /// </summary>
-[Requirement("REQ-08")]
+[Requirement("REQ-08", "REQ-24")]
 public sealed class NovasAstroCalculator : IAstroCalculator
 {
     /// <inheritdoc />
@@ -32,9 +33,9 @@ public sealed class NovasAstroCalculator : IAstroCalculator
 
     /// <inheritdoc />
     public HorizontalCoordinate ToHorizontal(double raHours, double decDeg, CoordinateEpoch epoch, SiteLocation site, DateTime utc) =>
-        throw new NotSupportedException("Coordinate conversion is implemented in slice 5 (geometry).");
+        CoordinateConverter.ToHorizontal(raHours, decDeg, epoch, site, utc);
 
     /// <inheritdoc />
     public (double RaHours, double DecDeg) ToEquatorial(HorizontalCoordinate horizontal, SiteLocation site, DateTime utc) =>
-        throw new NotSupportedException("Coordinate conversion is implemented in slice 5 (geometry).");
+        CoordinateConverter.ToEquatorial(horizontal, site, utc, CoordinateEpoch.J2000);
 }

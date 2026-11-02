@@ -48,10 +48,13 @@ public sealed class MonitorServiceBuilder
         var window = new OperatingWindow(ports.Astro);
         var acquirer = new ImageAcquirer(sources, new JpegIntegrityChecker(), ports.Clock, log, () => settings().ImageSource);
         var weather = new WeatherPoller(weatherProvider, ports.Clock, log, () => settings().Weather);
-        var cycle = new MonitoringCycle(settings, ports.Clock, siteResolver, window, acquirer, new ImageFreshnessEvaluator(), weather, new WeatherEvaluator());
+        var roiCalculator = new RoiCalculator(ports.Astro, new MountStateInterpreter());
+        var cycle = new MonitoringCycle(
+            settings, ports.Clock, siteResolver, window, acquirer, new ImageFreshnessEvaluator(), weather, new WeatherEvaluator(),
+            ports.Mount, roiCalculator, new RoiBuilder());
 
         var guard = new FailSafeGuard(ports.Clock, log, () => CycleTimeout(settings()));
-        var engine = new SafetyDecisionEngine(ports.Clock, () => TimeSpan.FromMinutes(settings().Decision.SafeAfterMin));
+        var engine = new SafetyDecisionEngine(ports.Clock, () => TimeSpan.FromMinutes(settings().Decision.SafeAfterMin), new SlewHoldPolicy());
         var service = new MonitorService(cycle, guard, () => TimeSpan.FromSeconds(settings().ImageSource.IntervalS), ports.Clock, log, engine, manualOverride);
 
         var decisions = new DecisionLogger(() => settings().Logging, ports.Clock, redactor, log);

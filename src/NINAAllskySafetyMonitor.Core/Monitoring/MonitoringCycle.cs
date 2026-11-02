@@ -10,12 +10,12 @@ namespace NINAAllskySafetyMonitor.Core.Monitoring;
 
 /// <summary>
 /// One monitoring pass (UC-04). Outside the operating window the status is Idle and nothing is
-/// fetched. Inside it, the image is fetched and checked for freshness and the weather is polled (at its
-/// own interval) and checked. The reason lists every failed condition. Until cloud detection is added
-/// (slice 6) the status stays Unsafe even when everything else passes. Settings are read at the start
-/// of every cycle, so saved changes take effect without reconnecting.
+/// fetched. Inside it, the image is fetched and checked for freshness, the weather is polled (at its
+/// own interval) and checked, and the ROI is placed from the mount's RA/Dec within the working area.
+/// The reason lists every failed condition. Until cloud detection is added (slice 6) the status stays
+/// Unsafe even when everything else passes. Settings are read at the start of every cycle.
 /// </summary>
-[Requirement("REQ-10", "REQ-14", "REQ-37")]
+[Requirement("REQ-05", "REQ-10", "REQ-14", "REQ-37")]
 public sealed class MonitoringCycle : IMonitoringCycle
 {
     private readonly Func<MonitorSettings> settings;
@@ -26,6 +26,9 @@ public sealed class MonitoringCycle : IMonitoringCycle
     private readonly ImageFreshnessEvaluator freshness;
     private readonly WeatherPoller weather;
     private readonly WeatherEvaluator weatherEvaluator;
+    private readonly IMountStateSource? mount;
+    private readonly RoiCalculator roiCalculator;
+    private readonly RoiBuilder roiBuilder;
 
     public MonitoringCycle(
         Func<MonitorSettings> settings,
@@ -35,7 +38,10 @@ public sealed class MonitoringCycle : IMonitoringCycle
         ImageAcquirer acquirer,
         ImageFreshnessEvaluator freshness,
         WeatherPoller weather,
-        WeatherEvaluator weatherEvaluator)
+        WeatherEvaluator weatherEvaluator,
+        IMountStateSource? mount,
+        RoiCalculator roiCalculator,
+        RoiBuilder roiBuilder)
     {
         this.settings = settings ?? throw new ArgumentNullException(nameof(settings));
         this.clock = clock ?? throw new ArgumentNullException(nameof(clock));
@@ -45,6 +51,9 @@ public sealed class MonitoringCycle : IMonitoringCycle
         this.freshness = freshness ?? throw new ArgumentNullException(nameof(freshness));
         this.weather = weather ?? throw new ArgumentNullException(nameof(weather));
         this.weatherEvaluator = weatherEvaluator ?? throw new ArgumentNullException(nameof(weatherEvaluator));
+        this.mount = mount;
+        this.roiCalculator = roiCalculator ?? throw new ArgumentNullException(nameof(roiCalculator));
+        this.roiBuilder = roiBuilder ?? throw new ArgumentNullException(nameof(roiBuilder));
     }
 
     /// <inheritdoc />
@@ -54,6 +63,7 @@ public sealed class MonitoringCycle : IMonitoringCycle
 
         MonitorSettings s = settings();
         bool untuned = !s.Cloud.Tuned;
+        MountState? mountState = mount?.GetCurrent();
 
         SiteLocation site = siteResolver.Resolve();
         ConditionCheck windowCheck = window.Evaluate(site, clock.UtcNow, s.Window.SunAltitudeLimitDeg);
@@ -61,13 +71,15 @@ public sealed class MonitoringCycle : IMonitoringCycle
         if (!windowCheck.Passed)
         {
             var idle = new SafetyStatus(SafetyState.Idle, false, windowCheck.Reason, null, OverrideMode.Auto, untuned, clock.UtcNow);
-            return new MonitorSnapshot(null, null, null, null, new SafetyConditions(new[] { windowCheck }), idle);
+            return new MonitorSnapshot(null, null, null, null, new SafetyConditions(new[] { windowCheck }), idle, mountState);
         }
 
         // Image and weather are independent, so fetch them together.
         await Task.WhenAll(acquirer.AcquireAsync(ct), weather.PollIfDueAsync(ct)).ConfigureAwait(false);
 
         DateTime now = clock.UtcNow;
+        RegionOfInterest roi = PlaceRoi(s, mountState, site, now);
+
         var checks = new List<ConditionCheck>
         {
             windowCheck,
@@ -80,6 +92,14 @@ public sealed class MonitoringCycle : IMonitoringCycle
         string reason = string.Join(" · ", checks.Where(c => !c.Passed).Select(c => c.Reason).Distinct());
         var status = new SafetyStatus(SafetyState.Unsafe, false, reason, null, OverrideMode.Auto, untuned, now);
         WeatherObservation? obs = s.Weather.Enabled ? weather.Latest : null;
-        return new MonitorSnapshot(acquirer.LatestImage, null, null, obs, new SafetyConditions(checks), status);
+        return new MonitorSnapshot(acquirer.LatestImage, roi, null, obs, new SafetyConditions(checks), status, mountState);
+    }
+
+    private RegionOfInterest PlaceRoi(MonitorSettings s, MountState? mountState, SiteLocation site, DateTime now)
+    {
+        (HorizontalCoordinate? centre, string? unusable) = roiCalculator.CalculateCentre(mountState, site, now);
+        LensProjection? projection = s.Calibration.Lens is { RadialCoefficients: [> 0, ..] } lens ? new LensProjection(lens) : null;
+        var area = new WorkingArea(s.Calibration.WorkingArea, projection);
+        return roiBuilder.Build(centre, unusable, s.Roi.RadiusDeg, s.Roi.MinInsideFraction, area);
     }
 }
