@@ -33,6 +33,9 @@ public sealed record CloudAssessment(
     /// <summary>For each expected star, whether it was found.</summary>
     public IReadOnlyList<bool> Found { get; init; } = Array.Empty<bool>();
 
+    /// <summary>True when neither test could run, so cloud is unknown rather than detected (REQ-50).</summary>
+    public bool Undetermined => StarTestInconclusive && BrightnessTestSkipped;
+
     /// <summary>The Moon at the time of the frame.</summary>
     public MoonState? Moon { get; init; }
 }

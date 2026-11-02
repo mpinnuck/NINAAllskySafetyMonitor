@@ -44,7 +44,7 @@ public sealed class DecisionLoggerTests : IDisposable
         Assert.Equal(3, lines.Length);
         Assert.StartsWith("Local time,UTC time,Event,State,Safe", lines[0]);
         Assert.Contains(",Start,Unsafe,FALSE,Auto,,Cloud detection unavailable,", lines[1]);
-        Assert.EndsWith(",1.0,Direct,0.0,7,2.0,,,,,,,,,,,,,,,,,", lines[1]);
+        Assert.EndsWith(",1.0,Direct,0.0,7,2.0,,,,,,,,,,,,,,,,,,FALSE", lines[1]);
     }
 
     [Fact]
@@ -55,8 +55,8 @@ public sealed class DecisionLoggerTests : IDisposable
         Logger().Write(Snapshot(SafetyState.Unsafe, "x") with { Mount = mount, Roi = roi });
 
         string[] lines = File.ReadAllLines(TodayFile());
-        Assert.EndsWith(",Mount,Mount RA (h),Mount Dec (°),Mount reported Alt (°),Mount reported Az (°),ROI Alt (°),ROI Az (°),ROI mode,ROI inside (%),ROI note,Stars expected,Stars found,Star fraction,Relative brightness,Non-uniformity ratio,Moon alt (°),Moon illumination", lines[0]);
-        Assert.EndsWith(",Tracking,20.1428,-89.500,45.00,0.00,34.21,180.50,Circle,97,,,,,,,,", lines[1]);
+        Assert.EndsWith(",Mount,Mount RA (h),Mount Dec (°),Mount reported Alt (°),Mount reported Az (°),ROI Alt (°),ROI Az (°),ROI mode,ROI inside (%),ROI note,Stars expected,Stars found,Star fraction,Relative brightness,Non-uniformity ratio,Moon alt (°),Moon illumination,Assumed safe", lines[0]);
+        Assert.EndsWith(",Tracking,20.1428,-89.500,45.00,0.00,34.21,180.50,Circle,97,,,,,,,,,FALSE", lines[1]);
     }
 
     [Fact]
@@ -68,7 +68,7 @@ public sealed class DecisionLoggerTests : IDisposable
 
         string[] lines = File.ReadAllLines(TodayFile());
         Assert.Equal(3, lines.Length);
-        Assert.EndsWith(",ROI inside (%),ROI note,Stars expected,Stars found,Star fraction,Relative brightness,Non-uniformity ratio,Moon alt (°),Moon illumination", lines[0]);
+        Assert.EndsWith(",ROI inside (%),ROI note,Stars expected,Stars found,Star fraction,Relative brightness,Non-uniformity ratio,Moon alt (°),Moon illumination,Assumed safe", lines[0]);
         Assert.Equal("2026-11-01 22:00:00,2026-11-01 11:00:00,Start,Unsafe", lines[1]);
     }
 
@@ -79,7 +79,7 @@ public sealed class DecisionLoggerTests : IDisposable
         var roi = new RegionOfInterest(null, 15, true, 0, "Mount parked: judging the whole working area");
         Logger().Write(Snapshot(SafetyState.Unsafe, "x") with { Mount = mount, Roi = roi });
 
-        Assert.EndsWith(",Parked,,,,,,,Whole working area,,Mount parked: judging the whole working area,,,,,,,", File.ReadAllLines(TodayFile())[1]);
+        Assert.EndsWith(",Parked,,,,,,,Whole working area,,Mount parked: judging the whole working area,,,,,,,,FALSE", File.ReadAllLines(TodayFile())[1]);
     }
 
     [Fact]
@@ -91,7 +91,16 @@ public sealed class DecisionLoggerTests : IDisposable
             Moon = new MoonState(new HorizontalCoordinate(-12.3, 90), 0.42),
         };
         Logger().Write(Snapshot(SafetyState.Unsafe, "x") with { Cloud = cloud });
-        Assert.EndsWith(",11,9,0.82,1.04,1.21,-12.3,0.42", File.ReadAllLines(TodayFile())[1]);
+        Assert.EndsWith(",11,9,0.82,1.04,1.21,-12.3,0.42,FALSE", File.ReadAllLines(TodayFile())[1]);
+    }
+
+    [Fact]
+    [Requirement("REQ-44", "REQ-50")]
+    public void AssumedSafeIsLogged()
+    {
+        MonitorSnapshot s = Snapshot(SafetyState.Safe, "Assumed safe: Image is 12.0 min old (limit 10 min)");
+        Logger().Write(s with { Status = s.Status with { Assumed = true } });
+        Assert.EndsWith(",TRUE", File.ReadAllLines(TodayFile())[1]);
     }
 
     [Fact]

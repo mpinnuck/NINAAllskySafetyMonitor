@@ -50,6 +50,8 @@ note bottom of WeatherEvaluator
   NoRain: precipRate > 0 fails. WindBelowLimit: gust > MaxGustKmH fails.
   WeatherCurrent: no data, or older than StaleAfterMin, fails.
   No data: all three fail with one reason. Weather off: all three pass.
+  No data or old data is undetermined (may be assumed safe, REQ-50);
+  reported rain or gust is not.
 end note
 note bottom of PwsWeatherClient
   GET api.weather.com/v2/pws/observations/current

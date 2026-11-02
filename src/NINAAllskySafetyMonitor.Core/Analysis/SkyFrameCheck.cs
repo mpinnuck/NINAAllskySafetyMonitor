@@ -13,7 +13,7 @@ namespace NINAAllskySafetyMonitor.Core.Analysis;
 /// frame). An image whose size differs from the frame the lens was calibrated on is not a sky frame
 /// either. The result is a NoCloud check, so a notice image is reported unsafe with that reason.
 /// </summary>
-[Requirement("REQ-60")]
+[Requirement("REQ-50", "REQ-60")]
 public sealed class SkyFrameCheck
 {
     /// <summary>Below this pixel-to-pixel noise (grey levels) an image counts as flat.</summary>
@@ -68,7 +68,7 @@ public sealed class SkyFrameCheck
             : new ConditionCheck(SafetyCondition.NoCloud, true, "Sky frame");
     }
 
-    private static ConditionCheck Fail(string reason) => new(SafetyCondition.NoCloud, false, reason);
+    private static ConditionCheck Fail(string reason) => ConditionCheck.Unknown(SafetyCondition.NoCloud, reason);
 
     /// <summary>1.4826 × the median absolute deviation: the standard deviation, unaffected by stars.</summary>
     internal static double RobustSigma(List<float> values)

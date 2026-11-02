@@ -11,6 +11,7 @@ package "NINAAllskySafetyMonitor.Plugin.ViewModels" {
     +Title = "Allsky Safety"
     +AllskyImage : BitmapSource
     +IsConnected, IsSafe : bool
+    +IsAssumed : bool  (amber "SAFE (ASSUMED)")
     +StateText, ReasonText, LastUpdateText
     +ImageInfoText, WeatherInfoText
     +RoiInfoText, MountInfoText
@@ -59,6 +60,7 @@ package "NINAAllskySafetyMonitor.Plugin.ViewModels" {
     +CalibrationStatusText
     +CalibrationMessage  (under the buttons)
     +cloud thresholds, CloudTuned, tuning mode fields
+    +UndeterminedIsSafe
     +ReferenceStatusText
     +ClearReferenceCommand
     .. REQ-22 REQ-23 REQ-27 REQ-46 REQ-53 REQ-55 REQ-58 ..

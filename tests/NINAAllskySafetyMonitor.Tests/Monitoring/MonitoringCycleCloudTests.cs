@@ -12,7 +12,7 @@ using Xunit;
 namespace NINAAllskySafetyMonitor.Tests.Monitoring;
 
 /// <summary>The cycle's cloud step (SD-03) on synthetic frames at the 20 Oct 2026 frame time.</summary>
-[Requirement("REQ-28", "REQ-37", "REQ-60")]
+[Requirement("REQ-28", "REQ-37", "REQ-50", "REQ-60")]
 public sealed class MonitoringCycleCloudTests
 {
     private static readonly DateTime Now = SyntheticSky.FrameUtc;
@@ -74,6 +74,7 @@ public sealed class MonitoringCycleCloudTests
 
         Assert.False(s.Conditions.AllPassed);
         Assert.StartsWith("Cloud: ", s.Status.Reason);
+        Assert.False(s.Conditions.OnlyUndeterminedFailures); // detected, so never assumed safe
     }
 
     [Fact]
@@ -85,6 +86,18 @@ public sealed class MonitoringCycleCloudTests
 
         Assert.Equal("Not a sky frame (Allsky notice image?)", s.Status.Reason);
         Assert.Null(s.Cloud);
+        Assert.True(s.Conditions.Checks.Single(c => c.Condition == SafetyCondition.NoCloud).Undetermined);
+    }
+
+    [Fact]
+    public async Task CloudUnknownIsUndetermined()
+    {
+        settings.Cloud.MinExpectedStars = 500;
+        NewImage();
+        MonitorSnapshot s = await Cycle().RunOnceAsync(CancellationToken.None);
+
+        Assert.StartsWith("Cloud unknown: ", s.Status.Reason);
+        Assert.True(s.Conditions.OnlyUndeterminedFailures);
     }
 
     [Fact]

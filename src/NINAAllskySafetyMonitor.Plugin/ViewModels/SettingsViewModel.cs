@@ -24,7 +24,7 @@ namespace NINAAllskySafetyMonitor.Plugin.ViewModels;
 /// never into the settings. The clear-sky reference is captured by the monitor and kept on Save; it is
 /// cleared only with its own button. Each slice adds the settings it uses.
 /// </summary>
-[Requirement("REQ-19", "REQ-20", "REQ-22", "REQ-23", "REQ-27", "REQ-29", "REQ-30", "REQ-31", "REQ-41", "REQ-43", "REQ-46", "REQ-47", "REQ-53", "REQ-55", "REQ-58")]
+[Requirement("REQ-19", "REQ-20", "REQ-22", "REQ-23", "REQ-27", "REQ-29", "REQ-30", "REQ-31", "REQ-41", "REQ-43", "REQ-46", "REQ-47", "REQ-50", "REQ-53", "REQ-55", "REQ-58")]
 public sealed class SettingsViewModel : INotifyPropertyChanged
 {
     private readonly PluginSettingsStore store;
@@ -243,6 +243,13 @@ public sealed class SettingsViewModel : INotifyPropertyChanged
     {
         get => edit.Decision.SafeAfterMin;
         set { edit.Decision.SafeAfterMin = value; OnPropertyChanged(); }
+    }
+
+    /// <summary>Report safe when a condition can't be determined (REQ-50).</summary>
+    public bool UndeterminedIsSafe
+    {
+        get => edit.Decision.UndeterminedIsSafe;
+        set { edit.Decision.UndeterminedIsSafe = value; OnPropertyChanged(); }
     }
 
     public int LogRetentionDays

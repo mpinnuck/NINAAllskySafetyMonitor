@@ -18,6 +18,9 @@
                                 <DataTrigger Binding="{Binding IsSafe}" Value="True">
                                     <Setter Property="Background" Value="#1F6B33" />
                                 </DataTrigger>
+                                <DataTrigger Binding="{Binding IsAssumed}" Value="True">
+                                    <Setter Property="Background" Value="#8A6200" />
+                                </DataTrigger>
                                 <DataTrigger Binding="{Binding IsConnected}" Value="False">
                                     <Setter Property="Background" Value="#444444" />
                                 </DataTrigger>

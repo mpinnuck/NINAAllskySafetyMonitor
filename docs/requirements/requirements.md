@@ -1,6 +1,6 @@
 # NINAAllskySafetyMonitor — Requirements
 
-Version 5.3 · 2026-11-02
+Version 5.4 · 2026-11-03
 
 A safety monitor for NINA on the AstroPC. It analyses images from an Allsky camera, combines them with rain and wind data from a weather station, and reports a safe/unsafe status to NINA.
 
@@ -98,7 +98,7 @@ Defaults shown in *[brackets]* are configurable. How configurable values are sto
 
 - **REQ-45** A status view shows:
   - the latest Allsky image with the ROI circle, working area, and detected vs expected stars overlaid;
-  - a large SAFE / UNSAFE / IDLE indicator showing the reason for the current state;
+  - a large SAFE / UNSAFE / IDLE indicator showing the reason for the current state, with a safe state that was assumed (REQ-50) shown distinctly;
   - current metrics: star fraction, brightness, rain, wind gust, image age, weather data age, and the countdown to safe;
   - a history graph of the metrics and the safe state for the night.
 - **REQ-46** A settings view edits every configurable value.
@@ -116,7 +116,7 @@ Defaults shown in *[brackets]* are configurable. How configurable values are sto
 ## 13.2 Reliability
 
 - **REQ-49** A failure in the safety monitor (crash, hang, network fault) must not disrupt NINA or a running sequence.
-- **REQ-50** Fail-safe: any failure, or any state that can't be determined, results in **unsafe**.
+- **REQ-50** Fail-safe: any failure, or any state that can't be determined, results in **unsafe**, or in safe when the imager chooses *[unsafe]*. Detected cloud, rain or wind is always **unsafe**.
 - **REQ-51** Every network operation (image fetch, weather poll) has a timeout, so a stalled connection can't hang the monitor.
 
 ## 13.3 Security

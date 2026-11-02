@@ -90,6 +90,8 @@ package "NINAAllskySafetyMonitor.Core.Settings" {
   }
   class DecisionSettings {
     +SafeAfterMin = 4
+    +UndeterminedIsSafe = false
+    .. REQ-39 REQ-50 ..
   }
   class TuningSettings {
     +Enabled = false

@@ -149,7 +149,8 @@ DecisionLogger --> SecretRedactor
 note bottom of DecisionLogger
   decisions-yyyy-MM-dd.csv per local day (Excel): time, event
   (Start / State change), state, safe, override, countdown, reason,
-  image and weather metrics; mount Alt/Az for diagnostics (REQ-06).
+  image and weather metrics; mount Alt/Az for diagnostics (REQ-06);
+  cloud metrics and Moon; Assumed safe (REQ-50).
   Files older than RetentionDays [7] are deleted (and the deletion logged).
 end note
 

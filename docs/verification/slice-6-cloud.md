@@ -1,6 +1,6 @@
 # Slice 6 verification: cloud detection, sky-frame check, tuning mode
 
-Requirements: REQ-28, REQ-29, REQ-30, REQ-31, REQ-41, REQ-43, REQ-45, REQ-60 (also REQ-37, REQ-44, REQ-50, REQ-57).
+Requirements: REQ-28, REQ-29, REQ-30, REQ-31, REQ-41, REQ-43, REQ-45, REQ-50, REQ-60 (also REQ-37, REQ-44, REQ-57). Requirements v5.4.
 
 The monitor now judges cloud in the ROI, so it can report **SAFE**.
 - **Sky-frame check (REQ-60):** each image is decoded (darkest colour channel) and checked to be a sky frame. A flat, drawn image, such as Allsky's notice image, is unsafe with "Not a sky frame".
@@ -8,9 +8,10 @@ The monitor now judges cloud in the ROI, so it can report **SAFE**.
 - **Brightness test (REQ-30):** compares the ROI with a clear-sky map, independent of exposure. It covers brightness relative to the rest of the working area, and non-uniformity. The map is captured automatically on the first clear, moonless frame after **Thresholds tuned** is ticked.
 - **The Moon (REQ-31):** its position and phase come from Core and raise the brightness limits.
 - **Tuning mode (REQ-41):** when on, saves every frame and a CSV row of metrics per cycle. Nights older than 30 days are deleted.
+- **Fail to safe (REQ-50 v5.4):** a new switch, **Safe when the monitor can't tell**, off by default. When it is on, a condition that can't be determined is assumed safe and shown as **SAFE (ASSUMED)** in amber. That covers no usable image, not a sky frame, an uncalibrated lens, cloud unknown, or no current weather data. Detected cloud, rain or wind, and a monitor error, stay unsafe.
 - **Status panel (REQ-45):** shows the metrics, the expected stars (green found, red missing) and tonight's graph.
 
-Most checks need a dark night. Checks 7, 10 and 15 need particular conditions (Moon up, Allsky stopped, cloud) and can be done when they come. Record results in `verification.xlsx`, sheet **Slice 6**.
+Most checks need a dark night. Checks 8, 15, 16 and 18 need particular conditions (Moon up, Allsky stopped, cloud) and can be done when they come. Record results in `verification.xlsx`, sheet **Slice 6**.
 
 ## A. Mac / B. AstroPC
 
@@ -33,10 +34,13 @@ Build and test on the Mac (all pass, two skipped), commit and push. Then pull, r
 | 11 | **Clear the clear-sky reference** | "none yet…"; recaptured on the next clear moonless frame (tuned) | 30 |
 | 12 | Tick **Save every frame and its metrics**, Save; wait 3 cycles | Tuning folder has a folder for tonight (date the night started) with allsky-*.jpg and tuning-yyyy-mm-dd.csv; it opens in Excel with stars, fractions, brightness, Moon, rain, gust | 41 |
 | 13 | In the tuning folder create an empty folder dated 31 days ago (e.g. 2026-10-03); wait a cycle (next night, or restart NINA) | The folder is deleted; NINA log "Deleted tuning data for 2026-10-03 (older than 30 days)" | 41 |
-| 14 | Open today's decision log | New columns Stars expected … Moon illumination, filled | 44 |
+| 14 | Open today's decision log | New columns Stars expected … Moon illumination and Assumed safe, filled | 44 |
 | 15 | Stop Allsky on the Pi until it shows its notice image; start it again afterwards | Unsafe: "Not a sky frame (Allsky notice image?)"; back to normal after restarting Allsky | 60 |
 | 16 | A cloudy or partly cloudy night, with the reference captured | Unsafe with "Cloud: …" while cloud crosses the ROI; thin cloud may show "Cloud: ROI x× brighter than clear sky"; safe 4 min after it clears | 28, 30, 38 |
-| 17 | Untick tuning mode and Thresholds tuned until the thresholds are tuned for real; Save | Saved; UNTUNED shown again | 41, 43 |
+| 17 | Options → Safety decision and log | New **Safe when the monitor can't tell**, unticked | 46, 50 |
+| 18 | Tick it, Save. Then stop Allsky as in check 15, or anything that leaves no usable image | Reason "Assumed safe: Not a sky frame…: safe in 4:00", then **SAFE (ASSUMED)** on an amber banner; NINA reports safe; decision log "Assumed safe" column TRUE | 45, 50 |
+| 19 | With it still ticked: a target in cloud (as check 6); then enter a wrong weather API key and Save, and restore it afterwards | Detected cloud is still **UNSAFE**; with the wrong key, "Assumed safe: No weather data: …" counts down to **SAFE (ASSUMED)** | 50 |
+| 20 | Untick tuning mode, Thresholds tuned and Safe when the monitor can't tell, as you prefer; Save | Saved; UNTUNED shown again if untuned | 41, 43, 50 |
 
 Unit tests behind this slice:
 - Analysis: `SkyFrameCheckTests`, `RoiMaskBuilderTests`, `StarTestTests` (predictor, matcher, fraction test), `BrightnessTestTests` (background map, brightness test, Moon factor, reference capture), `CloudDetectorTests` (synthetic 1000 px frames: clear, thick cloud, cloud elsewhere, thin cloud, exposure ±40%, too few stars, Moon).

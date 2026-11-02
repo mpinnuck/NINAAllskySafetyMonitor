@@ -106,11 +106,16 @@ package "NINAAllskySafetyMonitor.Core.Domain" {
     +Condition : SafetyCondition
     +Passed : bool
     +Reason : string
+    +Undetermined : bool
+    +{static} Unknown(condition, reason) : ConditionCheck
+    .. REQ-37 REQ-50 ..
   }
   class SafetyConditions <<record>> {
     +Checks : IReadOnlyList<ConditionCheck>
     +AllPassed : bool
-    .. REQ-37 ..
+    +Failures : IEnumerable<ConditionCheck>
+    +OnlyUndeterminedFailures : bool
+    .. REQ-37 REQ-50 ..
   }
   class SafetyStatus <<record>> {
     +State : SafetyState
@@ -120,7 +125,8 @@ package "NINAAllskySafetyMonitor.Core.Domain" {
     +Override : OverrideMode
     +Untuned : bool
     +TimestampUtc : DateTime
-    .. REQ-03 REQ-39 REQ-40 REQ-43 ..
+    +Assumed : bool
+    .. REQ-03 REQ-39 REQ-40 REQ-43 REQ-45 REQ-50 ..
   }
   class MonitorSnapshot <<record>> {
     +Image : SkyImage?
@@ -181,4 +187,11 @@ MonitorSnapshot o-- WeatherObservation
 MonitorSnapshot o-- MountState
 MonitorSnapshot *-- SafetyConditions
 MonitorSnapshot *-- SafetyStatus
+note bottom of ConditionCheck
+  Undetermined: failed because it could not be
+  determined (no usable image, not a sky frame,
+  lens not calibrated, cloud unknown, no current
+  weather data), not because something unsafe was
+  detected (REQ-50).
+end note
 @enduml

@@ -58,7 +58,7 @@ public sealed class MonitorServiceBuilder
             ReferenceSaver(ports, log));
 
         var guard = new FailSafeGuard(ports.Clock, log, () => CycleTimeout(settings()));
-        var engine = new SafetyDecisionEngine(ports.Clock, () => TimeSpan.FromMinutes(settings().Decision.SafeAfterMin), new SlewHoldPolicy());
+        var engine = new SafetyDecisionEngine(ports.Clock, () => TimeSpan.FromMinutes(settings().Decision.SafeAfterMin), new SlewHoldPolicy(), () => settings().Decision.UndeterminedIsSafe);
         MountWatcher? watcher = ports.Mount is null
             ? null
             : new MountWatcher(ports.Mount, () => TimeSpan.FromSeconds(settings().Mount.PollIntervalS), log);

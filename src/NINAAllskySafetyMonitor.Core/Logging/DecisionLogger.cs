@@ -16,7 +16,7 @@ namespace NINAAllskySafetyMonitor.Core.Logging;
 [Requirement("REQ-06", "REQ-44", "REQ-54")]
 public sealed class DecisionLogger
 {
-    private const string Header = "Local time,UTC time,Event,State,Safe,Override,Seconds to safe,Reason,Image captured (UTC),Image age (min),Image source,Rain (mm/h),Gust (km/h),Weather age (min),Mount,Mount RA (h),Mount Dec (°),Mount reported Alt (°),Mount reported Az (°),ROI Alt (°),ROI Az (°),ROI mode,ROI inside (%),ROI note,Stars expected,Stars found,Star fraction,Relative brightness,Non-uniformity ratio,Moon alt (°),Moon illumination";
+    private const string Header = "Local time,UTC time,Event,State,Safe,Override,Seconds to safe,Reason,Image captured (UTC),Image age (min),Image source,Rain (mm/h),Gust (km/h),Weather age (min),Mount,Mount RA (h),Mount Dec (°),Mount reported Alt (°),Mount reported Az (°),ROI Alt (°),ROI Az (°),ROI mode,ROI inside (%),ROI note,Stars expected,Stars found,Star fraction,Relative brightness,Non-uniformity ratio,Moon alt (°),Moon illumination,Assumed safe";
     private readonly Func<LoggingSettings> settings;
     private readonly IClock clock;
     private readonly SecretRedactor redactor;
@@ -115,7 +115,8 @@ public sealed class DecisionLogger
         Append(row, Signed(c?.RelativeBrightness, "0.00"));
         Append(row, Signed(c?.UniformityRatio, "0.00"));
         Append(row, Signed(c?.Moon?.Position.AltDeg, "0.0"));
-        Append(row, Signed(c?.Moon?.Illumination, "0.00"), last: true);
+        Append(row, Signed(c?.Moon?.Illumination, "0.00"));
+        Append(row, st.Assumed ? "TRUE" : "FALSE", last: true);
 
         using var writer = new StreamWriter(path, append: true, new UTF8Encoding(encoderShouldEmitUTF8Identifier: true));
         if (isNew) writer.WriteLine(Header);

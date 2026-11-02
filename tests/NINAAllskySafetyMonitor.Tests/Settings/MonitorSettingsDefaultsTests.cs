@@ -86,6 +86,10 @@ public sealed class MonitorSettingsDefaultsTests
     public void TuningOffByDefault() => Assert.False(s.Tuning.Enabled);
 
     [Fact]
+    [Requirement("REQ-50")]
+    public void UndeterminedIsUnsafeByDefault() => Assert.False(s.Decision.UndeterminedIsSafe);
+
+    [Fact]
     [Requirement("REQ-41")]
     public void TuningDataKeptThirtyDays() => Assert.Equal(30, s.Tuning.RetentionDays);
 

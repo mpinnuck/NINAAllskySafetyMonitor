@@ -23,6 +23,7 @@ public sealed class ImageFreshnessEvaluatorTests
         Assert.False(c.Passed);
         Assert.Equal(SafetyCondition.FreshImage, c.Condition);
         Assert.Contains("No image", c.Reason);
+        Assert.True(c.Undetermined);
     }
 
     [Fact]

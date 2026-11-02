@@ -24,9 +24,10 @@ package "NINAAllskySafetyMonitor.Core.Decision" {
     -clock : IClock
     -safeAfter : Func<TimeSpan>
     -slewHold : SlewHoldPolicy
+    -undeterminedIsSafe : Func<bool>
     -lastDecided : SafetyStatus?
     +Decide(snapshot : MonitorSnapshot) : SafetyStatus
-    .. REQ-03 REQ-27 REQ-37 REQ-38 REQ-39 ..
+    .. REQ-03 REQ-27 REQ-37 REQ-38 REQ-39 REQ-50 ..
   }
 }
 

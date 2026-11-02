@@ -43,12 +43,12 @@ public sealed class ManualOverride
         {
             OverrideMode.ForceSafe => status with
             {
-                State = SafetyState.Safe, IsSafe = true, Override = m, SecondsToSafe = null,
+                State = SafetyState.Safe, IsSafe = true, Override = m, SecondsToSafe = null, Assumed = false,
                 Reason = $"MANUAL OVERRIDE: Force Safe (monitor says {status.State}: {status.Reason})",
             },
             OverrideMode.ForceUnsafe => status with
             {
-                State = SafetyState.Unsafe, IsSafe = false, Override = m, SecondsToSafe = null,
+                State = SafetyState.Unsafe, IsSafe = false, Override = m, SecondsToSafe = null, Assumed = false,
                 Reason = $"MANUAL OVERRIDE: Force Unsafe (monitor says {status.State}: {status.Reason})",
             },
             _ => status,

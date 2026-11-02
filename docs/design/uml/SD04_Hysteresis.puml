@@ -1,6 +1,6 @@
 @startuml SD04_Hysteresis
 !include _style.iuml
-title SD-04  Conditions fail and clear — safety decision (UC-10, UC-03) — REQ-03, REQ-37 … REQ-39
+title SD-04  Conditions fail and clear — safety decision (UC-10, UC-03) — REQ-03, REQ-37 … REQ-39, REQ-50
 
 participant ":MonitorService" as Svc
 participant ":SafetyDecisionEngine" as Eng
@@ -17,6 +17,18 @@ Svc -> Ovr : Apply(status)
 Svc -> Dev : SnapshotAvailable
 Dev -> NINA : PropertyChanged(IsSafe = false)
 note right : Immediate (REQ-38)
+
+== Only undetermined failures (no usable image, cloud unknown, no current weather data) ==
+alt UndeterminedIsSafe = false (default)
+  Svc -> Eng : Decide(snapshot)
+  Eng -> Hys : Reset()
+  Eng --> Svc : Unsafe, reason = the undetermined conditions
+else UndeterminedIsSafe = true
+  Svc -> Eng : Decide(snapshot)
+  Eng -> Hys : Apply(true, now, SafeAfterMin)
+  Eng --> Svc : "Assumed safe: <reasons>: safe in 4:00", then Safe with Assumed = true
+  note right : Panel shows SAFE (ASSUMED) in amber;\nthe decision log marks it (REQ-45, REQ-50).\nDetected cloud, rain and wind\nare never undetermined.
+end
 
 == Everything clear ==
 loop each cycle while all conditions pass
@@ -41,6 +53,7 @@ note right : Only after SafeAfterMin (REQ-39)
 
 == Idle or monitor error ==
 Svc -> Eng : Decide(Idle snapshot, or error snapshot with no conditions)
+note right : An error snapshot has no checks, so it is never\nassumed safe: nothing was checked, not even\nthat it is night.
 Eng -> Hys : Reset()
 Eng --> Svc : Idle / Unsafe  (countdown starts again afterwards)
 @enduml

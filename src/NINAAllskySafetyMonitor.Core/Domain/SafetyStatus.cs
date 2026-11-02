@@ -10,7 +10,7 @@ namespace NINAAllskySafetyMonitor.Core.Domain;
 /// <param name="Override">Manual override in effect.</param>
 /// <param name="Untuned">True while thresholds are still the untuned defaults.</param>
 /// <param name="TimestampUtc">When the decision was made.</param>
-[Requirement("REQ-03", "REQ-39", "REQ-40", "REQ-43")]
+[Requirement("REQ-03", "REQ-39", "REQ-40", "REQ-43", "REQ-45", "REQ-50")]
 public sealed record SafetyStatus(
     SafetyState State,
     bool IsSafe,
@@ -20,6 +20,12 @@ public sealed record SafetyStatus(
     bool Untuned,
     DateTime TimestampUtc)
 {
+    /// <summary>
+    /// True when the decision treated conditions that could not be determined as safe (REQ-50), so the
+    /// panel can show it distinctly.
+    /// </summary>
+    public bool Assumed { get; init; }
+
     /// <summary>Status before the first decision: unsafe.</summary>
     public static SafetyStatus Starting(DateTime utc) =>
         new(SafetyState.Starting, false, "Starting", null, OverrideMode.Auto, false, utc);

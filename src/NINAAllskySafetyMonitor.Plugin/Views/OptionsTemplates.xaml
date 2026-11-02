@@ -55,6 +55,16 @@
                     <ColumnDefinition Width="300" />
                     <ColumnDefinition Width="*" />
                 </Grid.ColumnDefinitions>
+                <TextBlock Margin="0,0,12,0" VerticalAlignment="Center" Text="Safe when the monitor can't tell" />
+                <CheckBox Grid.Column="1" VerticalAlignment="Center" IsChecked="{Binding UndeterminedIsSafe}" />
+                <TextBlock Grid.Column="2" Margin="10,0,0,0" VerticalAlignment="Center" Opacity="0.65" Text="Off: no usable image, cloud unknown or no current weather data is unsafe. On: these show SAFE (ASSUMED) in amber and imaging continues. Detected cloud, rain or wind, and a monitor error, stay unsafe. Leave off if this monitor protects against rain" TextWrapping="Wrap" />
+            </Grid>
+            <Grid Margin="0,2">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto" SharedSizeGroup="AllskyLabel" />
+                    <ColumnDefinition Width="300" />
+                    <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
                 <TextBlock Margin="0,0,12,0" VerticalAlignment="Center" Text="Keep decision log for (days)" />
                 <TextBox Grid.Column="1" Text="{Binding LogRetentionDays}" />
                 <TextBlock Grid.Column="2" Margin="10,0,0,0" VerticalAlignment="Center" Opacity="0.65" Text="" TextWrapping="Wrap" />

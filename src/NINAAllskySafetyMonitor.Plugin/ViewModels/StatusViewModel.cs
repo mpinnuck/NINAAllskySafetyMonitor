@@ -24,7 +24,7 @@ namespace NINAAllskySafetyMonitor.Plugin.ViewModels;
 /// history graph.
 /// </summary>
 [Export(typeof(IDockableVM))]
-[Requirement("REQ-43", "REQ-45", "REQ-58", "REQ-59")]
+[Requirement("REQ-43", "REQ-45", "REQ-50", "REQ-58", "REQ-59")]
 public sealed class StatusViewModel : DockableVM
 {
     private readonly MonitorHost host = MonitorHost.Instance;
@@ -66,7 +66,12 @@ public sealed class StatusViewModel : DockableVM
 
     public bool IsSafe => host.IsRunning && host.CurrentStatus.IsSafe;
 
-    public string StateText => host.IsRunning ? host.CurrentStatus.State.ToString().ToUpperInvariant() : "NOT CONNECTED";
+    /// <summary>Safe only because undetermined conditions are assumed safe (REQ-50): shown in amber.</summary>
+    public bool IsAssumed => IsSafe && host.CurrentStatus.Assumed;
+
+    public string StateText => !host.IsRunning
+        ? "NOT CONNECTED"
+        : host.CurrentStatus.State.ToString().ToUpperInvariant() + (IsAssumed ? " (ASSUMED)" : string.Empty);
 
     public string ReasonText => host.IsRunning
         ? host.CurrentStatus.Reason
@@ -238,6 +243,7 @@ public sealed class StatusViewModel : DockableVM
 
         RaisePropertyChanged(nameof(IsConnected));
         RaisePropertyChanged(nameof(IsSafe));
+        RaisePropertyChanged(nameof(IsAssumed));
         RaisePropertyChanged(nameof(StateText));
         RaisePropertyChanged(nameof(ReasonText));
         RaisePropertyChanged(nameof(LastUpdateText));

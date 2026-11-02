@@ -7,6 +7,8 @@ namespace NINAAllskySafetyMonitor.Core.Monitoring;
 /// <summary>
 /// Runs a monitoring cycle with a timeout and a catch-all. Any exception or timeout becomes an
 /// Unsafe snapshot; nothing propagates to the caller except cancellation of the caller's own token.
+/// The snapshot carries no condition checks, so it stays unsafe even when undetermined conditions may
+/// be assumed safe: a failed cycle has checked nothing, not even that it is night (REQ-50).
 /// </summary>
 [Requirement("REQ-49", "REQ-50", "REQ-51")]
 public sealed class FailSafeGuard

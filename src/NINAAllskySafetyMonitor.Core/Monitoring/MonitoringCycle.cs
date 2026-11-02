@@ -18,7 +18,7 @@ namespace NINAAllskySafetyMonitor.Core.Monitoring;
 /// ROI (SD-03). The reason lists every failed condition; the decision engine turns an all-passed cycle
 /// into Safe. Settings are read at the start of every cycle.
 /// </summary>
-[Requirement("REQ-05", "REQ-10", "REQ-14", "REQ-28", "REQ-37", "REQ-60")]
+[Requirement("REQ-05", "REQ-10", "REQ-14", "REQ-28", "REQ-37", "REQ-50", "REQ-60")]
 public sealed class MonitoringCycle : IMonitoringCycle
 {
     private readonly Func<MonitorSettings> settings;
@@ -122,11 +122,11 @@ public sealed class MonitoringCycle : IMonitoringCycle
     /// <summary>Decodes the image, checks it is a sky frame and judges cloud in the ROI.</summary>
     private (ConditionCheck Check, CloudAssessment? Cloud) AssessCloud(MonitorSettings s, SkyImage? image, RegionOfInterest roi, SiteLocation site, DateTime now)
     {
-        if (decoder is null || cloudDetector is null) return (NoCloud(false, "Cloud detection unavailable"), null);
-        if (image is null) return (NoCloud(false, "No image to judge cloud"), null);
+        if (decoder is null || cloudDetector is null) return (Unknown("Cloud detection unavailable"), null);
+        if (image is null) return (Unknown("No image to judge cloud"), null);
         if (s.Calibration.Lens is not { RadialCoefficients: [> 0, ..] } lens)
         {
-            return (NoCloud(false, "Lens not calibrated: calibrate it in the plugin options"), null);
+            return (Unknown("Lens not calibrated: calibrate it in the plugin options"), null);
         }
 
         GrayFrame frame;
@@ -136,7 +136,7 @@ public sealed class MonitoringCycle : IMonitoringCycle
         }
         catch (Exception e)
         {
-            return (NoCloud(false, $"Image could not be decoded: {e.Message}"), null);
+            return (Unknown($"Image could not be decoded: {e.Message}"), null);
         }
 
         var area = new WorkingArea(s.Calibration.WorkingArea, new LensProjection(lens));
@@ -153,7 +153,10 @@ public sealed class MonitoringCycle : IMonitoringCycle
         }
 
         CloudAssessment cloud = result.Assessment;
-        return (NoCloud(!cloud.CloudPresent, cloud.Summary), cloud);
+        ConditionCheck check = cloud.Undetermined
+            ? Unknown(cloud.Summary)
+            : new ConditionCheck(SafetyCondition.NoCloud, !cloud.CloudPresent, cloud.Summary);
+        return (check, cloud);
     }
 
     /// <summary>Decodes the image, reusing the last result when a cycle sees the same image again.</summary>
@@ -166,7 +169,8 @@ public sealed class MonitoringCycle : IMonitoringCycle
         return frame;
     }
 
-    private static ConditionCheck NoCloud(bool passed, string reason) => new(SafetyCondition.NoCloud, passed, reason);
+    /// <summary>Cloud can't be judged: undetermined, not detected (REQ-50).</summary>
+    private static ConditionCheck Unknown(string reason) => ConditionCheck.Unknown(SafetyCondition.NoCloud, reason);
 
     /// <summary>Fetches a new image once the image interval has passed (1 s tolerance for loop timing).</summary>
     private Task AcquireImageIfDueAsync(MonitorSettings s, CancellationToken ct)

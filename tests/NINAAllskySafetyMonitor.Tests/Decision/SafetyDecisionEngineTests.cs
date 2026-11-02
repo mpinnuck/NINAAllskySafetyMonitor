@@ -6,12 +6,90 @@ using Xunit;
 
 namespace NINAAllskySafetyMonitor.Tests.Decision;
 
-[Requirement("REQ-03", "REQ-37", "REQ-38", "REQ-39")]
+[Requirement("REQ-03", "REQ-37", "REQ-38", "REQ-39", "REQ-50")]
 public sealed class SafetyDecisionEngineTests
 {
     private static readonly DateTime T0 = new(2026, 11, 1, 12, 0, 0, DateTimeKind.Utc);
     private readonly FakeClock clock = new(T0);
-    private SafetyDecisionEngine Engine() => new(clock, () => TimeSpan.FromMinutes(4));
+    private bool undeterminedIsSafe;
+
+    private SafetyDecisionEngine Engine() => new(clock, () => TimeSpan.FromMinutes(4), null, () => undeterminedIsSafe);
+
+    private static MonitorSnapshot StaleImage(ConditionCheck? extra = null) => Snapshot(SafetyState.Unsafe, new[]
+    {
+        Pass(SafetyCondition.ActiveWindow), ConditionCheck.Unknown(SafetyCondition.FreshImage, "Image is 12.0 min old (limit 10 min)"),
+        ConditionCheck.Unknown(SafetyCondition.NoCloud, "No image to judge cloud"),
+        Pass(SafetyCondition.NoRain), Pass(SafetyCondition.WindBelowLimit), Pass(SafetyCondition.WeatherCurrent),
+    }.Select(c => extra is not null && c.Condition == extra.Condition ? extra : c).ToArray());
+
+    [Fact]
+    public void UndeterminedIsUnsafeByDefault()
+    {
+        SafetyStatus s = Engine().Decide(StaleImage());
+        Assert.False(s.IsSafe);
+        Assert.False(s.Assumed);
+        Assert.Null(s.SecondsToSafe);
+    }
+
+    [Fact]
+    public void UndeterminedCanBeAssumedSafeAfterTheClearPeriod()
+    {
+        undeterminedIsSafe = true;
+        SafetyDecisionEngine e = Engine();
+        SafetyStatus first = e.Decide(StaleImage());
+        Assert.False(first.IsSafe);
+        Assert.True(first.Assumed);
+        Assert.Equal("Assumed safe: Image is 12.0 min old (limit 10 min) · No image to judge cloud: safe in 4:00", first.Reason);
+
+        clock.UtcNow = T0.AddMinutes(4);
+        SafetyStatus safe = e.Decide(StaleImage());
+        Assert.True(safe.IsSafe);
+        Assert.True(safe.Assumed);
+        Assert.Equal(SafetyState.Safe, safe.State);
+        Assert.StartsWith("Assumed safe: ", safe.Reason);
+    }
+
+    [Fact]
+    public void DetectedCloudIsUnsafeEvenWhenUndeterminedIsSafe()
+    {
+        undeterminedIsSafe = true;
+        SafetyStatus s = Engine().Decide(StaleImage(new ConditionCheck(SafetyCondition.NoCloud, false, "Cloud: 2 of 11 stars (18%)")));
+        Assert.False(s.IsSafe);
+        Assert.False(s.Assumed);
+        Assert.Null(s.SecondsToSafe);
+    }
+
+    [Fact]
+    public void MissingWeatherCanBeAssumedSafe()
+    {
+        undeterminedIsSafe = true;
+        SafetyStatus s = Engine().Decide(StaleImage(ConditionCheck.Unknown(SafetyCondition.WeatherCurrent, "No weather data: timeout")));
+        Assert.True(s.Assumed);
+        Assert.Equal(240, s.SecondsToSafe);
+    }
+
+    [Fact]
+    public void ReportedRainIsUnsafeEvenWhenUndeterminedIsSafe()
+    {
+        undeterminedIsSafe = true;
+        SafetyStatus s = Engine().Decide(StaleImage(new ConditionCheck(SafetyCondition.NoRain, false, "Rain 0.4 mm/h")));
+        Assert.False(s.IsSafe);
+        Assert.False(s.Assumed);
+        Assert.Null(s.SecondsToSafe);
+    }
+
+    [Fact]
+    public void ClearConditionsAreNotMarkedAssumed()
+    {
+        undeterminedIsSafe = true;
+        SafetyDecisionEngine e = Engine();
+        e.Decide(AllClear());
+        clock.UtcNow = T0.AddMinutes(4);
+        SafetyStatus s = e.Decide(AllClear());
+        Assert.True(s.IsSafe);
+        Assert.False(s.Assumed);
+        Assert.Equal("All conditions clear", s.Reason);
+    }
 
     private static MonitorSnapshot Snapshot(SafetyState state, params ConditionCheck[] checks) =>
         new(null, null, null, null, new SafetyConditions(checks),

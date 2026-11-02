@@ -8,7 +8,8 @@ namespace NINAAllskySafetyMonitor.Core.Weather;
 /// <summary>
 /// The three weather conditions: NoRain (any rain rate above zero fails), WindBelowLimit (gust above
 /// the limit fails) and WeatherCurrent (missing data, or data older than the limit, fails). With no
-/// usable data all three fail. With weather checking switched off all three pass.
+/// usable data all three fail. With weather checking switched off all three pass. Missing or old data
+/// can't be judged, so those failures are undetermined (REQ-50); rain and gusts that are reported are not.
 /// </summary>
 [Requirement("REQ-34", "REQ-35", "REQ-36", "REQ-50")]
 public sealed class WeatherEvaluator
@@ -32,9 +33,9 @@ public sealed class WeatherEvaluator
             string why = lastError is null ? "No weather data yet" : $"No weather data: {lastError}";
             return new[]
             {
-                new ConditionCheck(SafetyCondition.NoRain, false, why),
-                new ConditionCheck(SafetyCondition.WindBelowLimit, false, why),
-                new ConditionCheck(SafetyCondition.WeatherCurrent, false, why),
+                ConditionCheck.Unknown(SafetyCondition.NoRain, why),
+                ConditionCheck.Unknown(SafetyCondition.WindBelowLimit, why),
+                ConditionCheck.Unknown(SafetyCondition.WeatherCurrent, why),
             };
         }
 
@@ -52,7 +53,7 @@ public sealed class WeatherEvaluator
                 : new ConditionCheck(SafetyCondition.WindBelowLimit, true, F($"Gust {obs.WindGustKmH:0} km/h")),
             current
                 ? new ConditionCheck(SafetyCondition.WeatherCurrent, true, F($"Weather {age:0.0} min old{failed}"))
-                : new ConditionCheck(SafetyCondition.WeatherCurrent, false, F($"Weather data is {age:0.0} min old (limit {s.StaleAfterMin} min){failed}")),
+                : ConditionCheck.Unknown(SafetyCondition.WeatherCurrent, F($"Weather data is {age:0.0} min old (limit {s.StaleAfterMin} min){failed}")),
         };
     }
 

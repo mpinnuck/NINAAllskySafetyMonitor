@@ -30,6 +30,7 @@ public sealed class WeatherEvaluatorTests
     {
         ConditionCheck c = Check(SafetyCondition.NoRain, Obs(rain: rate));
         Assert.False(c.Passed);
+        Assert.False(c.Undetermined);
         Assert.StartsWith("Rain ", c.Reason);
     }
 
@@ -38,6 +39,7 @@ public sealed class WeatherEvaluatorTests
     {
         ConditionCheck c = Check(SafetyCondition.WindBelowLimit, Obs(gust: 40.1));
         Assert.False(c.Passed);
+        Assert.False(c.Undetermined);
         Assert.Contains("limit 40 km/h", c.Reason);
     }
 
@@ -49,6 +51,7 @@ public sealed class WeatherEvaluatorTests
     {
         ConditionCheck c = Check(SafetyCondition.WeatherCurrent, Obs(minutesOld: 16));
         Assert.False(c.Passed);
+        Assert.True(c.Undetermined);
         Assert.Contains("16.0 min old (limit 15 min)", c.Reason);
     }
 
@@ -57,6 +60,7 @@ public sealed class WeatherEvaluatorTests
     {
         IReadOnlyList<ConditionCheck> checks = evaluator.Evaluate(null, "API key was rejected", Now, settings);
         Assert.All(checks, c => Assert.False(c.Passed));
+        Assert.All(checks, c => Assert.True(c.Undetermined));
         Assert.Contains(checks, c => c.Reason.Contains("API key was rejected"));
     }
 

@@ -40,7 +40,8 @@ public sealed class ImageFreshnessEvaluator
         return new ConditionCheck(SafetyCondition.FreshImage, true, $"Image {Format(age)} min old{note}");
     }
 
-    private static ConditionCheck Fail(string reason) => new(SafetyCondition.FreshImage, false, reason);
+    /// <summary>No usable image: the sky can't be judged, which is undetermined rather than unsafe (REQ-50).</summary>
+    private static ConditionCheck Fail(string reason) => ConditionCheck.Unknown(SafetyCondition.FreshImage, reason);
 
     private static string Format(double minutes) =>
         double.IsNaN(minutes) ? "?" : minutes.ToString("0.0", CultureInfo.InvariantCulture);
