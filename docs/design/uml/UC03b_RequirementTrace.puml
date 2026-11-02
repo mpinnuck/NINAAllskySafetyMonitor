@@ -11,7 +11,7 @@ skinparam rectangle {
 rectangle "§9 Safety decision\nREQ-37 … REQ-39" <<requirement>> as R9a
 rectangle "§9 Manual override\nREQ-40" <<requirement>> as R9b
 rectangle "§10 Tuning\nREQ-41, REQ-43" <<requirement>> as R10a
-rectangle "§10 Offline replay\nREQ-42" <<requirement>> as R10b
+rectangle "§10 Offline replay\nREQ-42, REQ-61" <<requirement>> as R10b
 rectangle "§11 Logging\nREQ-44" <<requirement>> as R11
 rectangle "§12 UI status and viewer\nREQ-45, REQ-59" <<requirement>> as R12a
 rectangle "§12 UI settings\nREQ-46" <<requirement>> as R12b

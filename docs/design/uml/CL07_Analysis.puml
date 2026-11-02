@@ -95,6 +95,7 @@ package "NINAAllskySafetyMonitor.Core.Analysis" {
     -moonAdjuster, referenceBuilder
     +Assess(frame, roi, workingArea, lens, site, nowUtc, moon, reference) : CloudDetection
     +{static} MatchTolerancePx(lens, width) : double
+    -lastBlocks : (GrayFrame, area key) → BlockStatistics
     .. REQ-28 ..
   }
   class CloudDetection <<record>> {
@@ -173,5 +174,7 @@ note bottom of CloudDetector
   Reference capture: no reference, tuned, Moon down, ROI not
   cloudy → star test over the whole working area; ≥ 0.9 found →
   CapturedReference (saved by the host, REQ-57).
+  The block map of the last frame is kept, so several ROIs on one
+  frame (harness targets, mount re-checks) measure it once.
 end note
 @enduml

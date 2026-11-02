@@ -1,11 +1,11 @@
-# Design v1.7 (2026-11-03)
+# Design v1.8 (2026-11-03)
 
-Traced to `../requirements/requirements.md` v5.4 (REQ-01 … REQ-60). Version 1.7 adds the choice to treat undetermined conditions as safe (REQ-50); §1.5 of the PDF lists the changes from v1.6.
+Traced to `../requirements/requirements.md` v5.5 (REQ-01 … REQ-61). Version 1.8 designs slice 7 (offline replay harness); §1.5 of the PDF lists the changes from v1.7.
 
 | File | Contents |
 |---|---|
 | `uml/*.puml` | PlantUML sources in Rational Rose style (`uml/_style.iuml`). These are the editable masters. |
-| `review/NINAAllskySafetyMonitor-Design-v1.7.pdf` | Software Design Document for review, generated from the sources. Earlier versions are in `review/superseded/`. |
+| `review/NINAAllskySafetyMonitor-Design-v1.8.pdf` | Software Design Document for review, generated from the sources. Earlier versions are in `review/superseded/`. |
 | `review/traceability.xlsx` | REQ → use case → design class → scenario, generated from the sources. Do not edit by hand. |
 
 Diagram index:

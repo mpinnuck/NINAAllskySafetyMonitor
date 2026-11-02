@@ -88,12 +88,6 @@ package "NINAAllskySafetyMonitor.Core.Tuning" {
     +Append(path, s : MonitorSnapshot, imageFile, utc)
     .. REQ-41 ..
   }
-  class ReplayImageSource {
-    -frames : IEnumerator<string>
-    +Kind = Replay
-    +FetchAsync(ct) : Task<FetchResult>
-    .. REQ-42 ..
-  }
   class TuningStateEvaluator {
     -cloud : CloudDetectionSettings
     +IsUntuned : bool
@@ -130,7 +124,6 @@ package "NINAAllskySafetyMonitor.Core.Traceability" {
 
 interface IImageSource
 interface ILogSink
-IImageSource <|.. ReplayImageSource
 ILogSink <|.. RedactingLogSink
 LensCalibrationSession --> InitialGuessSearch
 LensCalibrationSession --> LensFitter

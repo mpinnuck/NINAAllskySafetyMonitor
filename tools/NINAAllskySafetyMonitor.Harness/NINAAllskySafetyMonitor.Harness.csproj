@@ -1,15 +1,23 @@
 <Project Sdk="Microsoft.NET.Sdk">
-  <!-- Console tool: offline replay of saved frames (REQ-42) and traceability report generation. -->
+  <!--
+    Offline replay harness (REQ-42, REQ-61): re-analyses saved Allsky frames with the plugin's Core code.
+    Cross-platform (macOS and Windows), no NINA reference. SkiaSharp decodes and marks up frames;
+    ClosedXML writes the review workbook. Both MIT.
+  -->
   <PropertyGroup>
-    <TargetFramework>net8.0-windows</TargetFramework>
+    <TargetFramework>net8.0</TargetFramework>
     <OutputType>Exe</OutputType>
     <RootNamespace>NINAAllskySafetyMonitor.Harness</RootNamespace>
     <AssemblyName>NINAAllskySafetyMonitor.Harness</AssemblyName>
-    <EnableWindowsTargeting>true</EnableWindowsTargeting>
   </PropertyGroup>
 
   <ItemGroup>
+    <PackageReference Include="SkiaSharp" Version="2.88.8" />
+    <PackageReference Include="SkiaSharp.NativeAssets.Linux.NoDependencies" Version="2.88.8" />
+    <PackageReference Include="ClosedXML" Version="0.104.1" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="..\..\src\NINAAllskySafetyMonitor.Core\NINAAllskySafetyMonitor.Core.csproj" />
-    <ProjectReference Include="..\..\src\NINAAllskySafetyMonitor.Astrometry\NINAAllskySafetyMonitor.Astrometry.csproj" />
   </ItemGroup>
 </Project>

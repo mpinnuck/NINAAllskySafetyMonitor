@@ -1,30 +1,57 @@
 @startuml SD09_OfflineReplay
 !include _style.iuml
-title SD-09  Replay saved frames offline (UC-17) — REQ-41, REQ-42
+title SD-09  Replay saved frames offline (UC-17) — REQ-42, REQ-61
 
 actor Imager
-participant ":ReplayCommand" as Cmd
+participant ":Program" as P
 participant ":SettingsStore" as Store
-participant ":MonitorServiceBuilder" as B
-participant ":ReplayImageSource" as Src
-participant ":ReplayClock" as Clk
-participant ":MonitoringCycle" as Cyc
-participant ":MetricsCsvWriter" as Csv
+participant ":FrameCatalog" as Cat
+participant ":FrameAnalyser" as An
+participant ":SkiaFrameDecoder" as Dec
+participant ":SkyFrameCheck" as SF
+participant ":TargetGrid" as Grid
+participant ":CloudDetector" as CD
+participant ":ReviewSelector" as Sel
+participant ":AnnotatedFrameWriter" as Ann
+participant ":ResultsCsvWriter" as Csv
+participant ":ReviewWorkbookWriter" as Wb
 
-Imager -> Cmd : NINAAllskySafetyMonitor.Harness replay --frames <folder> --settings <trial.json>
-Cmd -> Store : Load(trial.json)
-Store --> Cmd : MonitorSettings (trial thresholds)
-Cmd -> B : Build(settings, ports = {ReplayImageSource, ReplayClock,\nFixedMountStateSource, ConfigSiteLocationSource, ConsoleLogSink})
-B --> Cmd : cycle
-loop each saved frame (in capture order)
-  Cmd -> Src : advance()
-  Src -> Clk : UtcNow = frame capture time
-  Cmd -> Cyc : RunOnceAsync()
-  Cyc -> Src : FetchAsync()
-  Src --> Cyc : SkyImage(frame)
-  Cyc --> Cmd : MonitorSnapshot
-  Cmd -> Csv : Append(snapshot)
+Imager -> P : Harness replay ~-~-frames ~~/AllskyFrames ~-~-settings settings.json ~-~-out ~~/Replay/run1
+P -> Store : Load(settings.json)
+Store --> P : lens, working area, thresholds (copied from the AstroPC)
+P -> Cat : List(options)
+Cat --> P : frames in time order: night folders yyyyMMdd,\n*-yyyyMMddHHmmss.jpg, every StepS [60 s]
+loop each frame
+  P -> An : Analyse(frame)
+  An -> An : Sun altitude (CoreAstroCalculator)
+  alt Sun above the limit
+    An --> P : skipped (daylight)
+  else night
+    An -> Dec : Decode(jpeg)
+    Dec --> An : GrayFrame (darkest channel)
+    An -> SF : Evaluate(frame, area, lens)
+    alt not a sky frame
+      An --> P : FrameResult (no targets)
+    else sky frame
+      An -> Grid : RoisAt(utc, site, settings)
+      Grid --> An : ROIs of targets with ≥ 50% inside the working area
+      loop each target
+        An -> CD : Assess(frame, roi, …, moon, reference)
+        CD --> An : CloudAssessment (+ captured reference, first clear frame)
+      end
+      An --> P : FrameResult
+    end
+  end
+  P -> Csv : Append(result)  (every row)
+  P -> Sel : Select(result)
+  Sel --> P : verdict changed / near a limit
+  opt selected
+    P -> Ann : Write(frame, target, why)
+    Ann --> P : review/<night>/<time>-<target>.jpg
+    P -> Wb : Add(row, image)
+  end
 end
-Cmd --> Imager : results.csv (opens in Excel)
-note over Cmd : No rig and no running NINA needed.\nCompare results.csv against the tuning\nrecording to evaluate threshold changes.
+P -> Wb : Save(review.xlsx)
+P --> Imager : results.csv, review.xlsx, review images, summary on the console
+note over Imager, Wb : The imager opens review.xlsx in Excel, clicks each link,\nenters My verdict; the Summary sheet counts agreement (REQ-61).\nRe-run with changed thresholds to compare.
 @enduml

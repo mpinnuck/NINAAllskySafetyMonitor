@@ -27,7 +27,8 @@ package "NINAAllskySafetyMonitor.Core  (.NET 8 class library — no NINA referen
   package "Traceability" as CTR
 }
 
-package "NINAAllskySafetyMonitor.Harness\n(console: offline replay,\ntraceability report)" as H
+package "NINAAllskySafetyMonitor.Harness\n(.NET 8 console, macOS / Windows:\noffline replay and review)" as H
+package "SkiaSharp, ClosedXML\n(NuGet, MIT)" as LIB <<external>>
 package "NINAAllskySafetyMonitor.Tests\n(unit + coverage)" as T
 package "NINA 3.x host\n(NINA.Equipment, NINA.Profile,\nNINA.Astrometry, NINA.Core)" as NINA <<external>>
 
@@ -57,7 +58,9 @@ CM ..> CS
 
 H ..> CM
 H ..> CT
-H ..> AS
+H ..> CAN
+H ..> CG
+H ..> LIB
 H ..> CTR
 T ..> C
 T ..> CTR

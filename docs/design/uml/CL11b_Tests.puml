@@ -1,38 +1,6 @@
-@startuml CL11_HarnessTests
+@startuml CL11b_Tests
 !include _style.iuml
-title CL-11  NINAAllskySafetyMonitor.Harness and NINAAllskySafetyMonitor.Tests
-
-package "NINAAllskySafetyMonitor.Harness" {
-  class Program {
-    +Main(args) : int
-  }
-  class ReplayCommand {
-    +FramesFolder : string
-    +SettingsFile : string
-    +OutputCsv : string
-    +RunAsync() : Task<int>
-    .. REQ-42 ..
-  }
-  class FixedMountStateSource {
-    +GetCurrent() : MountState?
-    .. REQ-42 ..
-  }
-  class ConfigSiteLocationSource {
-    +GetCurrent() : SiteLocation?
-  }
-  class ReplayClock {
-    +UtcNow : DateTime
-    .. REQ-42 ..
-  }
-  class ConsoleLogSink {
-    +Write(level, message)
-  }
-  class TraceabilityReportCommand {
-    +RequirementsFile : string
-    +OutputXlsx : string
-    +Run() : int
-  }
-}
+title CL-11b  NINAAllskySafetyMonitor.Tests
 
 package "NINAAllskySafetyMonitor.Tests" {
   package "Traceability" as TT {
@@ -87,15 +55,6 @@ package "NINAAllskySafetyMonitor.Tests" {
   }
 }
 
-Program ..> ReplayCommand
-Program ..> TraceabilityReportCommand
-ReplayCommand ..> FixedMountStateSource
-ReplayCommand ..> ConfigSiteLocationSource
-ReplayCommand ..> ReplayClock
-ReplayCommand ..> ConsoleLogSink
-ReplayCommand ..> "ReplayImageSource"
-ReplayCommand ..> "MonitorServiceBuilder"
-TraceabilityReportCommand ..> RequirementsParser
 RequirementCoverageTests ..> RequirementsParser
 RequirementCoverageTests ..> RequirementTagScanner
 RequirementCoverageTests ..> RepositoryPaths
@@ -107,11 +66,5 @@ note bottom of RequirementTagScanner
   than reflecting over assemblies, so it also covers
   the Windows-only Plugin and Astrometry projects
   when the tests run on the Mac.
-end note
-
-note bottom of ReplayClock
-  Clock set from each frame's capture time,
-  so the operating window, Moon and ROI are
-  evaluated as they were on the night.
 end note
 @enduml

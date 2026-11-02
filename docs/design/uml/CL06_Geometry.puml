@@ -20,6 +20,16 @@ package "NINAAllskySafetyMonitor.Core.Geometry" {
     +ToEquatorial(h, site, utc, epoch) : (double, double)
     .. REQ-24 ..
   }
+  class SunCalculator <<static>> {
+    +Position(site, utc) : HorizontalCoordinate
+    +AltitudeDeg(site, utc) : double
+    .. REQ-08 ..
+  }
+  class CoreAstroCalculator {
+    IAstroCalculator from Core only:
+    Sun, Moon, CoordinateConverter
+    .. REQ-08 REQ-24 REQ-31 REQ-42 ..
+  }
   class MoonCalculator <<static>> {
     +Position(site, utc) : HorizontalCoordinate
     +Illumination(utc) : double
@@ -120,5 +130,12 @@ note bottom of LensProjection
   Until calibrated: Approximate() from the image size, or a
   hand-entered model (Manual = true). Calibrated (slice 5b):
   fitted to catalogue stars by LensFitter (CL-09).
+end note
+CoreAstroCalculator ..> SunCalculator
+CoreAstroCalculator ..> MoonCalculator
+CoreAstroCalculator ..> CoordinateConverter
+note bottom of CoreAstroCalculator
+  Used by the harness, which has no NINA. The plugin keeps
+  NovasAstroCalculator (NINA's Sun); both agree to ~0.1°.
 end note
 @enduml

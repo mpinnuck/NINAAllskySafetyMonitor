@@ -1,0 +1,122 @@
+@startuml CL11a_Harness
+!include _style.iuml
+title CL-11a  NINAAllskySafetyMonitor.Harness — offline replay (.NET 8 console for macOS and Windows; Core, SkiaSharp, ClosedXML)
+
+package "NINAAllskySafetyMonitor.Harness" {
+  class Program {
+    +Main(args) : int
+    replay ~-~-frames <folder> ~-~-settings <settings.json> ~-~-out <folder>
+      [~-~-nights 20261019-20261101] [~-~-step 60] [~-~-use-settings-reference]
+    .. REQ-42 ..
+  }
+  class ReplayOptions <<record>> {
+    +FramesFolder, SettingsFile, OutputFolder : string
+    +FirstNight, LastNight : DateOnly?
+    +StepS = 60
+    +DecFromDeg = -45, DecToDeg = 45, DecStepDeg = 10
+    +RaStepH = 1
+    +NearLimit = 0.10
+    +UseSettingsReference = false
+    .. REQ-42 REQ-61 ..
+  }
+  class FrameCatalog {
+    +List(options) : IReadOnlyList<SavedFrame>
+    .. REQ-42 ..
+  }
+  class SavedFrame <<record>> {
+    +Path : string
+    +Night : DateOnly
+    +CaptureUtc : DateTime
+  }
+  class SkiaFrameDecoder {
+    +Decode(jpeg) : GrayFrame
+    .. REQ-42 ..
+  }
+  class TargetGrid {
+    +Targets : IReadOnlyList<ReplayTarget>
+    +RoisAt(utc, site, settings) : IReadOnlyList<(ReplayTarget, RegionOfInterest)>
+    .. REQ-42 ..
+  }
+  class ReplayTarget <<record>> {
+    +Id : string  "RA05 Dec-35"
+    +RaHours, DecDeg : double
+  }
+  class FrameAnalyser {
+    -decoder, skyFrameCheck, window, cloudDetector
+    -reference : ClearSkyReference?
+    +Analyse(frame : SavedFrame) : FrameResult
+    .. REQ-42 ..
+  }
+  class FrameResult <<record>> {
+    +Frame : SavedFrame
+    +SunAltDeg : double
+    +SkyFrame : ConditionCheck
+    +Targets : IReadOnlyList<TargetResult>
+    +ReferenceCaptured : bool
+  }
+  class TargetResult <<record>> {
+    +Target : ReplayTarget
+    +Roi : RegionOfInterest
+    +Cloud : CloudAssessment
+    +Verdict : Clear | Cloud | Unknown
+  }
+  class ReviewSelector {
+    -previous : verdict per target
+    +Select(result, cloudSettings) : IReadOnlyList<(TargetResult, why)>
+    .. REQ-61 ..
+  }
+  class AnnotatedFrameWriter {
+    +Write(frame, decoded, target, why, lens, area, folder) : string
+    .. REQ-61 ..
+  }
+  class ResultsCsvWriter {
+    +Append(result)
+    .. REQ-42 REQ-61 ..
+  }
+  class ReviewWorkbookWriter {
+    +Add(target, why, imageFile)
+    +Save(path, settings)
+    .. REQ-61 ..
+  }
+  class ConsoleLogSink {
+    +Write(level, message)
+  }
+}
+
+
+Program ..> ReplayOptions
+Program --> FrameCatalog
+Program --> FrameAnalyser
+Program --> ReviewSelector
+Program --> AnnotatedFrameWriter
+Program --> ResultsCsvWriter
+Program --> ReviewWorkbookWriter
+FrameCatalog ..> SavedFrame
+FrameAnalyser --> SkiaFrameDecoder
+FrameAnalyser --> TargetGrid
+FrameAnalyser ..> FrameResult
+FrameResult *-- TargetResult
+TargetGrid *-- ReplayTarget
+
+note bottom of FrameAnalyser
+  Same Core code as the plugin: FrameTimeReader, SkyFrameCheck,
+  OperatingWindow (CoreAstroCalculator), RoiBuilder, CloudDetector.
+  Night frames only (Sun below the limit). Own clear-sky reference:
+  thresholds treated as tuned until the first clear moonless frame
+  is captured (or the one in settings.json with --use-settings-reference).
+  Weather is not replayed: cloud only.
+end note
+note bottom of ReviewSelector
+  A marked-up copy is kept when a target's verdict differs from its
+  previous frame, or a metric is within NearLimit [10%] of its limit:
+  star fraction vs MinStarFraction, relative brightness and
+  non-uniformity vs their maxima.
+end note
+note bottom of ReviewWorkbookWriter
+  review.xlsx: Review sheet (one row per marked-up copy: night, time,
+  target, verdict, metrics, why, link to the image, "My verdict"
+  drop-down Clear / Cloud / Unsure, Agrees formula); Summary sheet
+  (agreement counts and % by formula, updating as verdicts are
+  typed); Settings sheet (thresholds used). results.csv holds every row.
+end note
+@enduml

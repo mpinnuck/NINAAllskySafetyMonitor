@@ -1,6 +1,6 @@
 # NINAAllskySafetyMonitor — Requirements
 
-Version 5.4 · 2026-11-03
+Version 5.5 · 2026-11-03
 
 A safety monitor for NINA on the AstroPC. It analyses images from an Allsky camera, combines them with rain and wind data from a weather station, and reports a safe/unsafe status to NINA.
 
@@ -87,7 +87,8 @@ Defaults shown in *[brackets]* are configurable. How configurable values are sto
 ## 10. Tuning and offline analysis
 
 - **REQ-41** A tuning mode saves every frame together with its computed metrics, in a format readable by Excel, so thresholds can be tuned from real nights. It can run alongside normal operation *[off]*. Saved tuning data older than *[30 days]* is deleted.
-- **REQ-42** Saved frames can be re-analysed offline, without the rig or a live NINA session, to test threshold changes.
+- **REQ-42** Saved frames can be re-analysed offline, without the rig or a live NINA session, to test threshold changes. The re-analysis judges a spread of sky positions across the working area *[Dec −45° to +45° every 10°, RA every 1 h]*, followed as they move through each night, and captures its own clear-sky reference.
+- **REQ-61** The results of an offline re-analysis can be checked by eye: a row per frame and sky position with its metrics and verdict; a marked-up copy of each frame where the verdict changes, or where a metric is within *[10%]* of its limit; a place to record the imager's own verdict for those frames; and a count of how often the two agree. Results are readable by Excel.
 - **REQ-43** Until the thresholds have been tuned, conservative defaults (biased towards unsafe) are used and an "UNTUNED" warning is shown.
 
 ## 11. Logging
