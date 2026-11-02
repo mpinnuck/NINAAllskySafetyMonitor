@@ -2,16 +2,11 @@ using NINAAllskySafetyMonitor.Core.Traceability;
 
 namespace NINAAllskySafetyMonitor.Core.Analysis;
 
-/// <summary>Background statistics of a clear sky, captured automatically on the first tuned clear night.</summary>
+/// <summary>
+/// Map of sky brightness and non-uniformity over the working area on a clear, moonless night, captured
+/// automatically on the first tuned clear night and stored with the settings.
+/// </summary>
+/// <param name="Blocks">The block map.</param>
+/// <param name="CapturedUtc">When it was captured.</param>
 [Requirement("REQ-30", "REQ-57")]
-public sealed record ClearSkyReference
-{
-    /// <summary>Median background level of the reference frame.</summary>
-    public double Median { get; init; }
-
-    /// <summary>Non-uniformity (standard deviation ÷ median, stars removed) of the reference frame.</summary>
-    public double Uniformity { get; init; }
-
-    /// <summary>When the reference was captured.</summary>
-    public DateTime CapturedUtc { get; init; }
-}
+public sealed record ClearSkyReference(BlockStatistics Blocks, DateTime CapturedUtc);

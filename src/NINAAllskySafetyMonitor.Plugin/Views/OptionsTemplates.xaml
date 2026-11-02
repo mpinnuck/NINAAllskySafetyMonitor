@@ -399,6 +399,112 @@
                 <CheckBox Grid.Column="1" VerticalAlignment="Center" IsEnabled="{Binding ManualLensEnabled}" IsChecked="{Binding LensEastClockwise}" />
                 <TextBlock Grid.Column="2" Margin="10,0,0,0" VerticalAlignment="Center" Opacity="0.65" Text="Off for the usual looking-up view (east to the left of north)" TextWrapping="Wrap" />
             </Grid>
+            <TextBlock Margin="0,14,0,4" FontWeight="Bold" Text="Cloud detection" />
+            <Grid Margin="0,2">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto" SharedSizeGroup="AllskyLabel" />
+                    <ColumnDefinition Width="300" />
+                    <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+                <TextBlock Margin="0,0,12,0" VerticalAlignment="Center" Text="Limiting magnitude" />
+                <TextBox Grid.Column="1" Text="{Binding LimitingMagnitude}" />
+                <TextBlock Grid.Column="2" Margin="10,0,0,0" VerticalAlignment="Center" Opacity="0.65" Text="Catalogue stars down to this magnitude are expected in the ROI (0–7)" TextWrapping="Wrap" />
+            </Grid>
+            <Grid Margin="0,2">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto" SharedSizeGroup="AllskyLabel" />
+                    <ColumnDefinition Width="300" />
+                    <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+                <TextBlock Margin="0,0,12,0" VerticalAlignment="Center" Text="Cloud below stars found (%)" />
+                <TextBox Grid.Column="1" Text="{Binding MinStarPercent}" />
+                <TextBlock Grid.Column="2" Margin="10,0,0,0" VerticalAlignment="Center" Opacity="0.65" Text="Primary test: fewer of the expected stars found than this means cloud (0–100)" TextWrapping="Wrap" />
+            </Grid>
+            <Grid Margin="0,2">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto" SharedSizeGroup="AllskyLabel" />
+                    <ColumnDefinition Width="300" />
+                    <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+                <TextBlock Margin="0,0,12,0" VerticalAlignment="Center" Text="Minimum expected stars" />
+                <TextBox Grid.Column="1" Text="{Binding MinExpectedStars}" />
+                <TextBlock Grid.Column="2" Margin="10,0,0,0" VerticalAlignment="Center" Opacity="0.65" Text="With fewer expected stars the star test is skipped and the brightness test decides (1–500)" TextWrapping="Wrap" />
+            </Grid>
+            <Grid Margin="0,2">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto" SharedSizeGroup="AllskyLabel" />
+                    <ColumnDefinition Width="300" />
+                    <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+                <TextBlock Margin="0,0,12,0" VerticalAlignment="Center" Text="Cloud above brightness (×)" />
+                <TextBox Grid.Column="1" Text="{Binding MaxBrightnessRatio}" />
+                <TextBlock Grid.Column="2" Margin="10,0,0,0" VerticalAlignment="Center" Opacity="0.65" Text="ROI brightness relative to the rest of the working area, against the clear-sky reference (1–10)" TextWrapping="Wrap" />
+            </Grid>
+            <Grid Margin="0,2">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto" SharedSizeGroup="AllskyLabel" />
+                    <ColumnDefinition Width="300" />
+                    <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+                <TextBlock Margin="0,0,12,0" VerticalAlignment="Center" Text="Cloud above non-uniformity (×)" />
+                <TextBox Grid.Column="1" Text="{Binding MaxUniformityRatio}" />
+                <TextBlock Grid.Column="2" Margin="10,0,0,0" VerticalAlignment="Center" Opacity="0.65" Text="ROI non-uniformity against the clear-sky reference (1–10)" TextWrapping="Wrap" />
+            </Grid>
+            <Grid Margin="0,2">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto" SharedSizeGroup="AllskyLabel" />
+                    <ColumnDefinition Width="300" />
+                    <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+                <TextBlock Margin="0,0,12,0" VerticalAlignment="Center" Text="Moon exclusion (°)" />
+                <TextBox Grid.Column="1" Text="{Binding MoonExclusionDeg}" />
+                <TextBlock Grid.Column="2" Margin="10,0,0,0" VerticalAlignment="Center" Opacity="0.65" Text="Stars this close to the Moon are not expected (0–90)" TextWrapping="Wrap" />
+            </Grid>
+            <Grid Margin="0,2">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto" SharedSizeGroup="AllskyLabel" />
+                    <ColumnDefinition Width="300" />
+                    <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+                <TextBlock Margin="0,0,12,0" VerticalAlignment="Center" Text="Thresholds tuned" />
+                <CheckBox Grid.Column="1" VerticalAlignment="Center" IsChecked="{Binding CloudTuned}" />
+                <TextBlock Grid.Column="2" Margin="10,0,0,0" VerticalAlignment="Center" Opacity="0.65" Text="Tick once the thresholds have been tuned from real nights: clears UNTUNED and lets the clear-sky reference be captured" TextWrapping="Wrap" />
+            </Grid>
+            <StackPanel Margin="0,4,0,0" Orientation="Horizontal">
+                <Button Width="240" Margin="0,0,8,0" Command="{Binding ClearReferenceCommand}" Content="Clear the clear-sky reference" />
+                <TextBlock VerticalAlignment="Center" Text="{Binding ReferenceStatusText}" TextWrapping="Wrap" />
+            </StackPanel>
+            <TextBlock Margin="0,14,0,4" FontWeight="Bold" Text="Tuning mode" />
+            <Grid Margin="0,2">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto" SharedSizeGroup="AllskyLabel" />
+                    <ColumnDefinition Width="300" />
+                    <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+                <TextBlock Margin="0,0,12,0" VerticalAlignment="Center" Text="Save every frame and its metrics" />
+                <CheckBox Grid.Column="1" VerticalAlignment="Center" IsChecked="{Binding TuningEnabled}" />
+                <TextBlock Grid.Column="2" Margin="10,0,0,0" VerticalAlignment="Center" Opacity="0.65" Text="For tuning the thresholds: about 700 MB a night" TextWrapping="Wrap" />
+            </Grid>
+            <Grid Margin="0,2">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto" SharedSizeGroup="AllskyLabel" />
+                    <ColumnDefinition Width="300" />
+                    <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+                <TextBlock Margin="0,0,12,0" VerticalAlignment="Center" Text="Tuning folder" />
+                <TextBox Grid.Column="1" Text="{Binding TuningFolder}" />
+                <TextBlock Grid.Column="2" Margin="10,0,0,0" VerticalAlignment="Center" Opacity="0.65" Text="A folder per night with the frames and a CSV of metrics, readable by Excel" TextWrapping="Wrap" />
+            </Grid>
+            <Grid Margin="0,2">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto" SharedSizeGroup="AllskyLabel" />
+                    <ColumnDefinition Width="300" />
+                    <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+                <TextBlock Margin="0,0,12,0" VerticalAlignment="Center" Text="Keep tuning data for (days)" />
+                <TextBox Grid.Column="1" Text="{Binding TuningRetentionDays}" />
+                <TextBlock Grid.Column="2" Margin="10,0,0,0" VerticalAlignment="Center" Opacity="0.65" Text="Older nights are deleted (1–365)" TextWrapping="Wrap" />
+            </Grid>
             <TextBlock Margin="0,14,0,4" FontWeight="Bold" Text="Fallback site (used when the NINA profile has no location)" />
             <Grid Margin="0,2">
                 <Grid.ColumnDefinitions>

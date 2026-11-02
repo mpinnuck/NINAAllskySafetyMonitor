@@ -101,6 +101,8 @@ public sealed class SettingsValidator
         }
 
         Range(errors, s.Decision.SafeAfterMin, 0, 120, "Safe-after period must be between 0 and 120 minutes.");
+        Range(errors, s.Tuning.RetentionDays, 1, 365, "Tuning data retention must be between 1 and 365 days.");
+        if (s.Tuning.Enabled && string.IsNullOrWhiteSpace(s.Tuning.OutputFolder)) errors.Add("Tuning folder is required when tuning mode is on.");
         Range(errors, s.Logging.RetentionDays, 1, 365, "Log retention must be between 1 and 365 days.");
 
         return errors;

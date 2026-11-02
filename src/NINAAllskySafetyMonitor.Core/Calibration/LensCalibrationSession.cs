@@ -85,7 +85,7 @@ public sealed class LensCalibrationSession
                 "Too few stars matched to fit the lens: identify two or three bright stars, or try a clearer frame.");
         }
 
-        result = result with { Lens = result.Lens with { CalibratedUtc = frame.CaptureUtc } };
+        result = result with { Lens = result.Lens with { CalibratedUtc = frame.CaptureUtc, ImageWidth = frame.Frame.Width, ImageHeight = frame.Frame.Height } };
         IReadOnlyList<string> warnings = quality.Warnings(result);
         string message = string.Create(CultureInfo.InvariantCulture,
             $"{result.StarsMatched} stars matched, error {result.RmsErrorPx:0.0} px ({result.RmsErrorDeg:0.00}°).");

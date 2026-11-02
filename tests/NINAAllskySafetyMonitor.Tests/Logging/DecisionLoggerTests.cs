@@ -37,14 +37,14 @@ public sealed class DecisionLoggerTests : IDisposable
     public void WritesHeaderAndOneRowPerDecisionWithMetrics()
     {
         DecisionLogger log = Logger();
-        log.Write(Snapshot(SafetyState.Unsafe, "Cloud detection not implemented yet"));
-        log.Write(Snapshot(SafetyState.Unsafe, "Cloud detection not implemented yet"));
+        log.Write(Snapshot(SafetyState.Unsafe, "Cloud detection unavailable"));
+        log.Write(Snapshot(SafetyState.Unsafe, "Cloud detection unavailable"));
 
         string[] lines = File.ReadAllLines(TodayFile());
         Assert.Equal(3, lines.Length);
         Assert.StartsWith("Local time,UTC time,Event,State,Safe", lines[0]);
-        Assert.Contains(",Start,Unsafe,FALSE,Auto,,Cloud detection not implemented yet,", lines[1]);
-        Assert.EndsWith(",1.0,Direct,0.0,7,2.0,,,,,,,,,,", lines[1]);
+        Assert.Contains(",Start,Unsafe,FALSE,Auto,,Cloud detection unavailable,", lines[1]);
+        Assert.EndsWith(",1.0,Direct,0.0,7,2.0,,,,,,,,,,,,,,,,,", lines[1]);
     }
 
     [Fact]
@@ -55,8 +55,8 @@ public sealed class DecisionLoggerTests : IDisposable
         Logger().Write(Snapshot(SafetyState.Unsafe, "x") with { Mount = mount, Roi = roi });
 
         string[] lines = File.ReadAllLines(TodayFile());
-        Assert.EndsWith(",Mount,Mount RA (h),Mount Dec (°),Mount reported Alt (°),Mount reported Az (°),ROI Alt (°),ROI Az (°),ROI mode,ROI inside (%),ROI note", lines[0]);
-        Assert.EndsWith(",Tracking,20.1428,-89.500,45.00,0.00,34.21,180.50,Circle,97,", lines[1]);
+        Assert.EndsWith(",Mount,Mount RA (h),Mount Dec (°),Mount reported Alt (°),Mount reported Az (°),ROI Alt (°),ROI Az (°),ROI mode,ROI inside (%),ROI note,Stars expected,Stars found,Star fraction,Relative brightness,Non-uniformity ratio,Moon alt (°),Moon illumination", lines[0]);
+        Assert.EndsWith(",Tracking,20.1428,-89.500,45.00,0.00,34.21,180.50,Circle,97,,,,,,,,", lines[1]);
     }
 
     [Fact]
@@ -68,7 +68,7 @@ public sealed class DecisionLoggerTests : IDisposable
 
         string[] lines = File.ReadAllLines(TodayFile());
         Assert.Equal(3, lines.Length);
-        Assert.EndsWith(",ROI inside (%),ROI note", lines[0]);
+        Assert.EndsWith(",ROI inside (%),ROI note,Stars expected,Stars found,Star fraction,Relative brightness,Non-uniformity ratio,Moon alt (°),Moon illumination", lines[0]);
         Assert.Equal("2026-11-01 22:00:00,2026-11-01 11:00:00,Start,Unsafe", lines[1]);
     }
 
@@ -79,7 +79,19 @@ public sealed class DecisionLoggerTests : IDisposable
         var roi = new RegionOfInterest(null, 15, true, 0, "Mount parked: judging the whole working area");
         Logger().Write(Snapshot(SafetyState.Unsafe, "x") with { Mount = mount, Roi = roi });
 
-        Assert.EndsWith(",Parked,,,,,,,Whole working area,,Mount parked: judging the whole working area", File.ReadAllLines(TodayFile())[1]);
+        Assert.EndsWith(",Parked,,,,,,,Whole working area,,Mount parked: judging the whole working area,,,,,,,", File.ReadAllLines(TodayFile())[1]);
+    }
+
+    [Fact]
+    [Requirement("REQ-28", "REQ-44")]
+    public void CloudMetricsAreLogged()
+    {
+        var cloud = new CloudAssessment(11, 9, 9 / 11.0, 1.04, 1.21, false, false, false, "Clear: 9 of 11 stars (82%)")
+        {
+            Moon = new MoonState(new HorizontalCoordinate(-12.3, 90), 0.42),
+        };
+        Logger().Write(Snapshot(SafetyState.Unsafe, "x") with { Cloud = cloud });
+        Assert.EndsWith(",11,9,0.82,1.04,1.21,-12.3,0.42", File.ReadAllLines(TodayFile())[1]);
     }
 
     [Fact]

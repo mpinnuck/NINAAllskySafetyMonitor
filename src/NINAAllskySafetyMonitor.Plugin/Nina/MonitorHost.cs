@@ -6,6 +6,7 @@ using NINAAllskySafetyMonitor.Core.Decision;
 using NINAAllskySafetyMonitor.Core.Domain;
 using NINAAllskySafetyMonitor.Core.Monitoring;
 using NINAAllskySafetyMonitor.Core.Traceability;
+using NINAAllskySafetyMonitor.Plugin.Imaging;
 
 namespace NINAAllskySafetyMonitor.Plugin.Nina;
 
@@ -70,7 +71,7 @@ public sealed class MonitorHost
             if (IsRunning) return;
 
             var ports = new MonitorPorts(new SystemClock(), new NinaSiteLocationSource(profileService), new NovasAstroCalculator(), new NinaLogSink(), new WindowsCredentialStore(),
-                new NinaMountStateSource(telescopeMediator));
+                new NinaMountStateSource(telescopeMediator), new WpfFrameDecoder(), PluginSettingsStore.Instance.SaveReference);
             MonitorService built = new MonitorServiceBuilder().Build(() => PluginSettingsStore.Instance.Current, ports, Override);
             built.SnapshotAvailable += OnSnapshot;
 

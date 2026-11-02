@@ -72,4 +72,21 @@ public sealed class StarDetectorTests
         Assert.Single(found);
         Assert.Equal(stars[0].X, found[0].Position.X, 0);
     }
+
+    [Fact]
+    [Requirement("REQ-29")]
+    public void BoundsGiveTheSameStarsInFrameCoordinates()
+    {
+        (GrayFrame frame, List<PixelPoint> stars, _) = Field();
+        var mask = new PixelMask(frame.Width, frame.Height);
+        for (int y = 0; y < 150; y++)
+        {
+            for (int x = 0; x < 150; x++) mask.Add(x, y);
+        }
+
+        IReadOnlyList<DetectedStar> found = new StarDetector().Detect(frame, mask, mask.Bounds!.Value.Inflate(16, frame.Width, frame.Height));
+        Assert.Single(found);
+        Assert.Equal(stars[0].X, found[0].Position.X, 0);
+        Assert.Equal(stars[0].Y, found[0].Position.Y, 0);
+    }
 }

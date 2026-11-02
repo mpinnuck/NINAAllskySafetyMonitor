@@ -33,6 +33,7 @@ public sealed class LensCalibrationSessionTests
         Assert.InRange(lens.CentreX, Truth.CentreX - 1.5, Truth.CentreX + 1.5);
         Assert.InRange(lens.CentreY, Truth.CentreY - 1.5, Truth.CentreY + 1.5);
         Assert.Equal(SyntheticSky.FrameUtc, lens.CalibratedUtc);
+        Assert.Equal((Size, Size), (lens.ImageWidth, lens.ImageHeight));
         Assert.StartsWith($"{outcome.Result.StarsMatched} stars matched, error ", outcome.Message);
     }
 

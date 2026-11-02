@@ -6,7 +6,7 @@ namespace NINAAllskySafetyMonitor.Core.Settings;
 [Requirement("REQ-29", "REQ-30", "REQ-31", "REQ-43")]
 public sealed class CloudDetectionSettings
 {
-    public double LimitingMagnitude { get; set; } = 4.0;
+    public double LimitingMagnitude { get; set; } = 4.4;
     public double MinStarFraction { get; set; } = 0.70;
     public int MinExpectedStars { get; set; } = 8;
     public double MaxBrightnessRatio { get; set; } = 1.3;

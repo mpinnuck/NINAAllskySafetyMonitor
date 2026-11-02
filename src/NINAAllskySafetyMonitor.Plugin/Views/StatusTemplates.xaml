@@ -1,7 +1,8 @@
 <ResourceDictionary
     x:Class="NINAAllskySafetyMonitor.Plugin.Views.StatusTemplates"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
-    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:oxy="http://oxyplot.org/wpf">
 
     <BooleanToVisibilityConverter x:Key="AllskySafety_BoolToVisibility" />
 
@@ -66,6 +67,12 @@
                     Margin="0,4,0,0"
                     Text="{Binding MountInfoText}"
                     TextWrapping="Wrap" />
+                <StackPanel Margin="0,8,0,0" Visibility="{Binding Metrics.HasMetrics, Converter={StaticResource AllskySafety_BoolToVisibility}}">
+                    <TextBlock Text="{Binding Metrics.StarsText}" TextWrapping="Wrap" />
+                    <TextBlock Margin="0,2,0,0" Text="{Binding Metrics.BrightnessText}" TextWrapping="Wrap" />
+                    <TextBlock Margin="0,2,0,0" Text="{Binding Metrics.MoonText}" TextWrapping="Wrap" />
+                    <TextBlock Margin="0,2,0,0" Opacity="0.7" Text="{Binding Metrics.ReferenceText}" TextWrapping="Wrap" />
+                </StackPanel>
                 <TextBlock
                     Margin="0,8,0,0"
                     Foreground="Orange"
@@ -96,11 +103,21 @@
                     Opacity="0.7"
                     Text="{Binding OverlayLegendText}"
                     TextWrapping="Wrap" />
+                <TextBlock
+                    Margin="0,10,0,2"
+                    FontWeight="Bold"
+                    Text="Tonight"
+                    Visibility="{Binding IsConnected, Converter={StaticResource AllskySafety_BoolToVisibility}}" />
+                <oxy:PlotView
+                    Height="170"
+                    Background="Transparent"
+                    Model="{Binding History.Model}"
+                    Visibility="{Binding IsConnected, Converter={StaticResource AllskySafety_BoolToVisibility}}" />
                 <StackPanel Margin="0,6,0,0" Orientation="Horizontal">
                     <TextBlock
                         Margin="0,0,8,0"
                         VerticalAlignment="Center"
-                        Text="Show working area and ROI" />
+                        Text="Show working area, ROI and stars" />
                     <CheckBox VerticalAlignment="Center" IsChecked="{Binding ShowOverlay}" />
                 </StackPanel>
                 <StackPanel Margin="0,10,0,0" Orientation="Horizontal">

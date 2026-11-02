@@ -1,5 +1,6 @@
 using NINAAllskySafetyMonitor.Core.Abstractions;
 using NINAAllskySafetyMonitor.Core.Acquisition;
+using NINAAllskySafetyMonitor.Core.Analysis;
 using NINAAllskySafetyMonitor.Core.Domain;
 using NINAAllskySafetyMonitor.Core.Geometry;
 using NINAAllskySafetyMonitor.Core.Settings;
@@ -13,10 +14,11 @@ namespace NINAAllskySafetyMonitor.Core.Monitoring;
 /// fetched. Inside it, the image is fetched (at most once per image interval, so a cycle triggered early
 /// by a mount change reuses the latest image) and checked for freshness, the weather is polled (at its
 /// own interval) and checked, and the ROI is placed from the mount's RA/Dec within the working area.
-/// The reason lists every failed condition. Until cloud detection is added (slice 6) the status stays
-/// Unsafe even when everything else passes. Settings are read at the start of every cycle.
+/// The image is then decoded (once per image), checked to be a sky frame, and judged for cloud in the
+/// ROI (SD-03). The reason lists every failed condition; the decision engine turns an all-passed cycle
+/// into Safe. Settings are read at the start of every cycle.
 /// </summary>
-[Requirement("REQ-05", "REQ-10", "REQ-14", "REQ-37")]
+[Requirement("REQ-05", "REQ-10", "REQ-14", "REQ-28", "REQ-37", "REQ-60")]
 public sealed class MonitoringCycle : IMonitoringCycle
 {
     private readonly Func<MonitorSettings> settings;
@@ -30,7 +32,15 @@ public sealed class MonitoringCycle : IMonitoringCycle
     private readonly IMountStateSource? mount;
     private readonly RoiCalculator roiCalculator;
     private readonly RoiBuilder roiBuilder;
+    private readonly IFrameDecoder? decoder;
+    private readonly CloudDetector? cloudDetector;
+    private readonly IAstroCalculator? astro;
+    private readonly Action<ClearSkyReference>? referenceCaptured;
+    private readonly SkyFrameCheck skyFrameCheck = new();
     private DateTime? lastImageFetchUtc;
+    private SkyImage? decodedImage;
+    private GrayFrame? decodedFrame;
+    private ClearSkyReference? sessionReference;
 
     public MonitoringCycle(
         Func<MonitorSettings> settings,
@@ -43,7 +53,11 @@ public sealed class MonitoringCycle : IMonitoringCycle
         WeatherEvaluator weatherEvaluator,
         IMountStateSource? mount,
         RoiCalculator roiCalculator,
-        RoiBuilder roiBuilder)
+        RoiBuilder roiBuilder,
+        IFrameDecoder? decoder = null,
+        CloudDetector? cloudDetector = null,
+        IAstroCalculator? astro = null,
+        Action<ClearSkyReference>? referenceCaptured = null)
     {
         this.settings = settings ?? throw new ArgumentNullException(nameof(settings));
         this.clock = clock ?? throw new ArgumentNullException(nameof(clock));
@@ -56,6 +70,10 @@ public sealed class MonitoringCycle : IMonitoringCycle
         this.mount = mount;
         this.roiCalculator = roiCalculator ?? throw new ArgumentNullException(nameof(roiCalculator));
         this.roiBuilder = roiBuilder ?? throw new ArgumentNullException(nameof(roiBuilder));
+        this.decoder = decoder;
+        this.cloudDetector = cloudDetector;
+        this.astro = astro;
+        this.referenceCaptured = referenceCaptured;
     }
 
     /// <inheritdoc />
@@ -88,14 +106,67 @@ public sealed class MonitoringCycle : IMonitoringCycle
             freshness.Evaluate(acquirer.LatestImage, acquirer.LastSuccessUtc, acquirer.LastError, now, s.ImageSource),
         };
         checks.AddRange(weatherEvaluator.Evaluate(weather.Latest, weather.LastError, now, s.Weather));
-        checks.Add(new ConditionCheck(SafetyCondition.NoCloud, false, "Cloud detection not implemented yet"));
+
+        // Decoding and analysis take a second or two: keep them off the caller's thread.
+        SkyImage? image = acquirer.LatestImage;
+        (ConditionCheck cloudCheck, CloudAssessment? cloud) = await Task.Run(() => AssessCloud(s, image, roi, site, now), ct).ConfigureAwait(false);
+        checks.Add(cloudCheck);
 
         // Distinct: with no weather data, rain, wind and data age all fail for the same reason.
         string reason = string.Join(" · ", checks.Where(c => !c.Passed).Select(c => c.Reason).Distinct());
         var status = new SafetyStatus(SafetyState.Unsafe, false, reason, null, OverrideMode.Auto, untuned, now);
         WeatherObservation? obs = s.Weather.Enabled ? weather.Latest : null;
-        return new MonitorSnapshot(acquirer.LatestImage, roi, null, obs, new SafetyConditions(checks), status, mountState);
+        return new MonitorSnapshot(image, roi, cloud, obs, new SafetyConditions(checks), status, mountState);
     }
+
+    /// <summary>Decodes the image, checks it is a sky frame and judges cloud in the ROI.</summary>
+    private (ConditionCheck Check, CloudAssessment? Cloud) AssessCloud(MonitorSettings s, SkyImage? image, RegionOfInterest roi, SiteLocation site, DateTime now)
+    {
+        if (decoder is null || cloudDetector is null) return (NoCloud(false, "Cloud detection unavailable"), null);
+        if (image is null) return (NoCloud(false, "No image to judge cloud"), null);
+        if (s.Calibration.Lens is not { RadialCoefficients: [> 0, ..] } lens)
+        {
+            return (NoCloud(false, "Lens not calibrated: calibrate it in the plugin options"), null);
+        }
+
+        GrayFrame frame;
+        try
+        {
+            frame = Decode(image);
+        }
+        catch (Exception e)
+        {
+            return (NoCloud(false, $"Image could not be decoded: {e.Message}"), null);
+        }
+
+        var area = new WorkingArea(s.Calibration.WorkingArea, new LensProjection(lens));
+        ConditionCheck skyFrame = skyFrameCheck.Evaluate(frame, area, lens);
+        if (!skyFrame.Passed) return (skyFrame, null);
+
+        MoonState? moon = astro is null ? null : new MoonState(astro.MoonPosition(site, now), astro.MoonIllumination(now));
+        ClearSkyReference? reference = s.Calibration.ClearSkyReference ?? sessionReference;
+        CloudDetection result = cloudDetector.Assess(frame, roi, s.Calibration.WorkingArea, lens, site, now, moon, reference);
+        if (result.CapturedReference is ClearSkyReference captured)
+        {
+            sessionReference = captured;
+            referenceCaptured?.Invoke(captured);
+        }
+
+        CloudAssessment cloud = result.Assessment;
+        return (NoCloud(!cloud.CloudPresent, cloud.Summary), cloud);
+    }
+
+    /// <summary>Decodes the image, reusing the last result when a cycle sees the same image again.</summary>
+    private GrayFrame Decode(SkyImage image)
+    {
+        if (ReferenceEquals(image, decodedImage) && decodedFrame is not null) return decodedFrame;
+        GrayFrame frame = decoder!.Decode(image.JpegBytes);
+        decodedImage = image;
+        decodedFrame = frame;
+        return frame;
+    }
+
+    private static ConditionCheck NoCloud(bool passed, string reason) => new(SafetyCondition.NoCloud, passed, reason);
 
     /// <summary>Fetches a new image once the image interval has passed (1 s tolerance for loop timing).</summary>
     private Task AcquireImageIfDueAsync(MonitorSettings s, CancellationToken ct)

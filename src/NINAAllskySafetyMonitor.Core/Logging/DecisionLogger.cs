@@ -10,13 +10,13 @@ namespace NINAAllskySafetyMonitor.Core.Logging;
 /// <summary>
 /// Rolling decision log: one CSV file per local day (decisions-yyyy-MM-dd.csv, readable by Excel) with
 /// a row for every decision: state, safe, override, countdown, reason and the metrics behind it, including
-/// the mount position and the ROI. The mount-reported Alt/Az are logged for diagnostics only (REQ-06). A
+/// the mount position, the ROI and the cloud metrics. The mount-reported Alt/Az are logged for diagnostics only (REQ-06). A
 /// change of state is marked. Files older than the retention period are deleted. Secrets are redacted.
 /// </summary>
 [Requirement("REQ-06", "REQ-44", "REQ-54")]
 public sealed class DecisionLogger
 {
-    private const string Header = "Local time,UTC time,Event,State,Safe,Override,Seconds to safe,Reason,Image captured (UTC),Image age (min),Image source,Rain (mm/h),Gust (km/h),Weather age (min),Mount,Mount RA (h),Mount Dec (°),Mount reported Alt (°),Mount reported Az (°),ROI Alt (°),ROI Az (°),ROI mode,ROI inside (%),ROI note";
+    private const string Header = "Local time,UTC time,Event,State,Safe,Override,Seconds to safe,Reason,Image captured (UTC),Image age (min),Image source,Rain (mm/h),Gust (km/h),Weather age (min),Mount,Mount RA (h),Mount Dec (°),Mount reported Alt (°),Mount reported Az (°),ROI Alt (°),ROI Az (°),ROI mode,ROI inside (%),ROI note,Stars expected,Stars found,Star fraction,Relative brightness,Non-uniformity ratio,Moon alt (°),Moon illumination";
     private readonly Func<LoggingSettings> settings;
     private readonly IClock clock;
     private readonly SecretRedactor redactor;
@@ -106,7 +106,16 @@ public sealed class DecisionLogger
         Append(row, Signed(roi?.Centre?.AzDeg, "0.00"));
         Append(row, roi is null ? string.Empty : roi.UsesWholeWorkingArea ? "Whole working area" : "Circle");
         Append(row, roi?.Centre is null ? string.Empty : Number(roi.InsideFraction * 100, "0"));
-        Append(row, roi?.Note ?? string.Empty, last: true);
+        Append(row, roi?.Note ?? string.Empty);
+
+        CloudAssessment? c = snapshot.Cloud;
+        Append(row, c?.ExpectedStars.ToString(CultureInfo.InvariantCulture) ?? string.Empty);
+        Append(row, c?.DetectedStars.ToString(CultureInfo.InvariantCulture) ?? string.Empty);
+        Append(row, Signed(c?.StarFraction, "0.00"));
+        Append(row, Signed(c?.RelativeBrightness, "0.00"));
+        Append(row, Signed(c?.UniformityRatio, "0.00"));
+        Append(row, Signed(c?.Moon?.Position.AltDeg, "0.0"));
+        Append(row, Signed(c?.Moon?.Illumination, "0.00"), last: true);
 
         using var writer = new StreamWriter(path, append: true, new UTF8Encoding(encoderShouldEmitUTF8Identifier: true));
         if (isNew) writer.WriteLine(Header);

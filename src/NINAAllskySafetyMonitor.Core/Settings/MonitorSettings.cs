@@ -7,7 +7,7 @@ namespace NINAAllskySafetyMonitor.Core.Settings;
 public sealed class MonitorSettings
 {
     /// <summary>Settings file format version, for future migrations.</summary>
-    public int SchemaVersion { get; set; } = 1;
+    public int SchemaVersion { get; set; } = SettingsMigrator.CurrentVersion;
 
     public SiteSettings Site { get; set; } = new();
     public OperatingWindowSettings Window { get; set; } = new();

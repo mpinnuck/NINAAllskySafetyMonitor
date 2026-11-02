@@ -1,4 +1,5 @@
 using NINA.Core.Utility;
+using NINAAllskySafetyMonitor.Core.Analysis;
 using NINAAllskySafetyMonitor.Core.Settings;
 using NINAAllskySafetyMonitor.Core.Traceability;
 
@@ -9,7 +10,7 @@ namespace NINAAllskySafetyMonitor.Plugin.Nina;
 /// %LOCALAPPDATA%\NINAAllskySafetyMonitor\settings.json. A single shared instance is used
 /// because NINA creates the plugin, the device and the dock panel independently.
 /// </summary>
-[Requirement("REQ-55", "REQ-56")]
+[Requirement("REQ-30", "REQ-55", "REQ-56", "REQ-57")]
 public sealed class PluginSettingsStore
 {
     private readonly SettingsStore store;
@@ -45,6 +46,23 @@ public sealed class PluginSettingsStore
         MonitorSettings copy = SettingsStore.Clone(settings);
         store.Save(copy);
         lock (sync) current = copy;
+        Saved?.Invoke(this, EventArgs.Empty);
+    }
+
+    /// <summary>
+    /// Stores the clear-sky reference (null clears it) in the saved settings, leaving everything else as
+    /// saved. Used by the monitor when it captures a reference, and by the Options page to clear it.
+    /// </summary>
+    public void SaveReference(ClearSkyReference? reference)
+    {
+        lock (sync)
+        {
+            MonitorSettings s = SettingsStore.Clone(current);
+            s.Calibration.ClearSkyReference = reference;
+            store.Save(s);
+            current = s;
+        }
+
         Saved?.Invoke(this, EventArgs.Empty);
     }
 

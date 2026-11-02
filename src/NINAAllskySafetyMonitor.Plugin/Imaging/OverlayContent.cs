@@ -21,6 +21,9 @@ public sealed record OverlayContent
     /// <summary>Catalogue stars to mark.</summary>
     public IReadOnlyList<OverlayStar> Stars { get; init; } = Array.Empty<OverlayStar>();
 
+    /// <summary>Stars the cloud test expected in the ROI: found (green) or missing (red).</summary>
+    public IReadOnlyList<(PixelPoint Position, bool Found)> CloudStars { get; init; } = Array.Empty<(PixelPoint, bool)>();
+
     /// <summary>An outline being drawn (not yet saved).</summary>
     public IReadOnlyList<PixelPoint> DraftOutline { get; init; } = Array.Empty<PixelPoint>();
 

@@ -35,6 +35,15 @@ public sealed class SettingsValidatorTests
     }
 
     [Fact]
+    [Requirement("REQ-41")]
+    public void TuningRetentionIsChecked()
+    {
+        MonitorSettings s = ValidSettings();
+        s.Tuning.RetentionDays = 0;
+        Assert.Contains(new SettingsValidator().Validate(s), e => e.Contains("Tuning data retention"));
+    }
+
+    [Fact]
     public void OutOfRangeRadiusIsReported()
     {
         var s = ValidSettings();

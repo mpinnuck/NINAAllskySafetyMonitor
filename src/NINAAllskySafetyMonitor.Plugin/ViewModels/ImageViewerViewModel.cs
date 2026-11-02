@@ -27,6 +27,7 @@ public sealed class ImageViewerViewModel : INotifyPropertyChanged
     private int originalHeight;
     private SkyImage? shownImage;
     private RegionOfInterest? roi;
+    private CloudAssessment? cloud;
     private BitmapSource? image;
     private string cursorText = string.Empty;
     private bool showWorkingArea = true;
@@ -65,6 +66,9 @@ public sealed class ImageViewerViewModel : INotifyPropertyChanged
     public CalibrationViewModel? Calibration { get; }
 
     public bool IsCalibration => Calibration is not null;
+
+    /// <summary>True when viewing the monitor's image (not calibrating).</summary>
+    public bool IsViewMode => Calibration is null;
 
     /// <summary>View mode closes when the window loses focus (a click outside it).</summary>
     public bool CloseOnDeactivate => Calibration is null;
@@ -108,6 +112,7 @@ public sealed class ImageViewerViewModel : INotifyPropertyChanged
             shownImage = img,
         };
         vm.roi = s.Roi;
+        vm.cloud = s.Cloud;
         vm.Recompose();
         return vm;
     }
@@ -155,6 +160,7 @@ public sealed class ImageViewerViewModel : INotifyPropertyChanged
                 Roi = showRoi ? roi : null,
                 Compass = showCompass,
                 Grid = showGrid,
+                CloudStars = Calibration is null && showStars ? OverlayImageComposer.CloudStars(cloud) : Array.Empty<(PixelPoint, bool)>(),
             };
             if (Calibration is not null)
             {
@@ -186,6 +192,7 @@ public sealed class ImageViewerViewModel : INotifyPropertyChanged
                 }
 
                 roi = snapshot.Roi;
+                cloud = snapshot.Cloud;
                 Recompose();
             }
             catch (Exception e)

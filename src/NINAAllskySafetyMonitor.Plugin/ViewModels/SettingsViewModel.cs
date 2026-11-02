@@ -21,9 +21,10 @@ namespace NINAAllskySafetyMonitor.Plugin.ViewModels;
 /// <summary>
 /// Settings editor for the plugin options page. Edits a copy of the saved settings; Save validates
 /// and persists them, Revert discards unsaved edits. The SFTP password goes to the credential store,
-/// never into the settings. Each slice adds the settings it uses.
+/// never into the settings. The clear-sky reference is captured by the monitor and kept on Save; it is
+/// cleared only with its own button. Each slice adds the settings it uses.
 /// </summary>
-[Requirement("REQ-19", "REQ-20", "REQ-22", "REQ-23", "REQ-27", "REQ-46", "REQ-47", "REQ-53", "REQ-55", "REQ-58")]
+[Requirement("REQ-19", "REQ-20", "REQ-22", "REQ-23", "REQ-27", "REQ-29", "REQ-30", "REQ-31", "REQ-41", "REQ-43", "REQ-46", "REQ-47", "REQ-53", "REQ-55", "REQ-58")]
 public sealed class SettingsViewModel : INotifyPropertyChanged
 {
     private readonly PluginSettingsStore store;
@@ -53,11 +54,16 @@ public sealed class SettingsViewModel : INotifyPropertyChanged
         TestWeatherCommand = new DelegateCommand(TestWeather);
         CalibrateFromFrameCommand = new DelegateCommand(CalibrateFromFrame);
         CalibrateFromCurrentImageCommand = new DelegateCommand(CalibrateFromCurrentImage);
+        ClearReferenceCommand = new DelegateCommand(ClearReference);
+        store.Saved += (_, _) => OnPropertyChanged(nameof(ReferenceStatusText));
     }
 
     public event PropertyChangedEventHandler? PropertyChanged;
 
     public ICommand SaveCommand { get; }
+
+    /// <summary>Deletes the clear-sky reference, so a new one is captured on the next tuned clear night.</summary>
+    public ICommand ClearReferenceCommand { get; }
 
     public ICommand RevertCommand { get; }
 
@@ -399,6 +405,75 @@ public sealed class SettingsViewModel : INotifyPropertyChanged
         return LensProjection.FromHorizonRadius(1500, 1000, 1000, 0, false) with { CalibratedUtc = DateTime.UtcNow };
     }
 
+    // ---- Cloud detection (REQ-29 to REQ-31, REQ-43) ----
+
+    public double LimitingMagnitude
+    {
+        get => edit.Cloud.LimitingMagnitude;
+        set { edit.Cloud.LimitingMagnitude = value; OnPropertyChanged(); }
+    }
+
+    /// <summary>Minimum star fraction as a percentage.</summary>
+    public double MinStarPercent
+    {
+        get => Math.Round(edit.Cloud.MinStarFraction * 100, 1);
+        set { edit.Cloud.MinStarFraction = value / 100.0; OnPropertyChanged(); }
+    }
+
+    public int MinExpectedStars
+    {
+        get => edit.Cloud.MinExpectedStars;
+        set { edit.Cloud.MinExpectedStars = value; OnPropertyChanged(); }
+    }
+
+    public double MaxBrightnessRatio
+    {
+        get => edit.Cloud.MaxBrightnessRatio;
+        set { edit.Cloud.MaxBrightnessRatio = value; OnPropertyChanged(); }
+    }
+
+    public double MaxUniformityRatio
+    {
+        get => edit.Cloud.MaxUniformityRatio;
+        set { edit.Cloud.MaxUniformityRatio = value; OnPropertyChanged(); }
+    }
+
+    public double MoonExclusionDeg
+    {
+        get => edit.Cloud.MoonExclusionDeg;
+        set { edit.Cloud.MoonExclusionDeg = value; OnPropertyChanged(); }
+    }
+
+    /// <summary>Thresholds marked as tuned: clears the UNTUNED banner and allows the reference capture.</summary>
+    public bool CloudTuned
+    {
+        get => edit.Cloud.Tuned;
+        set { edit.Cloud.Tuned = value; OnPropertyChanged(); }
+    }
+
+    /// <summary>When the clear-sky reference was captured, or how it will be.</summary>
+    public string ReferenceStatusText => MetricsViewModel.Reference(store.Current.Calibration.ClearSkyReference, store.Current.Cloud.Tuned);
+
+    // ---- Tuning mode (REQ-41) ----
+
+    public bool TuningEnabled
+    {
+        get => edit.Tuning.Enabled;
+        set { edit.Tuning.Enabled = value; OnPropertyChanged(); }
+    }
+
+    public string TuningFolder
+    {
+        get => edit.Tuning.OutputFolder;
+        set { edit.Tuning.OutputFolder = value; OnPropertyChanged(); }
+    }
+
+    public int TuningRetentionDays
+    {
+        get => edit.Tuning.RetentionDays;
+        set { edit.Tuning.RetentionDays = value; OnPropertyChanged(); }
+    }
+
     // ---- Fallback site ----
 
     public double FallbackLatitudeDeg
@@ -566,6 +641,8 @@ public sealed class SettingsViewModel : INotifyPropertyChanged
                 OnPropertyChanged(nameof(PasswordStatus));
             }
 
+            // The reference is captured by the monitor while this page may be open: keep the saved one.
+            edit.Calibration.ClearSkyReference = store.Current.Calibration.ClearSkyReference;
             store.Save(edit);
             Message = $"Saved {DateTime.Now:HH:mm:ss}. The monitor uses the new settings from its next cycle.";
         }
@@ -573,6 +650,22 @@ public sealed class SettingsViewModel : INotifyPropertyChanged
         {
             Message = $"Could not save settings: {e.Message}";
         }
+    }
+
+    private void ClearReference()
+    {
+        try
+        {
+            store.SaveReference(null);
+            edit.Calibration.ClearSkyReference = null;
+            Message = $"Clear-sky reference cleared {DateTime.Now:HH:mm:ss}. Until a new one is captured the star test decides alone.";
+        }
+        catch (Exception e)
+        {
+            Message = $"Could not clear the clear-sky reference: {e.Message}";
+        }
+
+        OnPropertyChanged(nameof(ReferenceStatusText));
     }
 
     private void Revert()

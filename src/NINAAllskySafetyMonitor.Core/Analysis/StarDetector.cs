@@ -18,10 +18,34 @@ public sealed class StarDetector
     private const int MinArea = 2;
     private const int MaxArea = 80;
 
-    /// <summary>Detects stars, optionally only inside <paramref name="mask"/>.</summary>
-    public IReadOnlyList<DetectedStar> Detect(GrayFrame frame, PixelMask? mask = null)
+    /// <summary>
+    /// Detects stars, optionally only inside <paramref name="mask"/>. With <paramref name="bounds"/>, only
+    /// that part of the frame is searched, which is much quicker for a small ROI.
+    /// </summary>
+    public IReadOnlyList<DetectedStar> Detect(GrayFrame frame, PixelMask? mask = null, PixelRect? bounds = null)
     {
         ArgumentNullException.ThrowIfNull(frame);
+        if (bounds is not PixelRect r || (r.X == 0 && r.Y == 0 && r.Width == frame.Width && r.Height == frame.Height))
+        {
+            return DetectIn(frame, mask);
+        }
+
+        if (r.Width < 3 || r.Height < 3) return Array.Empty<DetectedStar>();
+        var crop = new float[r.Width * r.Height];
+        for (int y = 0; y < r.Height; y++) Array.Copy(frame.Pixels, ((r.Y + y) * frame.Width) + r.X, crop, y * r.Width, r.Width);
+        var stars = new List<DetectedStar>();
+        foreach (DetectedStar s in DetectIn(new GrayFrame(r.Width, r.Height, crop), null))
+        {
+            var p = new PixelPoint(s.Position.X + r.X, s.Position.Y + r.Y);
+            if (mask is not null && !mask.Contains((int)Math.Round(p.X), (int)Math.Round(p.Y))) continue;
+            stars.Add(s with { Position = p });
+        }
+
+        return stars;
+    }
+
+    private static IReadOnlyList<DetectedStar> DetectIn(GrayFrame frame, PixelMask? mask)
+    {
         int w = frame.Width, h = frame.Height;
         float[] med = Median3(frame);
         float[] bg = Background(med, w, h);

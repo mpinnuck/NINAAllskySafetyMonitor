@@ -53,7 +53,8 @@ public sealed class SettingsStoreTests : IDisposable
             Outline = new[] { new PixelPoint(10, 20), new PixelPoint(30, 40), new PixelPoint(50, 10) },
         };
         s.Roi.MinInsideFraction = 0.4;
-        s.Calibration.ClearSkyReference = new ClearSkyReference { Median = 812.0, Uniformity = 0.06 };
+        var blocks = new BlockStatistics(32, 64, 32, new[] { 81.25f, float.NaN }, new[] { 0.06f, float.NaN });
+        s.Calibration.ClearSkyReference = new ClearSkyReference(blocks, new DateTime(2026, 11, 5, 12, 0, 0, DateTimeKind.Utc));
 
         store.Save(s);
         MonitorSettings loaded = store.Load();
@@ -68,7 +69,11 @@ public sealed class SettingsStoreTests : IDisposable
         Assert.Equal(3, loaded.Calibration.WorkingArea.Outline.Count);
         Assert.Equal(new PixelPoint(30, 40), loaded.Calibration.WorkingArea.Outline[1]);
         Assert.Equal(0.4, loaded.Roi.MinInsideFraction);
-        Assert.Equal(812.0, loaded.Calibration.ClearSkyReference!.Median);
+        BlockStatistics map = loaded.Calibration.ClearSkyReference!.Blocks;
+        Assert.Equal(81.25f, map.Median[0]);
+        Assert.True(map.IsValid(0));
+        Assert.False(map.IsValid(1));
+        Assert.Equal(0.06f, map.Uniformity[0], 4);
     }
 
     [Fact]
@@ -134,6 +139,32 @@ public sealed class SettingsStoreTests : IDisposable
         string json = SettingsStore.ToJson(new MonitorSettings());
         Assert.Contains("4+pcu7EpiK0Jrqg", json);
         Assert.DoesNotContain("\\u002B", json);
+    }
+
+    [Fact]
+    [Requirement("REQ-30", "REQ-57")]
+    public void ClearSkyMapIsWrittenCompactly()
+    {
+        var s = new MonitorSettings();
+        s.Calibration.ClearSkyReference = new ClearSkyReference(
+            new BlockStatistics(32, 96, 32, new[] { 20.5f, 21f, float.NaN }, new[] { 0.05f, 0.0625f, float.NaN }), DateTime.UnixEpoch);
+        string json = SettingsStore.ToJson(s);
+        Assert.Contains("\"20.5 21 -\"", json);
+        Assert.Contains("\"0.05 0.0625 -\"", json);
+    }
+
+    [Fact]
+    [Requirement("REQ-29", "REQ-55")]
+    public void OldDefaultLimitingMagnitudeIsMigrated()
+    {
+        Directory.CreateDirectory(folder);
+        File.WriteAllText(SettingsPath, "{ \"SchemaVersion\": 1, \"Cloud\": { \"LimitingMagnitude\": 4.0 } }");
+        Assert.Equal(4.4, new SettingsStore(SettingsPath).Load().Cloud.LimitingMagnitude);
+
+        File.WriteAllText(SettingsPath, "{ \"SchemaVersion\": 1, \"Cloud\": { \"LimitingMagnitude\": 3.5 } }");
+        MonitorSettings kept = new SettingsStore(SettingsPath).Load();
+        Assert.Equal(3.5, kept.Cloud.LimitingMagnitude);
+        Assert.Equal(SettingsMigrator.CurrentVersion, kept.SchemaVersion);
     }
 
     [Fact]

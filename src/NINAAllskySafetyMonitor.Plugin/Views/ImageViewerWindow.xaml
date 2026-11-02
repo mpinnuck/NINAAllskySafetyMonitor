@@ -68,6 +68,10 @@
                 Content="Catalogue stars"
                 IsChecked="{Binding ShowStars}"
                 Visibility="{Binding IsCalibration, Converter={StaticResource BoolToVisibility}}" />
+            <CheckBox
+                Content="Expected stars (green found, red missing)"
+                IsChecked="{Binding ShowStars}"
+                Visibility="{Binding IsViewMode, Converter={StaticResource BoolToVisibility}}" />
             <TextBlock
                 Margin="10,0,0,0"
                 VerticalAlignment="Center"

@@ -1,9 +1,11 @@
 using NINAAllskySafetyMonitor.Core.Abstractions;
 using NINAAllskySafetyMonitor.Core.Acquisition;
+using NINAAllskySafetyMonitor.Core.Analysis;
 using NINAAllskySafetyMonitor.Core.Decision;
 using NINAAllskySafetyMonitor.Core.Geometry;
 using NINAAllskySafetyMonitor.Core.Logging;
 using NINAAllskySafetyMonitor.Core.Settings;
+using NINAAllskySafetyMonitor.Core.Tuning;
 using NINAAllskySafetyMonitor.Core.Weather;
 
 namespace NINAAllskySafetyMonitor.Core.Monitoring;
@@ -51,7 +53,9 @@ public sealed class MonitorServiceBuilder
         var roiCalculator = new RoiCalculator(ports.Astro, new MountStateInterpreter());
         var cycle = new MonitoringCycle(
             settings, ports.Clock, siteResolver, window, acquirer, new ImageFreshnessEvaluator(), weather, new WeatherEvaluator(),
-            ports.Mount, roiCalculator, new RoiBuilder());
+            ports.Mount, roiCalculator, new RoiBuilder(),
+            ports.FrameDecoder, new CloudDetector(() => settings().Cloud, StarCatalogue.LoadEmbedded()), ports.Astro,
+            ReferenceSaver(ports, log));
 
         var guard = new FailSafeGuard(ports.Clock, log, () => CycleTimeout(settings()));
         var engine = new SafetyDecisionEngine(ports.Clock, () => TimeSpan.FromMinutes(settings().Decision.SafeAfterMin), new SlewHoldPolicy());
@@ -61,11 +65,27 @@ public sealed class MonitorServiceBuilder
         var service = new MonitorService(cycle, guard, () => TimeSpan.FromSeconds(settings().ImageSource.IntervalS), ports.Clock, log, engine, manualOverride, watcher);
 
         var decisions = new DecisionLogger(() => settings().Logging, ports.Clock, redactor, log);
+        var tuning = new TuningRecorder(() => settings().Tuning, ports.Clock, log);
         service.SnapshotAvailable += (_, s) => decisions.Write(s);
+        service.SnapshotAvailable += (_, s) => tuning.Record(s);
         return service;
     }
 
     /// <summary>The secrets currently in use: the weather API key and the SFTP password, if stored.</summary>
+    /// <summary>Logs a captured clear-sky reference and hands it to the host to save.</summary>
+    private static Action<ClearSkyReference> ReferenceSaver(MonitorPorts ports, ILogSink log) => reference =>
+    {
+        log.Write(LogLevel.Info, $"Clear-sky reference captured ({reference.CapturedUtc:yyyy-MM-dd HH:mm} UTC)");
+        try
+        {
+            ports.ReferenceCaptured?.Invoke(reference);
+        }
+        catch (Exception e)
+        {
+            log.Write(LogLevel.Warning, $"Clear-sky reference could not be saved: {e.Message}");
+        }
+    };
+
     private static SecretRedactor Redactor(Func<MonitorSettings> settings, MonitorPorts ports) =>
         new(() => new[] { settings().Weather.ApiKey, ports.Credentials.GetSecret(CredentialKeys.SftpPassword) });
 

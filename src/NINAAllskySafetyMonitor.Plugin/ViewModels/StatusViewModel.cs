@@ -20,7 +20,8 @@ namespace NINAAllskySafetyMonitor.Plugin.ViewModels;
 
 /// <summary>
 /// Dock panel in the Imaging tab showing the monitor's state, reason, the latest Allsky image with the
-/// working area and ROI drawn on it, and the mount position. Later slices add metrics and the history graph.
+/// working area, ROI and expected stars drawn on it, the mount position, the cloud metrics and tonight's
+/// history graph.
 /// </summary>
 [Export(typeof(IDockableVM))]
 [Requirement("REQ-43", "REQ-45", "REQ-58", "REQ-59")]
@@ -51,6 +52,12 @@ public sealed class StatusViewModel : DockableVM
         refreshTimer.Start();
         OpenViewerCommand = new DelegateCommand(OpenViewer);
     }
+
+    /// <summary>Cloud metrics behind the latest decision.</summary>
+    public MetricsViewModel Metrics { get; } = new();
+
+    /// <summary>Tonight's star fraction, relative brightness and safe state.</summary>
+    public HistoryChartViewModel History { get; } = new();
 
     /// <summary>Opens the latest image enlarged (REQ-59).</summary>
     public ICommand OpenViewerCommand { get; }
@@ -167,7 +174,7 @@ public sealed class StatusViewModel : DockableVM
         {
             if (!showOverlay || image is null) return string.Empty;
             bool approximate = PluginSettingsStore.Instance.Current.Calibration.Lens is not { Manual: false };
-            return "Yellow dashed: working area (green when the whole area is judged) · Blue: drawn outline · Green: ROI (orange dotted: target not used)"
+            return "Yellow dashed: working area (green when the whole area is judged) · Blue: drawn outline · Green: ROI (orange dotted: target not used) · Small circles: expected stars, green found, red missing"
                 + (approximate ? " · Positions on the image are approximate until the lens is calibrated" : string.Empty);
         }
     }
@@ -219,6 +226,16 @@ public sealed class StatusViewModel : DockableVM
             RaisePropertyChanged(nameof(HasImage));
         }
 
+        try
+        {
+            Metrics.Update(snapshot, PluginSettingsStore.Instance.Current);
+            History.Add(snapshot);
+        }
+        catch (Exception e)
+        {
+            NINA.Core.Utility.Logger.Warning($"[AllskySafetyMonitor] Could not update the metrics: {e.Message}");
+        }
+
         RaisePropertyChanged(nameof(IsConnected));
         RaisePropertyChanged(nameof(IsSafe));
         RaisePropertyChanged(nameof(StateText));
@@ -245,7 +262,7 @@ public sealed class StatusViewModel : DockableVM
         {
             CalibrationData cal = PluginSettingsStore.Instance.Current.Calibration;
             LensCalibration lens = cal.Lens is { RadialCoefficients: [> 0, ..] } l ? l : LensProjection.Approximate(originalWidth, originalHeight);
-            return OverlayImageComposer.Compose(decoded, originalWidth, lens, cal.WorkingArea, snapshot?.Roi);
+            return OverlayImageComposer.Compose(decoded, originalWidth, lens, cal.WorkingArea, snapshot?.Roi, snapshot?.Cloud);
         }
         catch (Exception e)
         {

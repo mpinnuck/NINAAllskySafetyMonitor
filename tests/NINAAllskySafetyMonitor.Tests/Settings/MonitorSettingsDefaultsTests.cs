@@ -60,7 +60,7 @@ public sealed class MonitorSettingsDefaultsTests
     [Fact, Requirement("REQ-29", "REQ-30", "REQ-31", "REQ-43")]
     public void CloudThresholdDefaults()
     {
-        Assert.Equal(4.0, s.Cloud.LimitingMagnitude);
+        Assert.Equal(4.4, s.Cloud.LimitingMagnitude);
         Assert.Equal(0.70, s.Cloud.MinStarFraction);
         Assert.Equal(8, s.Cloud.MinExpectedStars);
         Assert.Equal(1.3, s.Cloud.MaxBrightnessRatio);
@@ -84,6 +84,10 @@ public sealed class MonitorSettingsDefaultsTests
 
     [Fact, Requirement("REQ-41")]
     public void TuningOffByDefault() => Assert.False(s.Tuning.Enabled);
+
+    [Fact]
+    [Requirement("REQ-41")]
+    public void TuningDataKeptThirtyDays() => Assert.Equal(30, s.Tuning.RetentionDays);
 
     [Fact, Requirement("REQ-22")]
     public void WorkingAreaIsSixtyDegreesAroundFifteenDegreesSouthOfTheZenith() =>

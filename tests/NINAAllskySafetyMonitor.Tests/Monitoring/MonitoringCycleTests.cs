@@ -62,7 +62,7 @@ public sealed class MonitoringCycleTests
         Assert.False(s.Status.IsSafe);
         Assert.NotNull(s.Image);
         Assert.NotNull(s.Weather);
-        Assert.Equal("Cloud detection not implemented yet", s.Status.Reason);
+        Assert.Equal("Cloud detection unavailable", s.Status.Reason);
         Assert.All(s.Conditions.Checks.Where(c => c.Condition != SafetyCondition.NoCloud), c => Assert.True(c.Passed));
     }
 
@@ -87,7 +87,7 @@ public sealed class MonitoringCycleTests
 
         Assert.Contains("Could not connect to allsky.local", s.Status.Reason);
         Assert.Contains("Gust 55 km/h (limit 40 km/h)", s.Status.Reason);
-        Assert.Contains("Cloud detection not implemented yet", s.Status.Reason);
+        Assert.Contains("Cloud detection unavailable", s.Status.Reason);
     }
 
     [Fact]
@@ -98,7 +98,7 @@ public sealed class MonitoringCycleTests
         weather.Then(WeatherFetchResult.Failed("Weather API key was rejected (HTTP 401)"));
         MonitorSnapshot s = await Cycle().RunOnceAsync(CancellationToken.None);
 
-        Assert.Equal("No weather data: Weather API key was rejected (HTTP 401) · Cloud detection not implemented yet", s.Status.Reason);
+        Assert.Equal("No weather data: Weather API key was rejected (HTTP 401) · Cloud detection unavailable", s.Status.Reason);
         Assert.Equal(3, s.Conditions.Checks.Count(c => !c.Passed && c.Condition != SafetyCondition.NoCloud));
     }
 
@@ -112,7 +112,7 @@ public sealed class MonitoringCycleTests
 
         Assert.Equal(0, weather.Requests);
         Assert.Null(s.Weather);
-        Assert.Equal("Cloud detection not implemented yet", s.Status.Reason);
+        Assert.Equal("Cloud detection unavailable", s.Status.Reason);
     }
 
     [Fact]
@@ -165,7 +165,7 @@ public sealed class MonitoringCycleTests
 
         Assert.True(s.Roi!.UsesWholeWorkingArea);
         Assert.Equal("No mount information: judging the whole working area", s.Roi.Note);
-        Assert.Equal("Cloud detection not implemented yet", s.Status.Reason);
+        Assert.Equal("Cloud detection unavailable", s.Status.Reason);
     }
 
     [Fact]

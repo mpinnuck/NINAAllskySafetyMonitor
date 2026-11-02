@@ -38,4 +38,10 @@ public sealed record LensCalibration
 
     /// <summary>True for a rough model entered by hand or estimated from the image size, not fitted to stars.</summary>
     public bool Manual { get; init; }
+
+    /// <summary>Width of the frame the lens was calibrated on, in pixels (0 when unknown, for example hand-entered).</summary>
+    public int ImageWidth { get; init; }
+
+    /// <summary>Height of the frame the lens was calibrated on, in pixels (0 when unknown).</summary>
+    public int ImageHeight { get; init; }
 }

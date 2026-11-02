@@ -43,7 +43,7 @@ public sealed class SettingsStore
 
         try
         {
-            return FromJson(File.ReadAllText(Path));
+            return SettingsMigrator.Migrate(FromJson(File.ReadAllText(Path)));
         }
         catch (JsonException e)
         {

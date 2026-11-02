@@ -9,9 +9,9 @@ namespace NINAAllskySafetyMonitor.Astrometry;
 /// <summary>
 /// Implements <see cref="IAstroCalculator"/>. The Sun altitude comes from NINA.Astrometry (NOVAS/SOFA);
 /// RA/Dec ↔ alt/az uses Core's <see cref="CoordinateConverter"/> (about 0.1°, ample for a 15° ROI, and
-/// testable without NINA). The Moon is added with cloud detection (slice 6).
+/// testable without NINA). The Moon comes from Core's MoonCalculator for the same reason.
 /// </summary>
-[Requirement("REQ-08", "REQ-24")]
+[Requirement("REQ-08", "REQ-24", "REQ-31")]
 public sealed class NovasAstroCalculator : IAstroCalculator
 {
     /// <inheritdoc />
@@ -24,12 +24,10 @@ public sealed class NovasAstroCalculator : IAstroCalculator
     }
 
     /// <inheritdoc />
-    public HorizontalCoordinate MoonPosition(SiteLocation site, DateTime utc) =>
-        throw new NotSupportedException("Moon position is implemented in slice 6 (cloud detection).");
+    public HorizontalCoordinate MoonPosition(SiteLocation site, DateTime utc) => MoonCalculator.Position(site, utc);
 
     /// <inheritdoc />
-    public double MoonIllumination(DateTime utc) =>
-        throw new NotSupportedException("Moon illumination is implemented in slice 6 (cloud detection).");
+    public double MoonIllumination(DateTime utc) => MoonCalculator.Illumination(utc);
 
     /// <inheritdoc />
     public HorizontalCoordinate ToHorizontal(double raHours, double decDeg, CoordinateEpoch epoch, SiteLocation site, DateTime utc) =>

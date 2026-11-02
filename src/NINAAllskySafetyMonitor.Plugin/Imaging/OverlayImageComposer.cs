@@ -11,10 +11,11 @@ namespace NINAAllskySafetyMonitor.Plugin.Imaging;
 
 /// <summary>
 /// Draws the overlay on an Allsky image: working area (and its outline), ROI, compass points, and for
-/// calibration the alt/az grid, catalogue stars and identified stars. Sky positions are placed with the
+/// calibration the alt/az grid, catalogue stars and identified stars, and the stars the cloud test
+/// expected in the ROI (green found, red missing). Sky positions are placed with the
 /// lens model. Line widths scale with the image, so the same drawing works for the panel and the viewer.
 /// </summary>
-[Requirement("REQ-21", "REQ-22", "REQ-23", "REQ-45")]
+[Requirement("REQ-21", "REQ-22", "REQ-23", "REQ-29", "REQ-45")]
 public static class OverlayImageComposer
 {
     private const double StepDeg = 2.0;
@@ -25,10 +26,15 @@ public static class OverlayImageComposer
     private static readonly Color Grey = Color.FromRgb(0x9E, 0xA4, 0xB0);
     private static readonly Color Cyan = Color.FromRgb(0x5E, 0xC8, 0xE5);
     private static readonly Color Magenta = Color.FromRgb(0xFF, 0x5C, 0xC8);
+    private static readonly Color Red = Color.FromRgb(0xFF, 0x4B, 0x4B);
 
-    /// <summary>Panel drawing: working area, ROI and compass.</summary>
-    public static BitmapSource Compose(BitmapSource image, int originalWidth, LensCalibration lens, WorkingAreaDefinition area, RegionOfInterest? roi) =>
-        Compose(image, originalWidth, lens, new OverlayContent { WorkingArea = area, Roi = roi, Compass = true });
+    /// <summary>Panel drawing: working area, ROI, compass and the cloud test's expected stars.</summary>
+    public static BitmapSource Compose(BitmapSource image, int originalWidth, LensCalibration lens, WorkingAreaDefinition area, RegionOfInterest? roi, CloudAssessment? cloud = null) =>
+        Compose(image, originalWidth, lens, new OverlayContent { WorkingArea = area, Roi = roi, Compass = true, CloudStars = CloudStars(cloud) });
+
+    /// <summary>The expected stars of a cloud assessment, with whether each was found.</summary>
+    public static IReadOnlyList<(PixelPoint Position, bool Found)> CloudStars(CloudAssessment? cloud) =>
+        cloud is null ? Array.Empty<(PixelPoint, bool)>() : cloud.Expected.Zip(cloud.Found).ToList();
 
     /// <summary>The image with <paramref name="content"/> drawn on it.</summary>
     /// <param name="image">The image as decoded (may be smaller than the original).</param>
@@ -100,6 +106,11 @@ public static class OverlayImageComposer
                 Point p = Px(s.Position);
                 dc.DrawEllipse(null, MakePen(colour, 1.5 * k, null), p, 7 * k, 7 * k);
                 if (s.Label is { Length: > 0 }) DrawLabel(dc, s.Label, new Point(p.X + (9 * k), p.Y - (8 * k)), 11 * k, colour);
+            }
+
+            foreach ((PixelPoint position, bool found) in content.CloudStars)
+            {
+                dc.DrawEllipse(null, MakePen(found ? Green : Red, 1.5 * k, null), Px(position), 5 * k, 5 * k);
             }
 
             foreach ((PixelPoint position, string label) in content.Picks)
