@@ -17,9 +17,44 @@
             <Setter Property="Margin" Value="0,0,14,0" />
             <Setter Property="VerticalAlignment" Value="Center" />
         </Style>
+        <!--  Own button look: light text on dark grey, lighter on hover, blue when pressed, so it reads on this dark window.  -->
         <Style TargetType="Button">
             <Setter Property="Margin" Value="0,0,8,0" />
-            <Setter Property="Padding" Value="10,3" />
+            <Setter Property="Padding" Value="10,4" />
+            <Setter Property="Foreground" Value="#F2F4F7" />
+            <Setter Property="Background" Value="#3A4150" />
+            <Setter Property="BorderBrush" Value="#6B7385" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border
+                            x:Name="Chrome"
+                            Padding="{TemplateBinding Padding}"
+                            Background="{TemplateBinding Background}"
+                            BorderBrush="{TemplateBinding BorderBrush}"
+                            BorderThickness="1"
+                            CornerRadius="3">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Chrome" Property="Background" Value="#4C5568" />
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="Chrome" Property="Background" Value="#2F6FB0" />
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter Property="Opacity" Value="0.5" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+        <!--  Drop-down keeps Windows' white box, so its text must be dark.  -->
+        <Style TargetType="ComboBox">
+            <Setter Property="Foreground" Value="#1B1F26" />
         </Style>
     </Window.Resources>
     <DockPanel>

@@ -288,6 +288,15 @@ public sealed class SettingsViewModel : INotifyPropertyChanged
 
     // ---- Lens calibration (REQ-19, REQ-20) ----
 
+    private string calibrationMessage = string.Empty;
+
+    /// <summary>Result of the last calibration action, shown under the calibration buttons.</summary>
+    public string CalibrationMessage
+    {
+        get => calibrationMessage;
+        private set { calibrationMessage = value; OnPropertyChanged(); }
+    }
+
     /// <summary>What lens model is in use.</summary>
     public string CalibrationStatusText
     {
@@ -466,7 +475,7 @@ public sealed class SettingsViewModel : INotifyPropertyChanged
         DateTime? utc = timeReader.FromFileName(dialog.FileName);
         if (utc is null)
         {
-            Message = "The file name has no time in it (expected …-yyyyMMddHHmmss.jpg, as Allsky saves them). Rename it with its local time, or use Calibrate from current image.";
+            CalibrationMessage = "The file name has no time in it (expected …-yyyyMMddHHmmss.jpg, as Allsky saves them). Rename it with its local time, or use Calibrate from current image.";
             return;
         }
 
@@ -477,7 +486,7 @@ public sealed class SettingsViewModel : INotifyPropertyChanged
         }
         catch (Exception e)
         {
-            Message = $"Could not open {Path.GetFileName(dialog.FileName)}: {e.Message}";
+            CalibrationMessage = $"Could not open {Path.GetFileName(dialog.FileName)}: {e.Message}";
         }
     }
 
@@ -486,7 +495,7 @@ public sealed class SettingsViewModel : INotifyPropertyChanged
         SkyImage? image = MonitorHost.Instance.LatestSnapshot?.Image;
         if (image is null)
         {
-            Message = "No current image: connect the monitor (in daylight set the Sun limit to +90), or use Calibrate from a frame.";
+            CalibrationMessage = "No current image: connect the monitor (in daylight set the Sun limit to +90), or use Calibrate from a frame.";
             return;
         }
 
@@ -496,19 +505,19 @@ public sealed class SettingsViewModel : INotifyPropertyChanged
         }
         catch (Exception e)
         {
-            Message = $"Could not open the current image: {e.Message}";
+            CalibrationMessage = $"Could not open the current image: {e.Message}";
         }
     }
 
     private async Task OpenCalibrationAsync(byte[] jpeg, DateTime captureUtc, string source)
     {
-        Message = $"Loading {source}…";
+        CalibrationMessage = $"Loading {source}…";
         (GrayFrame gray, BitmapSource display) = await Task.Run(() => (decoder.Decode(jpeg), JpegBitmap.Load(jpeg)));
         var frame = new CalibrationFrame(gray, captureUtc, source);
         MonitorSettings saved = store.Current;
         var calibration = new CalibrationViewModel(frame, site(), () => edit.LensFit, saved.Calibration.Lens, saved.Calibration.WorkingArea, SaveCalibration);
         ImageViewerWindow.Open(ImageViewerViewModel.ForCalibration(display, calibration));
-        Message = string.Create(CultureInfo.CurrentCulture, $"{source}: taken {captureUtc.ToLocalTime():yyyy-MM-dd HH:mm:ss}. Calibrate in the viewer window.");
+        CalibrationMessage = string.Create(CultureInfo.CurrentCulture, $"{source}: taken {captureUtc.ToLocalTime():yyyy-MM-dd HH:mm:ss}. Calibrate in the viewer window.");
     }
 
     /// <summary>Saves a fitted lens (if any) and the outline straight to the settings file.</summary>
@@ -524,11 +533,11 @@ public sealed class SettingsViewModel : INotifyPropertyChanged
             if (lens is not null) edit.Calibration.Lens = lens;
             edit.Calibration.WorkingArea = edit.Calibration.WorkingArea with { Outline = outline.ToArray() };
             OnPropertyChanged(string.Empty);
-            Message = $"Calibration saved {DateTime.Now:HH:mm:ss}. The monitor uses it from its next cycle.";
+            CalibrationMessage = $"Calibration saved {DateTime.Now:HH:mm:ss}. The monitor uses it from its next cycle.";
         }
         catch (Exception e)
         {
-            Message = $"Could not save the calibration: {e.Message}";
+            CalibrationMessage = $"Could not save the calibration: {e.Message}";
         }
     }
 

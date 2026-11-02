@@ -317,6 +317,7 @@
                 <Button Width="220" Margin="0,0,8,0" Command="{Binding CalibrateFromCurrentImageCommand}" Content="Calibrate from current image" />
                 <TextBlock VerticalAlignment="Center" Opacity="0.65" Text="Use a clear, moonless frame. The viewer also draws the working-area outline." TextWrapping="Wrap" />
             </StackPanel>
+            <TextBlock Margin="0,0,0,4" FontWeight="Bold" Foreground="Orange" Text="{Binding CalibrationMessage}" TextWrapping="Wrap" />
             <Grid Margin="0,2">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="Auto" SharedSizeGroup="AllskyLabel" />
