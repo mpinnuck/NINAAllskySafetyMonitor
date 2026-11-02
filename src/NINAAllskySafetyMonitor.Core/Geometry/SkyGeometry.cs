@@ -21,6 +21,14 @@ public static class SkyGeometry
     /// </summary>
     public static Domain.HorizontalCoordinate Destination(Domain.HorizontalCoordinate start, double bearingDeg, double distanceDeg)
     {
+        if (start.AltDeg > 90.0 - 1e-9)
+        {
+            // At the zenith every direction is "away from the zenith", so the bearing is taken relative to
+            // the start azimuth (as if just below the zenith on that azimuth): 0 goes over to the opposite
+            // azimuth, 90 towards increasing azimuth.
+            return new Domain.HorizontalCoordinate(90.0 - distanceDeg, Normalise(start.AzDeg + 180.0 - bearingDeg));
+        }
+
         double lat1 = start.AltDeg * Rad, lon1 = start.AzDeg * Rad, brg = bearingDeg * Rad, d = distanceDeg * Rad;
         double lat2 = Math.Asin((Math.Sin(lat1) * Math.Cos(d)) + (Math.Cos(lat1) * Math.Sin(d) * Math.Cos(brg)));
         double lon2 = lon1 + Math.Atan2(Math.Sin(brg) * Math.Sin(d) * Math.Cos(lat1), Math.Cos(d) - (Math.Sin(lat1) * Math.Sin(lat2)));

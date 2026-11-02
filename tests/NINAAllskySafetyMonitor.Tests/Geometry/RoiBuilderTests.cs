@@ -44,6 +44,14 @@ public sealed class RoiBuilderTests
     }
 
     [Fact]
+    public void WorkingAreaCentredOnTheZenithContainsARoiAtTheZenith()
+    {
+        var zenithArea = new WorkingArea(new WorkingAreaDefinition { CentreAltDeg = 90, RadiusDeg = 55 }, null);
+        Assert.Equal(1.0, RoiBuilder.InsideFraction(new HorizontalCoordinate(90, 0), 15, zenithArea));
+        Assert.InRange(RoiBuilder.InsideFraction(new HorizontalCoordinate(35, 200), 10, zenithArea), 0.4, 0.6);
+    }
+
+    [Fact]
     public void ZeroMinimumNeverFallsBack()
     {
         RegionOfInterest roi = builder.Build(new HorizontalCoordinate(40, 0), null, 15, 0.0, area);

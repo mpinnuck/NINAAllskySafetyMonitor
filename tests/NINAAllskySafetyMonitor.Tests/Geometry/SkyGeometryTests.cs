@@ -34,6 +34,22 @@ public sealed class SkyGeometryTests
         Assert.Equal(10.0, SkyGeometry.SeparationDeg(new(45, 180), p), 6);
     }
 
+    [Fact]
+    public void CircleAroundTheZenithIsAllAtOneAltitudeAndGoesRoundEveryAzimuth()
+    {
+        var zenith = new HorizontalCoordinate(90, 180);
+        var azimuths = new List<double>();
+        for (double b = 0; b < 360; b += 10)
+        {
+            HorizontalCoordinate p = SkyGeometry.Destination(zenith, b, 55);
+            Assert.Equal(35.0, p.AltDeg, 6);
+            Assert.Equal(55.0, SkyGeometry.SeparationDeg(zenith, p), 6);
+            azimuths.Add(p.AzDeg);
+        }
+
+        Assert.Equal(36, azimuths.Select(a => Math.Round(a)).Distinct().Count());
+    }
+
     [Theory]
     [InlineData(-10, 350)]
     [InlineData(370, 10)]
