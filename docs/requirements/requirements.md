@@ -1,6 +1,6 @@
 # NINAAllskySafetyMonitor — Requirements
 
-Version 5 · 2026-11-02
+Version 5.2 · 2026-11-02
 
 A safety monitor for NINA on the AstroPC. It analyses images from Mark's Allsky camera, combines them with rain and wind data from his weather station, and reports a safe/unsafe status to NINA.
 
@@ -45,7 +45,7 @@ Defaults shown in *[brackets]* are configurable. How configurable values are sto
 ## 5. Lens calibration and working area
 
 - **REQ-19** Provides a one-off calibration that maps alt/az to Allsky image pixel positions: image centre, rotation (north direction), east/west orientation and the fisheye projection.
-- **REQ-20** Calibration is done by matching identified catalogue stars in a real clear-sky frame.
+- **REQ-20** Calibration is done by matching identified catalogue stars in a real clear-sky frame. A calibration that matches fewer than a configurable number of stars *[15]*, or whose fit error is above a configurable limit *[0.2°]*, is reported with a warning.
 - **REQ-21** Shows a verification overlay (catalogue stars and an alt/az grid drawn on the live image) so calibration accuracy can be checked by eye.
 - **REQ-22** A **working area** defines the part of the sky the monitor can see and assess. It is a circle of configurable radius *[60°]* on the sky, centred at a configurable altitude and azimuth *[alt 75°, az 180°, i.e. 15° south of the zenith]*. It can be reduced further by a drawn outline that excludes trees, the house and the overlay text.
 
@@ -56,7 +56,7 @@ Defaults shown in *[brackets]* are configurable. How configurable values are sto
 - **REQ-25** Any part of the ROI outside the working area (REQ-22) is excluded from analysis.
 - **REQ-58** If less than a configurable fraction *[50%]* of the ROI lies inside the working area, the whole working area is used as the ROI instead, and the status says so.
 - **REQ-26** The ROI falls back to the whole working area when the mount is not connected, is parked, is not tracking, or its position is unavailable.
-- **REQ-27** While the mount is slewing, the current safety state is held and the ROI is updated once the slew finishes.
+- **REQ-27** While the mount is slewing, the current safety state is held and the ROI is updated once the slew finishes. The mount state is checked at a configurable interval *[2 s]*, independent of the image interval, and a change of mount state is acted on at once.
 
 ## 7. Cloud detection
 
@@ -102,6 +102,7 @@ Defaults shown in *[brackets]* are configurable. How configurable values are sto
   - a history graph of the metrics and the safe state for the night.
 - **REQ-46** A settings view edits every configurable value.
 - **REQ-47** A calibration view supports lens calibration (REQ-19–21) and defining the working area (REQ-22).
+- **REQ-59** The Allsky image, with its overlay, can be viewed enlarged, and the altitude and azimuth of any point on it can be read.
 
 ---
 
