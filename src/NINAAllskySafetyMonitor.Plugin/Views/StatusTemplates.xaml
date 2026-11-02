@@ -90,10 +90,13 @@
                     Opacity="0.7"
                     Text="{Binding OverlayLegendText}"
                     TextWrapping="Wrap" />
-                <CheckBox
-                    Margin="0,6,0,0"
-                    Content="Show working area and ROI on the image"
-                    IsChecked="{Binding ShowOverlay}" />
+                <StackPanel Margin="0,6,0,0" Orientation="Horizontal">
+                    <TextBlock
+                        Margin="0,0,8,0"
+                        VerticalAlignment="Center"
+                        Text="Show working area and ROI" />
+                    <CheckBox VerticalAlignment="Center" IsChecked="{Binding ShowOverlay}" />
+                </StackPanel>
                 <StackPanel Margin="0,10,0,0" Orientation="Horizontal">
                     <TextBlock
                         Margin="0,0,8,0"
