@@ -24,10 +24,16 @@ public sealed record LensCalibration
     /// <summary>Radial polynomial coefficients c1, c2, … in pixels per radian^n.</summary>
     public double[] RadialCoefficients { get; init; } = Array.Empty<double>();
 
+    /// <summary>Number of catalogue stars used in the fit.</summary>
+    public int StarsMatched { get; init; }
+
     /// <summary>RMS fit error of the calibration, in pixels.</summary>
     public double RmsErrorPx { get; init; }
 
-    /// <summary>When the calibration was made.</summary>
+    /// <summary>RMS fit error of the calibration on the sky, in degrees.</summary>
+    public double RmsErrorDeg { get; init; }
+
+    /// <summary>When the calibration was made (for a fit: when the frame was taken).</summary>
     public DateTime CalibratedUtc { get; init; }
 
     /// <summary>True for a rough model entered by hand or estimated from the image size, not fitted to stars.</summary>

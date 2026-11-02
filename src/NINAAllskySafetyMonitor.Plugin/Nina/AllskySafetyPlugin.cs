@@ -1,7 +1,10 @@
 using System.ComponentModel.Composition;
 using NINA.Plugin;
 using NINA.Plugin.Interfaces;
+using NINA.Profile.Interfaces;
+using NINAAllskySafetyMonitor.Core.Geometry;
 using NINAAllskySafetyMonitor.Core.Traceability;
+using NINAAllskySafetyMonitor.Plugin.Imaging;
 using NINAAllskySafetyMonitor.Plugin.ViewModels;
 
 namespace NINAAllskySafetyMonitor.Plugin.Nina;
@@ -15,9 +18,11 @@ namespace NINAAllskySafetyMonitor.Plugin.Nina;
 public sealed class AllskySafetyPlugin : PluginBase
 {
     [ImportingConstructor]
-    public AllskySafetyPlugin()
+    public AllskySafetyPlugin(IProfileService profileService)
     {
-        Settings = new SettingsViewModel(PluginSettingsStore.Instance, new WindowsCredentialStore());
+        // The site (from the NINA profile, else the configured fallback) is needed to calibrate the lens.
+        var site = new SiteLocationResolver(new NinaSiteLocationSource(profileService), () => PluginSettingsStore.Instance.Current.Site);
+        Settings = new SettingsViewModel(PluginSettingsStore.Instance, new WindowsCredentialStore(), site.Resolve, new WpfFrameDecoder());
     }
 
     /// <summary>Settings editor bound by the options page.</summary>

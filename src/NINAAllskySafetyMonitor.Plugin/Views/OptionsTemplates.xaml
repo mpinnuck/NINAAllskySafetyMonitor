@@ -310,7 +310,34 @@
                 <TextBox Grid.Column="1" Text="{Binding RoiMinInsidePercent}" />
                 <TextBlock Grid.Column="2" Margin="10,0,0,0" VerticalAlignment="Center" Opacity="0.65" Text="Below this, the whole working area is judged instead (0–100)" TextWrapping="Wrap" />
             </Grid>
-            <TextBlock Margin="0,14,0,4" FontWeight="Bold" Text="Lens model (until calibrated)" />
+            <TextBlock Margin="0,14,0,4" FontWeight="Bold" Text="Lens calibration" />
+            <TextBlock Margin="0,0,0,4" Text="{Binding CalibrationStatusText}" TextWrapping="Wrap" />
+            <StackPanel Margin="0,2,0,4" Orientation="Horizontal">
+                <Button Width="200" Margin="0,0,8,0" Command="{Binding CalibrateFromFrameCommand}" Content="Calibrate from a frame…" />
+                <Button Width="220" Margin="0,0,8,0" Command="{Binding CalibrateFromCurrentImageCommand}" Content="Calibrate from current image" />
+                <TextBlock VerticalAlignment="Center" Opacity="0.65" Text="Use a clear, moonless frame. The viewer also draws the working-area outline." TextWrapping="Wrap" />
+            </StackPanel>
+            <Grid Margin="0,2">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto" SharedSizeGroup="AllskyLabel" />
+                    <ColumnDefinition Width="300" />
+                    <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+                <TextBlock Margin="0,0,12,0" VerticalAlignment="Center" Text="Warn below matched stars" />
+                <TextBox Grid.Column="1" Text="{Binding MinMatchedStars}" />
+                <TextBlock Grid.Column="2" Margin="10,0,0,0" VerticalAlignment="Center" Opacity="0.65" Text="A fit matching fewer stars is reported with a warning (3–500)" TextWrapping="Wrap" />
+            </Grid>
+            <Grid Margin="0,2">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto" SharedSizeGroup="AllskyLabel" />
+                    <ColumnDefinition Width="300" />
+                    <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+                <TextBlock Margin="0,0,12,0" VerticalAlignment="Center" Text="Warn above fit error (°)" />
+                <TextBox Grid.Column="1" Text="{Binding MaxFitErrorDeg}" />
+                <TextBlock Grid.Column="2" Margin="10,0,0,0" VerticalAlignment="Center" Opacity="0.65" Text="RMS error on the sky; 0.2° is about 3.5 px on a 2500 px frame (0.01–5)" TextWrapping="Wrap" />
+            </Grid>
+            <TextBlock Margin="0,14,0,4" FontWeight="Bold" Text="Lens model by hand (optional)" />
             <Grid Margin="0,2">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="Auto" SharedSizeGroup="AllskyLabel" />
@@ -319,7 +346,7 @@
                 </Grid.ColumnDefinitions>
                 <TextBlock Margin="0,0,12,0" VerticalAlignment="Center" Text="Enter the lens model by hand" />
                 <CheckBox Grid.Column="1" VerticalAlignment="Center" IsChecked="{Binding ManualLensEnabled}" />
-                <TextBlock Grid.Column="2" Margin="10,0,0,0" VerticalAlignment="Center" Opacity="0.65" Text="Off: estimated from the image size (zenith at the centre, horizon touching the short edges, north up, east left). Only affects the drawing on the panel image until cloud detection (slice 6)" TextWrapping="Wrap" />
+                <TextBlock Grid.Column="2" Margin="10,0,0,0" VerticalAlignment="Center" Opacity="0.65" Text="Off: the calibrated model, or an estimate from the image size until calibrated. On: replaces the calibrated model with these values" TextWrapping="Wrap" />
             </Grid>
             <Grid Margin="0,2">
                 <Grid.ColumnDefinitions>

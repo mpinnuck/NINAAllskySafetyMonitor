@@ -10,72 +10,114 @@ using WpfGeometry = System.Windows.Media.Geometry;
 namespace NINAAllskySafetyMonitor.Plugin.Imaging;
 
 /// <summary>
-/// Draws the working area, its drawn outline, the ROI and compass points over the Allsky image for the
-/// status panel. Sky positions are placed with the lens model, so until the lens is calibrated (slice 5b)
-/// the drawing is approximate; the ROI itself is computed on the sky and does not depend on it.
+/// Draws the overlay on an Allsky image: working area (and its outline), ROI, compass points, and for
+/// calibration the alt/az grid, catalogue stars and identified stars. Sky positions are placed with the
+/// lens model. Line widths scale with the image, so the same drawing works for the panel and the viewer.
 /// </summary>
-[Requirement("REQ-22", "REQ-23", "REQ-45")]
+[Requirement("REQ-21", "REQ-22", "REQ-23", "REQ-45")]
 public static class OverlayImageComposer
 {
     private const double StepDeg = 2.0;
-    private static readonly Pen AreaPen = Frozen(new Pen(new SolidColorBrush(Color.FromRgb(0xFF, 0xD5, 0x4F)), 2) { DashStyle = DashStyles.Dash });
-    private static readonly Pen AreaJudgedPen = Frozen(new Pen(new SolidColorBrush(Color.FromRgb(0x4C, 0xE0, 0x6A)), 3));
-    private static readonly Pen OutlinePen = Frozen(new Pen(new SolidColorBrush(Color.FromRgb(0x4F, 0xC3, 0xF7)), 2));
-    private static readonly Pen RoiPen = Frozen(new Pen(new SolidColorBrush(Color.FromRgb(0x4C, 0xE0, 0x6A)), 3));
-    private static readonly Pen RoiUnusedPen = Frozen(new Pen(new SolidColorBrush(Color.FromRgb(0xFF, 0x8A, 0x3D)), 2) { DashStyle = DashStyles.Dot });
-    private static readonly Brush LabelBrush = Frozen(new SolidColorBrush(Color.FromRgb(0xFF, 0xFF, 0xFF)));
+    private static readonly Color Yellow = Color.FromRgb(0xFF, 0xD5, 0x4F);
+    private static readonly Color Green = Color.FromRgb(0x4C, 0xE0, 0x6A);
+    private static readonly Color Blue = Color.FromRgb(0x4F, 0xC3, 0xF7);
+    private static readonly Color Orange = Color.FromRgb(0xFF, 0x8A, 0x3D);
+    private static readonly Color Grey = Color.FromRgb(0x9E, 0xA4, 0xB0);
+    private static readonly Color Cyan = Color.FromRgb(0x5E, 0xC8, 0xE5);
+    private static readonly Color Magenta = Color.FromRgb(0xFF, 0x5C, 0xC8);
 
-    /// <summary>
-    /// The image with the overlay drawn on it.
-    /// </summary>
-    /// <param name="image">The image as decoded for the panel (may be smaller than the original).</param>
-    /// <param name="originalWidth">Width of the original Allsky image, in pixels (the lens model's scale).</param>
+    /// <summary>Panel drawing: working area, ROI and compass.</summary>
+    public static BitmapSource Compose(BitmapSource image, int originalWidth, LensCalibration lens, WorkingAreaDefinition area, RegionOfInterest? roi) =>
+        Compose(image, originalWidth, lens, new OverlayContent { WorkingArea = area, Roi = roi, Compass = true });
+
+    /// <summary>The image with <paramref name="content"/> drawn on it.</summary>
+    /// <param name="image">The image as decoded (may be smaller than the original).</param>
+    /// <param name="originalWidth">Width of the original Allsky image (the lens model's pixels).</param>
     /// <param name="lens">Lens model for the original image.</param>
-    /// <param name="area">The working area.</param>
-    /// <param name="roi">This cycle's ROI, or null when none was placed (idle).</param>
-    public static BitmapSource Compose(BitmapSource image, int originalWidth, LensCalibration lens, WorkingAreaDefinition area, RegionOfInterest? roi)
+    /// <param name="content">What to draw.</param>
+    public static BitmapSource Compose(BitmapSource image, int originalWidth, LensCalibration lens, OverlayContent content)
     {
         ArgumentNullException.ThrowIfNull(image);
         ArgumentNullException.ThrowIfNull(lens);
-        ArgumentNullException.ThrowIfNull(area);
+        ArgumentNullException.ThrowIfNull(content);
 
         int w = image.PixelWidth, h = image.PixelHeight;
         double scale = originalWidth > 0 ? (double)w / originalWidth : 1.0;
+        double k = Math.Max(1.0, w / 800.0);
         var projection = new LensProjection(lens);
-        Point ToPoint(HorizontalCoordinate c)
-        {
-            PixelPoint p = projection.ToPixel(c);
-            return new Point(p.X * scale, p.Y * scale);
-        }
+        Point Px(PixelPoint p) => new(p.X * scale, p.Y * scale);
+        Point Sky(HorizontalCoordinate c) => Px(projection.ToPixel(c));
 
         var visual = new DrawingVisual();
         using (DrawingContext dc = visual.RenderOpen())
         {
             dc.DrawImage(image, new Rect(0, 0, w, h));
 
-            bool wholeArea = roi?.UsesWholeWorkingArea == true;
-            dc.DrawGeometry(null, wholeArea ? AreaJudgedPen : AreaPen, Circle(area.Centre, area.RadiusDeg, ToPoint));
-
-            if (area.Outline.Count >= 3)
+            if (content.Grid)
             {
-                dc.DrawGeometry(null, OutlinePen, Polygon(area.Outline.Select(p => new Point(p.X * scale, p.Y * scale))));
+                Pen grid = MakePen(Cyan, 1 * k, null);
+                foreach (double alt in new[] { 0.0, 30.0, 60.0 })
+                {
+                    dc.DrawGeometry(null, grid, Polyline(Enumerable.Range(0, 181).Select(i => Sky(new HorizontalCoordinate(alt, i * StepDeg))), closed: true));
+                }
+
+                for (int az = 0; az < 360; az += 45)
+                {
+                    dc.DrawGeometry(null, grid, Polyline(Enumerable.Range(0, 19).Select(i => Sky(new HorizontalCoordinate(i * 5.0, az))), closed: false));
+                }
             }
 
-            if (roi?.Centre is HorizontalCoordinate centre)
+            bool wholeArea = content.Roi?.UsesWholeWorkingArea == true;
+            if (content.WorkingArea is { } area)
             {
-                Pen pen = wholeArea ? RoiUnusedPen : RoiPen;
-                dc.DrawGeometry(null, pen, Circle(centre, roi.RadiusDeg, ToPoint));
-                Point c = ToPoint(centre);
-                dc.DrawLine(pen, new Point(c.X - 6, c.Y), new Point(c.X + 6, c.Y));
-                dc.DrawLine(pen, new Point(c.X, c.Y - 6), new Point(c.X, c.Y + 6));
+                Pen areaPen = wholeArea ? MakePen(Green, 3 * k, null) : MakePen(Yellow, 2 * k, DashStyles.Dash);
+                dc.DrawGeometry(null, areaPen, Circle(area.Centre, area.RadiusDeg, Sky));
+                if (area.Outline.Count >= 3)
+                {
+                    dc.DrawGeometry(null, MakePen(Blue, 2 * k, null), Polyline(area.Outline.Select(Px), closed: true));
+                }
             }
 
-            double fontSize = Math.Max(12, w / 45.0);
-            foreach ((string label, double az) in new[] { ("N", 0.0), ("E", 90.0), ("S", 180.0), ("W", 270.0) })
+            if (content.DraftOutline.Count > 0)
             {
-                var text = new FormattedText(label, CultureInfo.InvariantCulture, FlowDirection.LeftToRight, new Typeface("Segoe UI"), fontSize, LabelBrush, 1.0);
-                Point p = ToPoint(new HorizontalCoordinate(4, az));
-                dc.DrawText(text, new Point(p.X - (text.Width / 2), p.Y - (text.Height / 2)));
+                Pen draft = MakePen(Blue, 2 * k, DashStyles.Dash);
+                dc.DrawGeometry(null, draft, Polyline(content.DraftOutline.Select(Px), closed: content.DraftOutline.Count >= 3));
+                foreach (PixelPoint p in content.DraftOutline) dc.DrawEllipse(new SolidColorBrush(Blue), null, Px(p), 3 * k, 3 * k);
+            }
+
+            if (content.Roi?.Centre is HorizontalCoordinate centre)
+            {
+                Pen pen = wholeArea ? MakePen(Orange, 2 * k, DashStyles.Dot) : MakePen(Green, 3 * k, null);
+                dc.DrawGeometry(null, pen, Circle(centre, content.Roi.RadiusDeg, Sky));
+                Point c = Sky(centre);
+                dc.DrawLine(pen, new Point(c.X - (6 * k), c.Y), new Point(c.X + (6 * k), c.Y));
+                dc.DrawLine(pen, new Point(c.X, c.Y - (6 * k)), new Point(c.X, c.Y + (6 * k)));
+            }
+
+            foreach (OverlayStar s in content.Stars)
+            {
+                Color colour = s.Matched ? Green : Grey;
+                Point p = Px(s.Position);
+                dc.DrawEllipse(null, MakePen(colour, 1.5 * k, null), p, 7 * k, 7 * k);
+                if (s.Label is { Length: > 0 }) DrawLabel(dc, s.Label, new Point(p.X + (9 * k), p.Y - (8 * k)), 11 * k, colour);
+            }
+
+            foreach ((PixelPoint position, string label) in content.Picks)
+            {
+                Point p = Px(position);
+                Pen pick = MakePen(Magenta, 2 * k, null);
+                dc.DrawLine(pick, new Point(p.X - (10 * k), p.Y), new Point(p.X + (10 * k), p.Y));
+                dc.DrawLine(pick, new Point(p.X, p.Y - (10 * k)), new Point(p.X, p.Y + (10 * k)));
+                DrawLabel(dc, label, new Point(p.X + (12 * k), p.Y + (2 * k)), 12 * k, Magenta);
+            }
+
+            if (content.Compass)
+            {
+                foreach ((string label, double az) in new[] { ("N", 0.0), ("E", 90.0), ("S", 180.0), ("W", 270.0) })
+                {
+                    Point p = Sky(new HorizontalCoordinate(4, az));
+                    DrawLabel(dc, label, p, Math.Max(12, w / 45.0), Colors.White, centred: true);
+                }
             }
         }
 
@@ -83,6 +125,12 @@ public static class OverlayImageComposer
         bitmap.Render(visual);
         bitmap.Freeze();
         return bitmap;
+    }
+
+    private static void DrawLabel(DrawingContext dc, string text, Point at, double size, Color colour, bool centred = false)
+    {
+        var ft = new FormattedText(text, CultureInfo.InvariantCulture, FlowDirection.LeftToRight, new Typeface("Segoe UI"), size, new SolidColorBrush(colour), 1.0);
+        dc.DrawText(ft, centred ? new Point(at.X - (ft.Width / 2), at.Y - (ft.Height / 2)) : at);
     }
 
     /// <summary>A circle on the sky as a closed line; any part below the horizon follows the horizon.</summary>
@@ -95,10 +143,10 @@ public static class OverlayImageComposer
             points.Add(toPoint(p.AltDeg < 0 ? p with { AltDeg = 0 } : p));
         }
 
-        return Polygon(points);
+        return Polyline(points, closed: true);
     }
 
-    private static WpfGeometry Polygon(IEnumerable<Point> points)
+    private static WpfGeometry Polyline(IEnumerable<Point> points, bool closed)
     {
         var geometry = new StreamGeometry();
         using (StreamGeometryContext ctx = geometry.Open())
@@ -108,7 +156,7 @@ public static class OverlayImageComposer
             {
                 if (first)
                 {
-                    ctx.BeginFigure(p, isFilled: false, isClosed: true);
+                    ctx.BeginFigure(p, isFilled: false, isClosed: closed);
                     first = false;
                 }
                 else
@@ -122,10 +170,11 @@ public static class OverlayImageComposer
         return geometry;
     }
 
-    private static T Frozen<T>(T freezable)
-        where T : Freezable
+    private static Pen MakePen(Color colour, double thickness, DashStyle? dash)
     {
-        freezable.Freeze();
-        return freezable;
+        var pen = new Pen(new SolidColorBrush(colour), thickness);
+        if (dash is not null) pen.DashStyle = dash;
+        pen.Freeze();
+        return pen;
     }
 }

@@ -92,6 +92,10 @@ public sealed class MonitorSettingsDefaultsTests
     [Fact, Requirement("REQ-27")]
     public void MountIsCheckedEveryTwoSeconds() => Assert.Equal(2, s.Mount.PollIntervalS);
 
+    [Fact, Requirement("REQ-20")]
+    public void LensFitWarnsBelowFifteenStarsOrAboveTwoTenthsOfADegree() =>
+        Assert.Equal((15, 0.2, 4.5), (s.LensFit.MinMatchedStars, s.LensFit.MaxFitErrorDeg, s.LensFit.CatalogueLimitMagnitude));
+
     [Fact, Requirement("REQ-58")]
     public void HalfTheRoiMustBeInsideTheWorkingArea() => Assert.Equal(0.5, s.Roi.MinInsideFraction);
 

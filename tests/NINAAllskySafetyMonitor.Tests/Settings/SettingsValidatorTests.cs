@@ -74,6 +74,19 @@ public sealed class SettingsValidatorTests
         Assert.Contains(new SettingsValidator().Validate(s), e => e.Contains("Mount check interval"));
     }
 
+    [Theory, Requirement("REQ-20")]
+    [InlineData(2, 0.2, 4.5, "Minimum matched stars")]
+    [InlineData(15, 0, 4.5, "Maximum lens fit error")]
+    [InlineData(15, 0.2, 5.0, "Catalogue limit")]
+    public void OutOfRangeLensFitLimitsAreReported(int stars, double errorDeg, double mag, string expected)
+    {
+        var s = ValidSettings();
+        s.LensFit.MinMatchedStars = stars;
+        s.LensFit.MaxFitErrorDeg = errorDeg;
+        s.LensFit.CatalogueLimitMagnitude = mag;
+        Assert.Contains(new SettingsValidator().Validate(s), e => e.StartsWith(expected, StringComparison.Ordinal));
+    }
+
     [Fact, Requirement("REQ-19")]
     public void LensModelWithoutARadiusIsReported()
     {

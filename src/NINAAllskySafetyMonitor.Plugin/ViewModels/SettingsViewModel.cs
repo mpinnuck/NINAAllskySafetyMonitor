@@ -1,14 +1,20 @@
 using System.ComponentModel;
+using System.Globalization;
+using System.IO;
 using System.Runtime.CompilerServices;
 using System.Windows.Input;
+using System.Windows.Media.Imaging;
 using NINAAllskySafetyMonitor.Core.Abstractions;
 using NINAAllskySafetyMonitor.Core.Acquisition;
+using NINAAllskySafetyMonitor.Core.Calibration;
 using NINAAllskySafetyMonitor.Core.Domain;
 using NINAAllskySafetyMonitor.Core.Geometry;
 using NINAAllskySafetyMonitor.Core.Settings;
 using NINAAllskySafetyMonitor.Core.Traceability;
 using NINAAllskySafetyMonitor.Core.Weather;
+using NINAAllskySafetyMonitor.Plugin.Imaging;
 using NINAAllskySafetyMonitor.Plugin.Nina;
+using NINAAllskySafetyMonitor.Plugin.Views;
 
 namespace NINAAllskySafetyMonitor.Plugin.ViewModels;
 
@@ -17,7 +23,7 @@ namespace NINAAllskySafetyMonitor.Plugin.ViewModels;
 /// and persists them, Revert discards unsaved edits. The SFTP password goes to the credential store,
 /// never into the settings. Each slice adds the settings it uses.
 /// </summary>
-[Requirement("REQ-22", "REQ-23", "REQ-46", "REQ-53", "REQ-55", "REQ-58")]
+[Requirement("REQ-19", "REQ-20", "REQ-22", "REQ-23", "REQ-27", "REQ-46", "REQ-47", "REQ-53", "REQ-55", "REQ-58")]
 public sealed class SettingsViewModel : INotifyPropertyChanged
 {
     private readonly PluginSettingsStore store;
@@ -25,21 +31,28 @@ public sealed class SettingsViewModel : INotifyPropertyChanged
     private readonly ImageFetchTester tester;
     private readonly WeatherFetchTester weatherTester = new(new SystemClock());
     private readonly SettingsValidator validator = new();
+    private readonly FrameTimeReader timeReader = new();
+    private readonly Func<SiteLocation> site;
+    private readonly IFrameDecoder decoder;
     private MonitorSettings edit;
     private string? newPassword;
     private string message = string.Empty;
     private bool testing;
 
-    public SettingsViewModel(PluginSettingsStore store, ICredentialStore credentials)
+    public SettingsViewModel(PluginSettingsStore store, ICredentialStore credentials, Func<SiteLocation> site, IFrameDecoder decoder)
     {
         this.store = store ?? throw new ArgumentNullException(nameof(store));
         this.credentials = credentials ?? throw new ArgumentNullException(nameof(credentials));
+        this.site = site ?? throw new ArgumentNullException(nameof(site));
+        this.decoder = decoder ?? throw new ArgumentNullException(nameof(decoder));
         tester = new ImageFetchTester(credentials, new NinaLogSink(), new SystemClock());
         edit = SettingsStore.Clone(store.Current);
         SaveCommand = new DelegateCommand(Save);
         RevertCommand = new DelegateCommand(Revert);
         TestImageCommand = new DelegateCommand(TestImage);
         TestWeatherCommand = new DelegateCommand(TestWeather);
+        CalibrateFromFrameCommand = new DelegateCommand(CalibrateFromFrame);
+        CalibrateFromCurrentImageCommand = new DelegateCommand(CalibrateFromCurrentImage);
     }
 
     public event PropertyChangedEventHandler? PropertyChanged;
@@ -51,6 +64,12 @@ public sealed class SettingsViewModel : INotifyPropertyChanged
     public ICommand TestImageCommand { get; }
 
     public ICommand TestWeatherCommand { get; }
+
+    /// <summary>Opens a saved clear frame (time from its file name) in the calibration viewer.</summary>
+    public ICommand CalibrateFromFrameCommand { get; }
+
+    /// <summary>Opens the monitor's latest image in the calibration viewer.</summary>
+    public ICommand CalibrateFromCurrentImageCommand { get; }
 
     /// <summary>Where the settings are stored.</summary>
     public string SettingsFilePath => store.FilePath;
@@ -267,10 +286,39 @@ public sealed class SettingsViewModel : INotifyPropertyChanged
 
     // ---- Lens model, entered by hand until calibrated (slice 5b) ----
 
-    /// <summary>On: use the values below. Off: estimate the model from the image size.</summary>
+    // ---- Lens calibration (REQ-19, REQ-20) ----
+
+    /// <summary>What lens model is in use.</summary>
+    public string CalibrationStatusText
+    {
+        get
+        {
+            LensCalibration? lens = edit.Calibration.Lens;
+            int outline = edit.Calibration.WorkingArea.Outline.Count;
+            string area = outline >= 3 ? $" Working-area outline: {outline} points." : " No working-area outline drawn.";
+            if (lens is null) return "Not calibrated: positions on the image are estimated from the image size." + area;
+            if (lens.Manual) return "Lens model entered by hand." + area;
+            return string.Create(CultureInfo.CurrentCulture,
+                $"Calibrated from {lens.StarsMatched} stars in a frame taken {lens.CalibratedUtc.ToLocalTime():yyyy-MM-dd HH:mm}, error {lens.RmsErrorPx:0.0} px ({lens.RmsErrorDeg:0.00}°).") + area;
+        }
+    }
+
+    public int MinMatchedStars
+    {
+        get => edit.LensFit.MinMatchedStars;
+        set { edit.LensFit.MinMatchedStars = value; OnPropertyChanged(); }
+    }
+
+    public double MaxFitErrorDeg
+    {
+        get => edit.LensFit.MaxFitErrorDeg;
+        set { edit.LensFit.MaxFitErrorDeg = value; OnPropertyChanged(); }
+    }
+
+    /// <summary>On: use the values below (replaces a calibrated model). Off: calibrated model, or an estimate from the image size.</summary>
     public bool ManualLensEnabled
     {
-        get => edit.Calibration.Lens is not null;
+        get => edit.Calibration.Lens is { Manual: true };
         set
         {
             if (value == ManualLensEnabled) return;
@@ -311,7 +359,7 @@ public sealed class SettingsViewModel : INotifyPropertyChanged
 
     private void SetLens(double x, double y, double radius, double rotation, bool clockwise)
     {
-        if (edit.Calibration.Lens is null) return;
+        if (edit.Calibration.Lens is not { Manual: true }) return;
         edit.Calibration.Lens = LensProjection.FromHorizonRadius(x, y, radius, rotation, clockwise) with { CalibratedUtc = DateTime.UtcNow };
         OnPropertyChanged(nameof(LensCentreX));
         OnPropertyChanged(nameof(LensCentreY));
@@ -404,6 +452,84 @@ public sealed class SettingsViewModel : INotifyPropertyChanged
     {
         get => edit.Weather.TimeoutS;
         set { edit.Weather.TimeoutS = value; OnPropertyChanged(); }
+    }
+
+    private async void CalibrateFromFrame()
+    {
+        var dialog = new Microsoft.Win32.OpenFileDialog
+        {
+            Title = "Choose a clear, moonless Allsky frame",
+            Filter = "JPEG images (*.jpg;*.jpeg)|*.jpg;*.jpeg|All files (*.*)|*.*",
+        };
+        if (dialog.ShowDialog() != true) return;
+
+        DateTime? utc = timeReader.FromFileName(dialog.FileName);
+        if (utc is null)
+        {
+            Message = "The file name has no time in it (expected …-yyyyMMddHHmmss.jpg, as Allsky saves them). Rename it with its local time, or use Calibrate from current image.";
+            return;
+        }
+
+        try
+        {
+            byte[] jpeg = await File.ReadAllBytesAsync(dialog.FileName);
+            await OpenCalibrationAsync(jpeg, utc.Value, Path.GetFileName(dialog.FileName));
+        }
+        catch (Exception e)
+        {
+            Message = $"Could not open {Path.GetFileName(dialog.FileName)}: {e.Message}";
+        }
+    }
+
+    private async void CalibrateFromCurrentImage()
+    {
+        SkyImage? image = MonitorHost.Instance.LatestSnapshot?.Image;
+        if (image is null)
+        {
+            Message = "No current image: connect the monitor (in daylight set the Sun limit to +90), or use Calibrate from a frame.";
+            return;
+        }
+
+        try
+        {
+            await OpenCalibrationAsync(image.JpegBytes, timeReader.FromSkyImage(image), "Current image");
+        }
+        catch (Exception e)
+        {
+            Message = $"Could not open the current image: {e.Message}";
+        }
+    }
+
+    private async Task OpenCalibrationAsync(byte[] jpeg, DateTime captureUtc, string source)
+    {
+        Message = $"Loading {source}…";
+        (GrayFrame gray, BitmapSource display) = await Task.Run(() => (decoder.Decode(jpeg), JpegBitmap.Load(jpeg)));
+        var frame = new CalibrationFrame(gray, captureUtc, source);
+        MonitorSettings saved = store.Current;
+        var calibration = new CalibrationViewModel(frame, site(), () => edit.LensFit, saved.Calibration.Lens, saved.Calibration.WorkingArea, SaveCalibration);
+        ImageViewerWindow.Open(ImageViewerViewModel.ForCalibration(display, calibration));
+        Message = string.Create(CultureInfo.CurrentCulture, $"{source}: taken {captureUtc.ToLocalTime():yyyy-MM-dd HH:mm:ss}. Calibrate in the viewer window.");
+    }
+
+    /// <summary>Saves a fitted lens (if any) and the outline straight to the settings file.</summary>
+    private void SaveCalibration(LensCalibration? lens, IReadOnlyList<PixelPoint> outline)
+    {
+        try
+        {
+            MonitorSettings s = SettingsStore.Clone(store.Current);
+            if (lens is not null) s.Calibration.Lens = lens;
+            s.Calibration.WorkingArea = s.Calibration.WorkingArea with { Outline = outline.ToArray() };
+            store.Save(s);
+
+            if (lens is not null) edit.Calibration.Lens = lens;
+            edit.Calibration.WorkingArea = edit.Calibration.WorkingArea with { Outline = outline.ToArray() };
+            OnPropertyChanged(string.Empty);
+            Message = $"Calibration saved {DateTime.Now:HH:mm:ss}. The monitor uses it from its next cycle.";
+        }
+        catch (Exception e)
+        {
+            Message = $"Could not save the calibration: {e.Message}";
+        }
     }
 
     private void Save()

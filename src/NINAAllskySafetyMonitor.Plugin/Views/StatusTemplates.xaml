@@ -76,9 +76,15 @@
                     Margin="0,10,0,0"
                     MaxHeight="480"
                     RenderOptions.BitmapScalingMode="HighQuality"
+                    Cursor="Hand"
                     Source="{Binding AllskyImage}"
+                    ToolTip="Click to enlarge"
                     Stretch="Uniform"
-                    Visibility="{Binding HasImage, Converter={StaticResource AllskySafety_BoolToVisibility}}" />
+                    Visibility="{Binding HasImage, Converter={StaticResource AllskySafety_BoolToVisibility}}" >
+                    <Image.InputBindings>
+                        <MouseBinding Command="{Binding OpenViewerCommand}" Gesture="LeftClick" />
+                    </Image.InputBindings>
+                </Image>
                 <TextBlock
                     Margin="0,4,0,0"
                     Opacity="0.7"

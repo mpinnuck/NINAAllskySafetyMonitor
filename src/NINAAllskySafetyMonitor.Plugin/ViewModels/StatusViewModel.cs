@@ -3,6 +3,7 @@ using System.Globalization;
 using System.IO;
 using System.Windows;
 using System.Windows.Media.Imaging;
+using System.Windows.Input;
 using System.Windows.Threading;
 using NINA.Equipment.Interfaces.ViewModel;
 using NINA.Profile.Interfaces;
@@ -13,6 +14,7 @@ using NINAAllskySafetyMonitor.Core.Settings;
 using NINAAllskySafetyMonitor.Core.Traceability;
 using NINAAllskySafetyMonitor.Plugin.Imaging;
 using NINAAllskySafetyMonitor.Plugin.Nina;
+using NINAAllskySafetyMonitor.Plugin.Views;
 
 namespace NINAAllskySafetyMonitor.Plugin.ViewModels;
 
@@ -21,7 +23,7 @@ namespace NINAAllskySafetyMonitor.Plugin.ViewModels;
 /// working area and ROI drawn on it, and the mount position. Later slices add metrics and the history graph.
 /// </summary>
 [Export(typeof(IDockableVM))]
-[Requirement("REQ-43", "REQ-45", "REQ-58")]
+[Requirement("REQ-43", "REQ-45", "REQ-58", "REQ-59")]
 public sealed class StatusViewModel : DockableVM
 {
     private readonly MonitorHost host = MonitorHost.Instance;
@@ -47,7 +49,11 @@ public sealed class StatusViewModel : DockableVM
         refreshTimer = new DispatcherTimer(DispatcherPriority.Background, Application.Current?.Dispatcher ?? Dispatcher.CurrentDispatcher) { Interval = TimeSpan.FromSeconds(5) };
         refreshTimer.Tick += (_, _) => Refresh();
         refreshTimer.Start();
+        OpenViewerCommand = new DelegateCommand(OpenViewer);
     }
+
+    /// <summary>Opens the latest image enlarged (REQ-59).</summary>
+    public ICommand OpenViewerCommand { get; }
 
     public bool IsConnected => host.IsRunning;
 
@@ -245,6 +251,19 @@ public sealed class StatusViewModel : DockableVM
         {
             NINA.Core.Utility.Logger.Warning($"[AllskySafetyMonitor] Could not draw the overlay: {e.Message}");
             return decoded;
+        }
+    }
+
+    private void OpenViewer()
+    {
+        try
+        {
+            ImageViewerViewModel? vm = ImageViewerViewModel.ForLatestImage(host);
+            if (vm is not null) ImageViewerWindow.Open(vm);
+        }
+        catch (Exception e)
+        {
+            NINA.Core.Utility.Logger.Warning($"[AllskySafetyMonitor] Could not open the image viewer: {e.Message}");
         }
     }
 
