@@ -4,13 +4,15 @@ using NINAAllskySafetyMonitor.Core.Domain;
 using NINAAllskySafetyMonitor.Core.Geometry;
 using NINAAllskySafetyMonitor.Core.Settings;
 using NINAAllskySafetyMonitor.Core.Traceability;
+using NINAAllskySafetyMonitor.Core.Weather;
 
 namespace NINAAllskySafetyMonitor.Core.Monitoring;
 
 /// <summary>
 /// One monitoring pass (UC-04). Outside the operating window the status is Idle and nothing is
-/// fetched. Inside it, the latest image is fetched and checked for freshness. Until cloud detection
-/// is added (slice 6) the status stays Unsafe even with a fresh image. Settings are read at the start
+/// fetched. Inside it, the image is fetched and checked for freshness and the weather is polled (at its
+/// own interval) and checked. The reason lists every failed condition. Until cloud detection is added
+/// (slice 6) the status stays Unsafe even when everything else passes. Settings are read at the start
 /// of every cycle, so saved changes take effect without reconnecting.
 /// </summary>
 [Requirement("REQ-10", "REQ-14", "REQ-37")]
@@ -22,6 +24,8 @@ public sealed class MonitoringCycle : IMonitoringCycle
     private readonly OperatingWindow window;
     private readonly ImageAcquirer acquirer;
     private readonly ImageFreshnessEvaluator freshness;
+    private readonly WeatherPoller weather;
+    private readonly WeatherEvaluator weatherEvaluator;
 
     public MonitoringCycle(
         Func<MonitorSettings> settings,
@@ -29,7 +33,9 @@ public sealed class MonitoringCycle : IMonitoringCycle
         SiteLocationResolver siteResolver,
         OperatingWindow window,
         ImageAcquirer acquirer,
-        ImageFreshnessEvaluator freshness)
+        ImageFreshnessEvaluator freshness,
+        WeatherPoller weather,
+        WeatherEvaluator weatherEvaluator)
     {
         this.settings = settings ?? throw new ArgumentNullException(nameof(settings));
         this.clock = clock ?? throw new ArgumentNullException(nameof(clock));
@@ -37,6 +43,8 @@ public sealed class MonitoringCycle : IMonitoringCycle
         this.window = window ?? throw new ArgumentNullException(nameof(window));
         this.acquirer = acquirer ?? throw new ArgumentNullException(nameof(acquirer));
         this.freshness = freshness ?? throw new ArgumentNullException(nameof(freshness));
+        this.weather = weather ?? throw new ArgumentNullException(nameof(weather));
+        this.weatherEvaluator = weatherEvaluator ?? throw new ArgumentNullException(nameof(weatherEvaluator));
     }
 
     /// <inheritdoc />
@@ -56,24 +64,21 @@ public sealed class MonitoringCycle : IMonitoringCycle
             return new MonitorSnapshot(null, null, null, null, new SafetyConditions(new[] { windowCheck }), idle);
         }
 
-        await acquirer.AcquireAsync(ct).ConfigureAwait(false);
+        // Image and weather are independent, so fetch them together.
+        await Task.WhenAll(acquirer.AcquireAsync(ct), weather.PollIfDueAsync(ct)).ConfigureAwait(false);
+
         DateTime now = clock.UtcNow;
-        ConditionCheck fresh = freshness.Evaluate(acquirer.LatestImage, acquirer.LastSuccessUtc, acquirer.LastError, now, s.ImageSource);
-
-        var checks = new List<ConditionCheck> { windowCheck, fresh };
-        string reason;
-        if (fresh.Passed)
+        var checks = new List<ConditionCheck>
         {
-            var cloudNotYet = new ConditionCheck(SafetyCondition.NoCloud, false, "Cloud detection not implemented yet");
-            checks.Add(cloudNotYet);
-            reason = $"{cloudNotYet.Reason} · {fresh.Reason}";
-        }
-        else
-        {
-            reason = fresh.Reason;
-        }
+            windowCheck,
+            freshness.Evaluate(acquirer.LatestImage, acquirer.LastSuccessUtc, acquirer.LastError, now, s.ImageSource),
+        };
+        checks.AddRange(weatherEvaluator.Evaluate(weather.Latest, weather.LastError, now, s.Weather));
+        checks.Add(new ConditionCheck(SafetyCondition.NoCloud, false, "Cloud detection not implemented yet"));
 
+        string reason = string.Join(" · ", checks.Where(c => !c.Passed).Select(c => c.Reason));
         var status = new SafetyStatus(SafetyState.Unsafe, false, reason, null, OverrideMode.Auto, untuned, now);
-        return new MonitorSnapshot(acquirer.LatestImage, null, null, null, new SafetyConditions(checks), status);
+        WeatherObservation? obs = s.Weather.Enabled ? weather.Latest : null;
+        return new MonitorSnapshot(acquirer.LatestImage, null, null, obs, new SafetyConditions(checks), status);
     }
 }

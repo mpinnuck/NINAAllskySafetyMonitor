@@ -39,6 +39,10 @@
                     Opacity="0.7"
                     Text="{Binding LastUpdateText}" />
                 <TextBlock
+                    Margin="0,4,0,0"
+                    Text="{Binding WeatherInfoText}"
+                    TextWrapping="Wrap" />
+                <TextBlock
                     Margin="0,8,0,0"
                     Foreground="Orange"
                     Text="UNTUNED — cloud thresholds are conservative defaults"

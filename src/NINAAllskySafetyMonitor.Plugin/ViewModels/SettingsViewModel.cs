@@ -6,6 +6,7 @@ using NINAAllskySafetyMonitor.Core.Acquisition;
 using NINAAllskySafetyMonitor.Core.Domain;
 using NINAAllskySafetyMonitor.Core.Settings;
 using NINAAllskySafetyMonitor.Core.Traceability;
+using NINAAllskySafetyMonitor.Core.Weather;
 using NINAAllskySafetyMonitor.Plugin.Nina;
 
 namespace NINAAllskySafetyMonitor.Plugin.ViewModels;
@@ -21,6 +22,7 @@ public sealed class SettingsViewModel : INotifyPropertyChanged
     private readonly PluginSettingsStore store;
     private readonly ICredentialStore credentials;
     private readonly ImageFetchTester tester;
+    private readonly WeatherFetchTester weatherTester = new(new SystemClock());
     private readonly SettingsValidator validator = new();
     private MonitorSettings edit;
     private string? newPassword;
@@ -36,6 +38,7 @@ public sealed class SettingsViewModel : INotifyPropertyChanged
         SaveCommand = new DelegateCommand(Save);
         RevertCommand = new DelegateCommand(Revert);
         TestImageCommand = new DelegateCommand(TestImage);
+        TestWeatherCommand = new DelegateCommand(TestWeather);
     }
 
     public event PropertyChangedEventHandler? PropertyChanged;
@@ -45,6 +48,8 @@ public sealed class SettingsViewModel : INotifyPropertyChanged
     public ICommand RevertCommand { get; }
 
     public ICommand TestImageCommand { get; }
+
+    public ICommand TestWeatherCommand { get; }
 
     /// <summary>Where the settings are stored.</summary>
     public string SettingsFilePath => store.FilePath;
@@ -240,6 +245,30 @@ public sealed class SettingsViewModel : INotifyPropertyChanged
         set { edit.Weather.ApiKey = value; OnPropertyChanged(); }
     }
 
+    public int WeatherPollIntervalS
+    {
+        get => edit.Weather.PollIntervalS;
+        set { edit.Weather.PollIntervalS = value; OnPropertyChanged(); }
+    }
+
+    public double MaxGustKmH
+    {
+        get => edit.Weather.MaxGustKmH;
+        set { edit.Weather.MaxGustKmH = value; OnPropertyChanged(); }
+    }
+
+    public int WeatherStaleAfterMin
+    {
+        get => edit.Weather.StaleAfterMin;
+        set { edit.Weather.StaleAfterMin = value; OnPropertyChanged(); }
+    }
+
+    public int WeatherTimeoutS
+    {
+        get => edit.Weather.TimeoutS;
+        set { edit.Weather.TimeoutS = value; OnPropertyChanged(); }
+    }
+
     private void Save()
     {
         var errors = new List<string>(validator.Validate(edit));
@@ -300,6 +329,28 @@ public sealed class SettingsViewModel : INotifyPropertyChanged
         catch (Exception e)
         {
             Message = $"Test failed: {e.Message}";
+        }
+        finally
+        {
+            testing = false;
+        }
+    }
+
+    /// <summary>Requests the current observation with the settings on screen (saved or not) and reports it.</summary>
+    private async void TestWeather()
+    {
+        if (testing) return;
+        testing = true;
+        WeatherSettings snapshot = SettingsStore.Clone(edit).Weather;
+        Message = $"Testing weather station {snapshot.StationId}…";
+        try
+        {
+            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(snapshot.TimeoutS + 5));
+            Message = await weatherTester.TestAsync(snapshot, cts.Token);
+        }
+        catch (Exception e)
+        {
+            Message = $"Weather test failed: {e.Message}";
         }
         finally
         {

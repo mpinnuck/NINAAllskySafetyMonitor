@@ -8,7 +8,7 @@ using Xunit;
 
 namespace NINAAllskySafetyMonitor.Tests.Monitoring;
 
-[Requirement("REQ-02", "REQ-09", "REQ-10", "REQ-14")]
+[Requirement("REQ-02", "REQ-09", "REQ-10", "REQ-14", "REQ-32")]
 public sealed class MonitorServiceBuilderTests
 {
     private static MonitorPorts Ports(double sunAltitude) => new(
@@ -38,17 +38,20 @@ public sealed class MonitorServiceBuilderTests
     }
 
     [Fact]
-    public async Task BuiltServiceFetchesTheImageAtNight()
+    public async Task BuiltServiceFetchesImageAndWeatherAtNight()
     {
         var settings = new MonitorSettings();
         var direct = new FakeImageSource(ImageSourceKind.Direct)
             .Then(FetchResult.New(new SkyImage(FakeImageSource.CompleteJpeg(), DateTime.UtcNow, ImageSourceKind.Direct)));
         var sources = new ImageSourceFactory(new FakeImageSource(ImageSourceKind.Web), direct);
+        var weather = new FakeWeatherProvider().Then(DateTime.UtcNow, 0, 5);
 
-        MonitorSnapshot snapshot = await FirstSnapshot(new MonitorServiceBuilder().Build(() => settings, Ports(-30), sources));
+        MonitorSnapshot snapshot = await FirstSnapshot(new MonitorServiceBuilder().Build(() => settings, Ports(-30), sources, weather));
 
         Assert.Equal(1, direct.Fetches);
+        Assert.Equal(1, weather.Requests);
         Assert.NotNull(snapshot.Image);
+        Assert.NotNull(snapshot.Weather);
         Assert.False(snapshot.Status.IsSafe);
     }
 }

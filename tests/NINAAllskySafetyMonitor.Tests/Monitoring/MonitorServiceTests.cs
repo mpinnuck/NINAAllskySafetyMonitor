@@ -62,6 +62,18 @@ public sealed class MonitorServiceTests
         await service.StopAsync();
     }
 
+    [Theory]
+    [InlineData("Cloud detection not implemented yet · Image 0.3 min old", "Cloud detection not implemented yet · Image 0.6 min old")]
+    [InlineData("Outside operating window: Sun at −13.4° (limit −18°)", "Outside operating window: Sun at −15.9° (limit −18°)")]
+    public void ReasonsDifferingOnlyInNumbersAreTheSameKind(string a, string b) =>
+        Assert.Equal(MonitorService.ReasonKind(a), MonitorService.ReasonKind(b));
+
+    [Fact]
+    public void DifferentReasonsAreDifferentKinds() =>
+        Assert.NotEqual(
+            MonitorService.ReasonKind("Cloud detection not implemented yet · Image 0.3 min old"),
+            MonitorService.ReasonKind("Image is 12.0 min old (limit 10 min)"));
+
     [Fact]
     public async Task StopWithoutStartIsHarmless() =>
         await Service(new DelegateCycle(_ => Task.FromResult(DelegateCycle.Snapshot(SafetyState.Idle, false, "x")))).StopAsync();

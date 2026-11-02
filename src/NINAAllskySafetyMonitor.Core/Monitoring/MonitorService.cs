@@ -100,9 +100,10 @@ public sealed class MonitorService
                 currentStatus = snapshot.Status;
             }
 
-            // Log changes of state, and of reason except while idle (the idle reason carries the Sun altitude, which changes every cycle).
+            // Log changes of state or of the kind of reason. Numbers (image age, Sun altitude) change every
+            // cycle, so they are ignored when comparing reasons.
             if (previous.State != snapshot.Status.State
-                || (snapshot.Status.State != SafetyState.Idle && previous.Reason != snapshot.Status.Reason))
+                || ReasonKind(previous.Reason) != ReasonKind(snapshot.Status.Reason))
             {
                 log.Write(LogLevel.Info, $"State {snapshot.Status.State} (safe: {snapshot.Status.IsSafe}): {snapshot.Status.Reason}");
             }
@@ -111,6 +112,10 @@ public sealed class MonitorService
             await Task.Delay(interval(), token).ConfigureAwait(false);
         }
     }
+
+    /// <summary>The reason with its numbers removed, e.g. "Image # min old".</summary>
+    internal static string ReasonKind(string reason) =>
+        System.Text.RegularExpressions.Regex.Replace(reason ?? string.Empty, @"[-+−]?\d+(\.\d+)?", "#");
 
     private void Publish(MonitorSnapshot snapshot)
     {

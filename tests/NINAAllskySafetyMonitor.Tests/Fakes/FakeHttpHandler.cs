@@ -13,12 +13,14 @@ public sealed class FakeHttpHandler : HttpMessageHandler
 
     public bool Throw { get; set; }
 
+    public string ThrowMessage { get; set; } = "Name or service not known";
+
     public HttpRequestMessage? LastRequest { get; private set; }
 
     protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
     {
         LastRequest = request;
-        if (Throw) throw new HttpRequestException("Name or service not known");
+        if (Throw) throw new HttpRequestException(ThrowMessage);
 
         var response = new HttpResponseMessage(Status) { Content = new ByteArrayContent(Body) };
         response.Content.Headers.LastModified = LastModified;

@@ -82,6 +82,20 @@ public sealed class StatusViewModel : DockableVM
         }
     }
 
+    /// <summary>Rain, gust and age of the latest weather observation, or empty when weather is off or not yet read.</summary>
+    public string WeatherInfoText
+    {
+        get
+        {
+            WeatherObservation? w = host.IsRunning ? host.LatestSnapshot?.Weather : null;
+            if (w is null) return string.Empty;
+            double age = Math.Max(0, (DateTime.UtcNow - w.ObservationTimeUtc).TotalMinutes);
+            return string.Create(
+                CultureInfo.CurrentCulture,
+                $"Rain {w.PrecipRateMmH:0.0} mm/h · Gust {w.WindGustKmH:0} km/h · observed {w.ObservationTimeUtc.ToLocalTime():HH:mm} ({age:0.0} min ago)");
+        }
+    }
+
     private void Refresh()
     {
         SkyImage? current = host.IsRunning ? host.LatestSnapshot?.Image : null;
@@ -100,6 +114,7 @@ public sealed class StatusViewModel : DockableVM
         RaisePropertyChanged(nameof(LastUpdateText));
         RaisePropertyChanged(nameof(UntunedVisible));
         RaisePropertyChanged(nameof(ImageInfoText));
+        RaisePropertyChanged(nameof(WeatherInfoText));
     }
 
     /// <summary>Decodes at panel resolution; a JPEG that can't be decoded is simply not shown.</summary>

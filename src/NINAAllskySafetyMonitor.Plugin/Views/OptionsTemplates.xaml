@@ -280,11 +280,52 @@
                 <TextBox Grid.Column="1" Text="{Binding WeatherApiKey}" />
                 <TextBlock Grid.Column="2" Margin="10,0,0,0" VerticalAlignment="Center" Opacity="0.65" Text="The account API key, not the station upload key" TextWrapping="Wrap" />
             </Grid>
+            <Grid Margin="0,2">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto" SharedSizeGroup="AllskyLabel" />
+                    <ColumnDefinition Width="300" />
+                    <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+                <TextBlock Margin="0,0,12,0" VerticalAlignment="Center" Text="Poll interval (s)" />
+                <TextBox Grid.Column="1" Text="{Binding WeatherPollIntervalS}" />
+                <TextBlock Grid.Column="2" Margin="10,0,0,0" VerticalAlignment="Center" Opacity="0.65" Text="How often the station is read (30–3600)" TextWrapping="Wrap" />
+            </Grid>
+            <Grid Margin="0,2">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto" SharedSizeGroup="AllskyLabel" />
+                    <ColumnDefinition Width="300" />
+                    <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+                <TextBlock Margin="0,0,12,0" VerticalAlignment="Center" Text="Unsafe when gust is above (km/h)" />
+                <TextBox Grid.Column="1" Text="{Binding MaxGustKmH}" />
+                <TextBlock Grid.Column="2" Margin="10,0,0,0" VerticalAlignment="Center" Opacity="0.65" Text="" TextWrapping="Wrap" />
+            </Grid>
+            <Grid Margin="0,2">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto" SharedSizeGroup="AllskyLabel" />
+                    <ColumnDefinition Width="300" />
+                    <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+                <TextBlock Margin="0,0,12,0" VerticalAlignment="Center" Text="Weather data is stale after (min)" />
+                <TextBox Grid.Column="1" Text="{Binding WeatherStaleAfterMin}" />
+                <TextBlock Grid.Column="2" Margin="10,0,0,0" VerticalAlignment="Center" Opacity="0.65" Text="Older data, or none, is unsafe" TextWrapping="Wrap" />
+            </Grid>
+            <Grid Margin="0,2">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto" SharedSizeGroup="AllskyLabel" />
+                    <ColumnDefinition Width="300" />
+                    <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+                <TextBlock Margin="0,0,12,0" VerticalAlignment="Center" Text="Request timeout (s)" />
+                <TextBox Grid.Column="1" Text="{Binding WeatherTimeoutS}" />
+                <TextBlock Grid.Column="2" Margin="10,0,0,0" VerticalAlignment="Center" Opacity="0.65" Text="" TextWrapping="Wrap" />
+            </Grid>
 
             <StackPanel Margin="0,14,0,0" Orientation="Horizontal">
                 <Button Width="90" Margin="0,0,8,0" Command="{Binding SaveCommand}" Content="Save" />
                 <Button Width="90" Margin="0,0,8,0" Command="{Binding RevertCommand}" Content="Revert" />
-                <Button Width="110" Command="{Binding TestImageCommand}" Content="Test image" />
+                <Button Width="110" Command="{Binding TestImageCommand}" Content="Test image" Margin="0,0,8,0" />
+                <Button Width="120" Command="{Binding TestWeatherCommand}" Content="Test weather" />
             </StackPanel>
             <TextBlock Margin="0,8,0,0" Text="{Binding Message}" TextWrapping="Wrap" />
             <TextBlock Margin="0,4,0,0" Opacity="0.6" Text="{Binding SettingsFilePath, StringFormat=Settings file: {0}}" />
