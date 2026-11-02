@@ -39,7 +39,7 @@ package "NINAAllskySafetyMonitor.Core.Settings" {
   }
   class WebSourceSettings {
     +BaseUrl
-    +FileName = "image.jpg"
+    +FileName = "allsky.jpg"
   }
   class DirectSourceSettings {
     +Host = "allsky.local"
@@ -49,10 +49,13 @@ package "NINAAllskySafetyMonitor.Core.Settings" {
     +RemotePath
     +KeyFile
     +UsePassword = false
+    +HostKeyAlgorithm = "ecdsa-sha2-nistp256"
     +HostKeyFingerprint
   }
   class RoiSettings {
     +RadiusDeg = 15
+    +MinInsideFraction = 0.5
+    .. REQ-23 REQ-58 ..
   }
   class CloudDetectionSettings {
     +LimitingMagnitude = 4.0
@@ -85,7 +88,7 @@ package "NINAAllskySafetyMonitor.Core.Settings" {
   }
   class CalibrationData {
     +Lens : LensCalibration?
-    +Mask : HorizonMaskDefinition
+    +WorkingArea : WorkingAreaDefinition
     +ClearSkyReference : ClearSkyReference?
     .. REQ-57 ..
   }

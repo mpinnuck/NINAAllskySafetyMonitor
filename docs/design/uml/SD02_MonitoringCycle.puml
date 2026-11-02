@@ -8,15 +8,15 @@ participant ":MonitoringCycle" as Cyc
 participant ":SiteLocationResolver" as Site
 participant ":OperatingWindow" as Win
 participant ":ImageAcquirer" as Acq
+participant ":WeatherPoller" as WP
 participant ":ImageFreshnessEvaluator" as Fresh
+participant ":WeatherEvaluator" as WE
 participant ":IMountStateSource" as Mount
 participant ":RoiCalculator" as Roi
-participant ":RoiMaskBuilder" as Mask
+participant ":RoiBuilder" as RB
 participant ":CloudDetector" as Cloud
-participant ":WeatherPoller" as WP
-participant ":WeatherEvaluator" as WE
-participant ":SafetyConditionsBuilder" as CB
 participant ":SafetyDecisionEngine" as Eng
+participant ":ManualOverride" as Ovr
 participant ":DecisionLogger" as Log
 
 loop every IntervalS [60 s]
@@ -24,30 +24,29 @@ loop every IntervalS [60 s]
   activate Guard
   Guard -> Cyc : RunOnceAsync(ct)  [timeout]
   activate Cyc
+  Cyc -> Cyc : s = settings()  (read every cycle)
   Cyc -> Site : Resolve()
   Site --> Cyc : site  (profile, else config — REQ-04)
-  Cyc -> Win : Evaluate(site, now)
-  Win --> Cyc : ActiveWindow = passed  (sun < −18°, REQ-08)
-  Cyc -> Acq : AcquireAsync(ct)
-  Acq --> Cyc : SkyImage  (see SD-06)
-  Cyc -> Fresh : Evaluate(image, lastSuccess, now)
-  Fresh --> Cyc : FreshImage check (REQ-15, 18)
+  Cyc -> Win : Evaluate(site, now, limit)
+  Win --> Cyc : ActiveWindow passed  (REQ-08, REQ-09)
+  par image and weather
+    Cyc -> Acq : AcquireAsync(ct)  (see SD-06)
+  else
+    Cyc -> WP : PollIfDueAsync(ct)  (every 2 min, REQ-32, REQ-33)
+  end
+  Cyc -> Fresh : Evaluate(latest, lastSuccess, lastError, now)
+  Fresh --> Cyc : FreshImage  (REQ-15, REQ-18)
+  Cyc -> WE : Evaluate(WP.Latest, WP.LastError, now)
+  WE --> Cyc : NoRain, WindBelowLimit, WeatherCurrent  (REQ-34, REQ-35, REQ-36)
   Cyc -> Mount : GetCurrent()
   Mount --> Cyc : MountState
   Cyc -> Roi : CalculateCentre(mount, site, now)
-  Roi --> Cyc : centre from RA/Dec (REQ-06, REQ-24)
-  Cyc -> Mask : Build(centre, 15°, ...)
-  Mask --> Cyc : RegionOfInterest (REQ-23, REQ-25)
+  Roi --> Cyc : centre from RA/Dec, or null  (REQ-06, REQ-24, REQ-26)
+  Cyc -> RB : Build(centre, 15°, 0.5, w, h)
+  RB --> Cyc : RegionOfInterest: circle within the working area,\nor whole working area  (REQ-23, REQ-25, REQ-58)
   Cyc -> Cloud : Assess(frame, roi, site, now, ref)
-  Cloud --> Cyc : CloudAssessment (see SD-03)
-  Cyc -> WP : PollIfDueAsync(now, ct)  (every 2 min, REQ-32, REQ-33)
-  Cyc -> WE : Evaluate(WP.Latest, now)
-  WE --> Cyc : NoRain, WindBelowLimit, WeatherCurrent\n(REQ-34, REQ-35, REQ-36)
-  Cyc -> CB : Build(window, fresh, cloud, weather)
-  CB --> Cyc : SafetyConditions (REQ-37)
-  Cyc -> Eng : Decide(conditions, mount, now)
-  Eng --> Cyc : SafetyStatus
-  Cyc -> Log : LogDecision(snapshot, mount)  (REQ-44)
+  Cloud --> Cyc : NoCloud  (see SD-03)
+  Cyc -> Cyc : provisional reason = every failed condition
   opt tuning mode on
     Cyc -> Cyc : recorder.Record(snapshot)  (REQ-41)
   end
@@ -55,6 +54,11 @@ loop every IntervalS [60 s]
   deactivate Cyc
   Guard --> Svc : MonitorSnapshot
   deactivate Guard
-  Svc -> Svc : CurrentStatus = snapshot.Status\nraise SnapshotAvailable
+  Svc -> Eng : Decide(snapshot)  (see SD-04)
+  Eng --> Svc : decided status
+  Svc -> Ovr : Apply(decided)  (REQ-40)
+  Ovr --> Svc : reported status
+  Svc -> Svc : log state change; raise SnapshotAvailable
+  Svc -> Log : Write(snapshot)  [subscriber]  (REQ-44, REQ-54)
 end
 @enduml

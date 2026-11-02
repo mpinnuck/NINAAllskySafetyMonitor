@@ -9,12 +9,15 @@ package "NINA (external)" <<external>> {
 package "NINAAllskySafetyMonitor.Plugin.ViewModels" {
   class StatusViewModel <<Export(IDockableVM)>> {
     +Title = "Allsky Safety"
-    +Image : BitmapSource
+    +AllskyImage : BitmapSource
     +IsConnected, IsSafe : bool
     +StateText, ReasonText, LastUpdateText
+    +ImageInfoText, WeatherInfoText
+    +CountdownText
+    +OverrideModes, OverrideMode
+    +OverrideActive, OverrideBanner
     +Metrics : MetricsViewModel
     +History : HistoryChartViewModel
-    +OverrideMode : OverrideMode
     +UntunedVisible : bool
     .. REQ-40 REQ-43 REQ-45 ..
   }
@@ -32,14 +35,16 @@ package "NINAAllskySafetyMonitor.Plugin.ViewModels" {
     +bound property per configurable value
     +SettingsFilePath : string
     +Message : string
+    +SftpPassword, PasswordStatus
     +SaveCommand, RevertCommand
     +TestImageCommand, TestWeatherCommand
-    .. REQ-46 REQ-55 ..
+    .. REQ-46 REQ-53 REQ-55 ..
   }
   class CalibrationViewModel {
     +CalibrateCommand
     +ShowOverlay : bool
-    +MaskOutline : ObservableCollection<PixelPoint>
+    +WorkingAreaCentreAlt, WorkingAreaCentreAz, WorkingAreaRadius
+    +Outline : ObservableCollection<PixelPoint>
     +AcceptCommand
     .. REQ-19 REQ-21 REQ-22 REQ-47 ..
   }
@@ -54,6 +59,9 @@ package "NINAAllskySafetyMonitor.Plugin.ViewModels" {
 }
 
 package "NINAAllskySafetyMonitor.Plugin.Views" {
+  class PasswordBoxAssistant <<static>> {
+    +BoundPassword : attached string
+  }
   class StatusTemplates <<XAML ResourceDictionary>> {
     "...StatusViewModel_Dockable"
   }
@@ -79,6 +87,7 @@ AllskySafetyPlugin --> SettingsViewModel
 SettingsViewModel --> PluginSettingsStore
 SettingsViewModel ..> SettingsValidator
 SettingsViewModel ..> DelegateCommand
+OptionsTemplates ..> PasswordBoxAssistant : SFTP password
 StatusViewModel ..> MonitorHost : SnapshotAvailable,\nRunningChanged
 
 note bottom of StatusTemplates

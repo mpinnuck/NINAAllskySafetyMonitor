@@ -64,6 +64,12 @@ package "NINAAllskySafetyMonitor.Tests" {
     class FakeSiteLocationSource
     class ListLogSink
     class DelegateCycle
+    class FakeImageSource
+    class FakeRemoteFileConnector
+    class FakeRemoteFileSession
+    class FakeCredentialStore
+    class FakeHttpHandler
+    class FakeWeatherProvider
   }
   class UnitTestFixtures <<namespace>> {
     one test class per Core class, in a folder

@@ -57,21 +57,20 @@ package "NINAAllskySafetyMonitor.Core.Tuning" {
 
 package "NINAAllskySafetyMonitor.Core.Logging" {
   class DecisionLogger {
-    -sink : ILogSink
+    -settings : Func<LoggingSettings>
     -redactor : SecretRedactor
-    +LogDecision(s : MonitorSnapshot, m : MountState?)
-    +LogError(e : Exception)
-    .. REQ-44 REQ-06 ..
-  }
-  class RollingFileLogSink {
-    -folder : string
-    -retentionDays : int
-    +Write(level, message)
-    .. REQ-44 ..
+    +Write(s : MonitorSnapshot)
+    +{static} FileName(localDate) : string
+    .. REQ-06 REQ-44 REQ-54 ..
   }
   class SecretRedactor {
-    -secrets : IReadOnlyList<string>
+    -secrets : Func<IEnumerable<string?>>
     +Redact(text : string) : string
+    .. REQ-54 ..
+  }
+  class RedactingLogSink {
+    -inner : ILogSink
+    +Write(level, message)
     .. REQ-54 ..
   }
 }
@@ -86,13 +85,19 @@ package "NINAAllskySafetyMonitor.Core.Traceability" {
 interface IImageSource
 interface ILogSink
 IImageSource <|.. ReplayImageSource
-ILogSink <|.. RollingFileLogSink
+ILogSink <|.. RedactingLogSink
 LensCalibrationSession --> StarIdentifier
 LensCalibrationSession --> LensModelFitter
 LensModelFitter ..> LensFitResult
 TuningRecorder --> MetricsCsvWriter
-DecisionLogger --> ILogSink
+RedactingLogSink --> SecretRedactor
 DecisionLogger --> SecretRedactor
+note bottom of DecisionLogger
+  decisions-yyyy-MM-dd.csv per local day (Excel): time, event
+  (Start / State change), state, safe, override, countdown, reason,
+  image and weather metrics; mount Alt/Az for diagnostics (REQ-06).
+  Files older than RetentionDays [7] are deleted (and the deletion logged).
+end note
 
 note bottom of RequirementAttribute
   Applied to every class (and to methods where a class

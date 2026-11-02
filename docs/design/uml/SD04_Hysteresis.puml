@@ -1,43 +1,46 @@
 @startuml SD04_Hysteresis
 !include _style.iuml
-title SD-04  Cloud arrives and clears — safety decision (UC-10, UC-03) — REQ-03, REQ-37 … REQ-39
+title SD-04  Conditions fail and clear — safety decision (UC-10, UC-03) — REQ-03, REQ-37 … REQ-39
 
-participant ":MonitoringCycle" as Cyc
+participant ":MonitorService" as Svc
 participant ":SafetyDecisionEngine" as Eng
 participant ":SafetyHysteresis" as Hys
-participant ":MonitorService" as Svc
+participant ":ManualOverride" as Ovr
 participant ":AllskySafetyMonitorDevice" as Dev
 participant "NINA" as NINA
 
-== Cloud enters ROI ==
-Cyc -> Eng : Decide(conditions[NoCloud = failed])
-Eng -> Hys : Apply(conditions, now)
-Hys -> Hys : clearSinceUtc = null
-Hys --> Eng : safe = false
-Eng --> Cyc : Unsafe, "cloud in ROI: 41% of expected stars"
-Cyc --> Svc : snapshot
+== A condition fails (cloud, rain, gust, stale data, error) ==
+Svc -> Eng : Decide(snapshot[some condition failed])
+Eng -> Hys : Reset()
+Eng --> Svc : Unsafe, reason = failed conditions
+Svc -> Ovr : Apply(status)
 Svc -> Dev : SnapshotAvailable
 Dev -> NINA : PropertyChanged(IsSafe = false)
 note right : Immediate (REQ-38)
 
-== Sky clears ==
+== Everything clear ==
 loop each cycle while all conditions pass
-  Cyc -> Eng : Decide(conditions[all passed])
-  Eng -> Hys : Apply(conditions, now)
+  Svc -> Eng : Decide(snapshot[all passed])
+  Eng -> Hys : Apply(true, now, SafeAfterMin)
   alt first clear cycle
     Hys -> Hys : clearSinceUtc = now
   end
-  Hys --> Eng : safe = false, secondsToSafe = 240 − elapsed
-  Eng --> Cyc : Unsafe, "clear — safe in 2:10"
+  Hys --> Eng : safe = false, secondsToSafe
+  Eng --> Svc : Unsafe, "All conditions clear: safe in 2:10"
 end
+note over Svc : The panel counts down between cycles\nfrom SecondsToSafe and TimestampUtc.
 
-== 4 minutes clear ==
-Cyc -> Eng : Decide(conditions[all passed])
-Eng -> Hys : Apply(conditions, now)
+== SafeAfterMin [4] reached ==
+Svc -> Eng : Decide(snapshot[all passed])
+Eng -> Hys : Apply(true, now, SafeAfterMin)
 Hys --> Eng : safe = true
-Eng --> Cyc : Safe  (Untuned flag set while thresholds untuned, REQ-43)
-Cyc --> Svc : snapshot
+Eng --> Svc : Safe, "All conditions clear"  (Untuned flag while untuned, REQ-43)
 Svc -> Dev : SnapshotAvailable
 Dev -> NINA : PropertyChanged(IsSafe = true)
-note right : Only after SafeAfterMin [4] (REQ-39)
+note right : Only after SafeAfterMin (REQ-39)
+
+== Idle or monitor error ==
+Svc -> Eng : Decide(Idle snapshot, or error snapshot with no conditions)
+Eng -> Hys : Reset()
+Eng --> Svc : Idle / Unsafe  (countdown starts again afterwards)
 @enduml

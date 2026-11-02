@@ -109,6 +109,7 @@ public sealed class DecisionLogger
                 && day < oldestKept)
             {
                 File.Delete(file);
+                log.Write(LogLevel.Info, $"Deleted old decision log {Path.GetFileName(file)} (older than {s.RetentionDays} days)");
             }
         }
     }

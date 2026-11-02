@@ -1,11 +1,11 @@
-# Design v1.1 (2026-11-01)
+# Design v1.2 (2026-11-02)
 
-Traced to `../requirements/requirements.md` v4 (REQ-01 … REQ-57). Requirements v5 (working area, REQ-58) will be reflected in the design when slice 5 is built. Version 1.1 matches the slice 1 code; §1.5 of the PDF lists the changes from v1.0.
+Traced to `../requirements/requirements.md` v5 (REQ-01 … REQ-58). Version 1.2 matches slices 1–4 as built and designs the working area for slice 5; §1.5 of the PDF lists the changes from v1.1.
 
 | File | Contents |
 |---|---|
 | `uml/*.puml` | PlantUML sources in Rational Rose style (`uml/_style.iuml`). These are the editable masters. |
-| `review/NINAAllskySafetyMonitor-Design-v1.1.pdf` | Software Design Document for review, generated from the sources. |
+| `review/NINAAllskySafetyMonitor-Design-v1.2.pdf` | Software Design Document for review, generated from the sources. Earlier versions are in `review/superseded/`. |
 | `review/traceability.xlsx` | REQ → use case → design class → scenario, generated from the sources. Do not edit by hand. |
 
 Diagram index:

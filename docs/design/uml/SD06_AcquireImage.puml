@@ -1,8 +1,9 @@
 @startuml SD06_AcquireImage
 !include _style.iuml
-title SD-06  Acquire Allsky image — direct (SFTP) source (UC-06) — REQ-11 … REQ-18, REQ-52, REQ-53
+title SD-06  Acquire Allsky image — direct (SFTP) source (UC-06) — REQ-11 … REQ-18, REQ-51 … REQ-53
 
 participant ":ImageAcquirer" as Acq
+participant ":ImageSourceFactory" as Fac
 participant ":SftpImageSource" as Src
 participant ":SftpConnector" as Con
 participant ":HostKeyVerifier" as HK
@@ -10,51 +11,56 @@ participant ":ICredentialStore" as Cred
 participant "Allsky Pi\n(allsky.local)" as Pi
 participant ":JpegIntegrityChecker" as Chk
 
-Acq -> Src : FetchAsync(ct)
+Acq -> Fac : For(settings.Kind)  [Direct]
+Fac --> Acq : SftpImageSource
+Acq -> Src : FetchAsync(force, ct)  [whole fetch limited to TimeoutS, REQ-51]
 activate Src
-Src -> Con : ConnectAsync(ct)
+Src -> Con : Connect(direct, TimeoutS / 2)
 activate Con
 opt password authentication
-  Con -> Cred : GetSecret("sftp-password")
+  Con -> Cred : GetSecret("sftp-password")  (REQ-53)
 end
-Con -> Pi : connect allsky.local:22  [timeout]
-alt name resolution fails
+Con -> Con : request host-key type ecdsa-sha2-nistp256 only
+Con -> Pi : connect allsky.local:22
+alt host can't be reached
   Con -> Pi : connect 192.168.1.110:22 (REQ-13)
 end
 Pi --> Con : host key
-Con -> HK : Verify(hostKey)
+Con -> HK : Verify(SHA256 fingerprint)
 alt fingerprint mismatch
   HK --> Con : false
-  Con --> Src : error "host key mismatch" (REQ-52)
-  Src --> Acq : Failed
+  Con --> Src : HostKeyMismatchException
+  Src --> Acq : Failed, Untrusted
+  Acq -> Acq : discard earlier images too (REQ-52)
 else match
   HK --> Con : true
-  Con -> Pi : authenticate (key file / password)
-  Con --> Src : SftpClient
+  Con -> Pi : authenticate (key file / password, REQ-12)
+  Con --> Src : session
 end
 deactivate Con
 Src -> Pi : stat /home/pi/allsky/tmp/allsky.jpg
 Pi --> Src : mtime
-alt mtime unchanged since last fetch
+alt mtime unchanged since last fetch and not forced
   Src --> Acq : Unchanged (REQ-16)
+  Acq -> Acq : LastSuccessUtc = now
 else new image
   Src -> Pi : download
   Pi --> Src : bytes
-  Src --> Acq : NewImage(SkyImage, captureTime = mtime)
+  Src --> Acq : NewImage(SkyImage, captureTime = mtime, REQ-15)
 end
 deactivate Src
 
 opt NewImage
-  loop up to 3 attempts
+  loop up to IncompleteRetries [3]
     Acq -> Chk : IsComplete(bytes)
     alt missing FFD9 end marker
       Chk --> Acq : false
-      Acq -> Acq : wait 5 s, fetch again (REQ-17)
+      Acq -> Acq : wait IncompleteRetryS [5 s];\nFetchAsync(force = true) (REQ-17)
     else complete
       Chk --> Acq : true
       Acq -> Acq : LatestImage = image\nLastSuccessUtc = now
     end
   end
 end
-note over Acq : ImageFreshnessEvaluator then fails FreshImage if the image\nis > 10 min old or nothing fetched for 10 min (REQ-15, REQ-18).
+note over Acq : ImageFreshnessEvaluator fails FreshImage when there is no image, the image is\nmore than StaleAfterMin old, or nothing has been fetched for FetchFailUnsafeMin (REQ-15, REQ-18).\nWeb source: base URL + allsky.jpg, Last-Modified as capture time, If-Modified-Since.
 @enduml

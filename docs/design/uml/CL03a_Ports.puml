@@ -31,6 +31,10 @@ package "NINAAllskySafetyMonitor.Core.Abstractions" {
     +Write(level : LogLevel, message : string)
   }
   class SystemClock implements IClock
+  class CredentialKeys <<static>> {
+    +SftpPassword = "sftp-password"
+    .. REQ-53 ..
+  }
 }
 
 

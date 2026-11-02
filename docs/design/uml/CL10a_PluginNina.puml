@@ -43,6 +43,7 @@ package "NINAAllskySafetyMonitor.Plugin.Nina" {
     +IsRunning : bool
     +CurrentStatus : SafetyStatus
     +LatestSnapshot : MonitorSnapshot?
+    +Override : ManualOverride
     +StartAsync(profile : IProfileService) : Task
     +StopAsync() : Task
     +event SnapshotAvailable
@@ -78,6 +79,10 @@ package "NINAAllskySafetyMonitor.Plugin.Nina" {
     +SetSecret(key, value)
     .. REQ-53 ..
   }
+  class CredentialNativeMethods <<static>> {
+    CredReadW, CredWriteW,
+    CredDeleteW, CredFree (advapi32)
+  }
 }
 
 package "NINAAllskySafetyMonitor.Astrometry" {
@@ -100,6 +105,8 @@ BaseINPC <|-- AllskySafetyMonitorDevice
 ITelescopeConsumer <|.. NinaMountStateSource
 AllskySafetyMonitorProvider ..> AllskySafetyMonitorDevice : creates
 AllskySafetyMonitorDevice --> MonitorHost
+WindowsCredentialStore ..> CredentialNativeMethods
+MonitorHost ..> WindowsCredentialStore : ports.Credentials
 MonitorHost ..> "MonitorServiceBuilder" : builds with adapters
 MonitorHost --> "MonitorService" : starts / stops
 MonitorHost ..> PluginSettingsStore : () => Current
@@ -114,15 +121,19 @@ note bottom of MonitorHost
   (SystemClock, Nina* adapters, NovasAstroCalculator) and
   MonitorService; Disconnect or NINA closing → StopAsync.
   When stopped, CurrentStatus is unsafe, "Not connected".
+  Override lives here, so it survives reconnects but
+  not a NINA restart (REQ-40).
 end note
 note bottom of AllskySafetyMonitorDevice
   IsSafe = Connected && host.CurrentStatus.IsSafe.
-  Raises PropertyChanged(IsSafe) on each snapshot.
+  Raises PropertyChanged(IsSafe) on each snapshot
+  and on every override change.
   Exceptions are logged and never reach NINA.
 end note
 note bottom of PluginSettingsStore
   %LOCALAPPDATA%\NINAAllskySafetyMonitor\settings.json
   Outside the NINA plugin folder, so reinstalling
-  the plugin keeps the settings.
+  the plugin keeps the settings. Decision logs go
+  to ...\NINAAllskySafetyMonitor\Logs.
 end note
 @enduml

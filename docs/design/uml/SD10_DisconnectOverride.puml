@@ -13,9 +13,15 @@ participant ":NinaMountStateSource" as Mount
 
 == Manual override ==
 Imager -> SVM : OverrideMode = ForceUnsafe
-SVM -> Ovr : Mode = ForceUnsafe
-SVM -> SVM : show override banner
-note right of Ovr : Logged; applied to every decision;\nnot persisted — Auto after NINA restart (REQ-40)
+SVM -> Host : Override.Mode = ForceUnsafe
+Host -> Ovr : Mode = ForceUnsafe
+Ovr -> Ovr : log "Manual override set to Force Unsafe"
+Ovr -> SVM : Changed → show banner
+Ovr -> Dev : Changed → PropertyChanged(IsSafe)
+NINA -> Dev : IsSafe
+Dev -> Svc : CurrentStatus  (override applied at once)
+Dev --> NINA : false
+note right of Ovr : Held by MonitorHost: kept across reconnects,\nnever saved, so Auto after NINA restart (REQ-40)
 
 == Disconnect (or NINA closing) ==
 Imager -> NINA : Disconnect safety monitor

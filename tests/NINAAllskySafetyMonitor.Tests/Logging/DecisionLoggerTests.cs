@@ -21,8 +21,10 @@ public sealed class DecisionLoggerTests : IDisposable
         if (Directory.Exists(folder)) Directory.Delete(folder, recursive: true);
     }
 
+    private readonly ListLogSink sink = new();
+
     private DecisionLogger Logger(params string[] secrets) =>
-        new(() => settings, clock, new SecretRedactor(() => secrets), new ListLogSink());
+        new(() => settings, clock, new SecretRedactor(() => secrets), sink);
 
     private MonitorSnapshot Snapshot(SafetyState state, string reason) =>
         new(new SkyImage(new byte[] { 1 }, clock.UtcNow.AddMinutes(-1), ImageSourceKind.Direct), null, null,
@@ -82,6 +84,7 @@ public sealed class DecisionLoggerTests : IDisposable
 
         Assert.False(File.Exists(old));
         Assert.True(File.Exists(kept));
+        Assert.Contains(sink.Entries, e => e.Message.StartsWith("Deleted old decision log decisions-", StringComparison.Ordinal));
     }
 
     [Fact]

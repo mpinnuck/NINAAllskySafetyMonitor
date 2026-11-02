@@ -3,14 +3,10 @@
 title CL-08  Core.Decision and Core.Monitoring
 
 package "NINAAllskySafetyMonitor.Core.Decision" {
-  class SafetyConditionsBuilder {
-    +Build(window, freshness, cloud, weatherChecks) : SafetyConditions
-    .. REQ-37 ..
-  }
   class SafetyHysteresis {
-    -safeAfter : TimeSpan
     -clearSinceUtc : DateTime?
-    +Apply(c : SafetyConditions, nowUtc) : (bool safe, int? secondsToSafe)
+    +Apply(allPassed, nowUtc, safeAfter) : (bool Safe, int? SecondsToSafe)
+    +Reset()
     .. REQ-38 REQ-39 ..
   }
   class SlewHoldPolicy {
@@ -20,16 +16,16 @@ package "NINAAllskySafetyMonitor.Core.Decision" {
   }
   class ManualOverride {
     +Mode : OverrideMode
+    +event Changed
     +Apply(s : SafetyStatus) : SafetyStatus
     .. REQ-40 ..
   }
   class SafetyDecisionEngine {
     -hysteresis : SafetyHysteresis
-    -slewHold : SlewHoldPolicy
-    -override : ManualOverride
-    -tuning : TuningStateEvaluator
-    +Decide(c : SafetyConditions, m : MountState?, nowUtc) : SafetyStatus
-    .. REQ-03 REQ-37 REQ-43 ..
+    -clock : IClock
+    -safeAfter : Func<TimeSpan>
+    +Decide(snapshot : MonitorSnapshot) : SafetyStatus
+    .. REQ-03 REQ-37 REQ-38 REQ-39 ..
   }
 }
 
@@ -40,15 +36,16 @@ package "NINAAllskySafetyMonitor.Core.Monitoring" {
   class MonitorService {
     -cycle : IMonitoringCycle
     -guard : FailSafeGuard
+    -engine : SafetyDecisionEngine?
+    -manualOverride : ManualOverride?
     -interval : Func<TimeSpan>
-    -loop : Task
-    -cts : CancellationTokenSource
     +CurrentStatus : SafetyStatus
     +IsRunning : bool
     +Start()
     +StopAsync() : Task
-    +event SnapshotAvailable : EventHandler<MonitorSnapshot>
-    .. REQ-02 REQ-49 ..
+    +event SnapshotAvailable
+    ~{static} ReasonKind(reason) : string
+    .. REQ-02 REQ-38 REQ-40 REQ-49 ..
   }
   class MonitoringCycle {
     -settings : Func<MonitorSettings>
@@ -56,23 +53,17 @@ package "NINAAllskySafetyMonitor.Core.Monitoring" {
     -window : OperatingWindow
     -acquirer : ImageAcquirer
     -freshness : ImageFreshnessEvaluator
-    -decoder : JpegDecoder
+    -weather : WeatherPoller
+    -weatherEvaluator : WeatherEvaluator
     -mount : IMountStateSource
     -roiCalculator : RoiCalculator
-    -roiMaskBuilder : RoiMaskBuilder
+    -roiBuilder : RoiBuilder
     -cloudDetector : CloudDetector
-    -weatherPoller : WeatherPoller
-    -weatherEvaluator : WeatherEvaluator
-    -conditions : SafetyConditionsBuilder
-    -engine : SafetyDecisionEngine
-    -decisionLogger : DecisionLogger
     -recorder : TuningRecorder
     +RunOnceAsync(ct) : Task<MonitorSnapshot>
-    .. REQ-10 REQ-37 ..
+    .. REQ-10 REQ-14 REQ-37 ..
   }
   class FailSafeGuard {
-    -clock : IClock
-    -log : ILogSink
     -timeout : Func<TimeSpan>
     +RunAsync(cycle : IMonitoringCycle, ct) : Task<MonitorSnapshot>
     .. REQ-49 REQ-50 REQ-51 ..
@@ -84,43 +75,45 @@ package "NINAAllskySafetyMonitor.Core.Monitoring" {
     .. REQ-45 ..
   }
   class MonitorServiceBuilder {
-    +Build(settings : Func<MonitorSettings>, ports : MonitorPorts) : MonitorService
+    +Build(settings, ports, manualOverride?) : MonitorService
+    +Build(settings, ports, sources, weatherProvider, manualOverride?) : MonitorService
   }
   class MonitorPorts <<record>> {
     +Clock : IClock
     +Site : ISiteLocationSource
     +Astro : IAstroCalculator
     +Log : ILogSink
-    +Mount : IMountStateSource
     +Credentials : ICredentialStore
+    +Mount : IMountStateSource
   }
 }
 
 SafetyDecisionEngine --> SafetyHysteresis
 SafetyDecisionEngine --> SlewHoldPolicy
-SafetyDecisionEngine --> ManualOverride
 MonitorService --> IMonitoringCycle
-IMonitoringCycle <|.. MonitoringCycle
 MonitorService --> FailSafeGuard
-MonitoringCycle --> SafetyConditionsBuilder
-MonitoringCycle --> SafetyDecisionEngine
+MonitorService --> SafetyDecisionEngine
+MonitorService --> ManualOverride
+IMonitoringCycle <|.. MonitoringCycle
 MonitorServiceBuilder ..> MonitorService : creates
 MonitorServiceBuilder ..> MonitorPorts
-note bottom of MonitoringCycle
-  Reads the settings at the start of every cycle,
-  so saved changes apply from the next cycle
-  without reconnecting.
-end note
+MonitorServiceBuilder ..> "DecisionLogger" : subscribes to SnapshotAvailable
 
-note bottom of FailSafeGuard
-  Wraps every cycle: timeout + catch-all.
-  Any exception or timeout yields an
-  Unsafe snapshot with the error as reason.
-  Never throws to the caller (REQ-49, REQ-50).
+note bottom of MonitoringCycle
+  Reads settings at the start of every cycle. Outside the
+  window: Idle, nothing fetched. Inside: image and weather
+  fetched in parallel; conditions gathered; the provisional
+  reason lists every failed condition.
 end note
-note right of MonitorService
-  Loop runs on a background task
-  (never the NINA UI thread).
-  StopAsync cancels and awaits the loop.
+note bottom of MonitorService
+  Each snapshot: FailSafeGuard → engine.Decide → override.Apply
+  → publish. CurrentStatus applies the override live, so
+  a change takes effect at once. State changes are logged.
+end note
+note right of FailSafeGuard
+  Timeout + catch-all: any exception or
+  timeout gives an Unsafe snapshot with no
+  conditions, which also restarts the
+  safe-after period (REQ-49, REQ-50).
 end note
 @enduml

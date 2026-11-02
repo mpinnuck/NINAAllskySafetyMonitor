@@ -1,12 +1,14 @@
 @startuml SD05_SlewAndFallback
 !include _style.iuml
-title SD-05  Mount slewing, parked or disconnected (UC-07) — REQ-05, REQ-07, REQ-26, REQ-27
+title SD-05  Mount slewing, parked or disconnected; ROI outside the working area (UC-07) — REQ-05, REQ-07, REQ-25 … REQ-27, REQ-58
 
 participant "ITelescopeMediator" as TM
 participant ":NinaMountStateSource" as Mount
 participant ":MonitoringCycle" as Cyc
 participant ":RoiCalculator" as Roi
 participant ":MountStateInterpreter" as Int
+participant ":RoiBuilder" as RB
+participant ":WorkingArea" as WA
 participant ":SafetyDecisionEngine" as Eng
 participant ":SlewHoldPolicy" as Hold
 
@@ -16,23 +18,29 @@ Mount -> Mount : cache → MountState\n(NaN → null position, REQ-07)
 == Slewing to a new target ==
 Cyc -> Mount : GetCurrent()
 Mount --> Cyc : MountState(Slewing = true)
-Cyc -> Eng : Decide(conditions, mount, now)
 Eng -> Hold : ShouldHold(mount)
 Hold --> Eng : true
 Eng --> Cyc : previous SafetyStatus (held, REQ-27)
 note right of Cyc : Cloud analysis is skipped while slewing;\nthe ROI moves on the first cycle after.
 
-== Slew finished ==
-Cyc -> Mount : GetCurrent()
-Mount --> Cyc : MountState(Slewing = false, Tracking = true)
+== Tracking a target ==
 Cyc -> Roi : CalculateCentre(mount, site, now)
 Roi -> Int : IsUsableForRoi(mount)
 Int --> Roi : true
-Roi --> Cyc : centre at new RA/Dec
+Roi --> Cyc : centre at the target's RA/Dec
+Cyc -> RB : Build(centre, 15°, minInside 0.5, w, h)
+RB -> WA : Contains(pixel) for each ROI pixel
+alt at least 50% of the circle inside the working area
+  RB --> Cyc : ROI = circle within the working area  (REQ-25)
+else less than 50% inside (low target, behind trees)
+  RB --> Cyc : ROI = whole working area,\nNote "ROI 30% inside the working area: judging the whole working area"  (REQ-58)
+end
 
 == Parked / not tracking / disconnected ==
 Cyc -> Roi : CalculateCentre(mount, site, now)
 Roi -> Int : IsUsableForRoi(mount)
 Int --> Roi : false
-Roi --> Cyc : zenith centre, isFallback = true (REQ-26)
+Roi --> Cyc : null
+Cyc -> RB : Build(null, …)
+RB --> Cyc : ROI = whole working area,\nNote "Mount position unavailable: judging the whole working area"  (REQ-26)
 @enduml

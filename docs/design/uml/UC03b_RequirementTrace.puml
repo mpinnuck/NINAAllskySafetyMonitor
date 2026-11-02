@@ -27,7 +27,7 @@ usecase "UC-06 Acquire image" as UC06
 usecase "UC-10 Decide safety" as UC10
 usecase "UC-11 Manual override" as UC11
 usecase "UC-12 Calibrate lens" as UC12
-usecase "UC-13 Horizon mask" as UC13
+usecase "UC-13 Working area" as UC13
 usecase "UC-14 View status" as UC14
 usecase "UC-15 Edit settings" as UC15
 usecase "UC-16 Tuning data" as UC16

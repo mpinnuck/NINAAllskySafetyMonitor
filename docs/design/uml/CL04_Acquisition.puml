@@ -5,12 +5,16 @@ title CL-04  Core.Acquisition — image sources
 package "NINAAllskySafetyMonitor.Core.Acquisition" {
   interface IImageSource {
     +Kind : ImageSourceKind
-    +FetchAsync(ct : CancellationToken) : Task<FetchResult>
+    +FetchAsync(force : bool, ct) : Task<FetchResult>
+    +Reset()
+    .. REQ-11 ..
   }
   class FetchResult <<record>> {
     +Outcome : FetchOutcome
     +Image : SkyImage?
     +Error : string?
+    +Untrusted : bool
+    .. REQ-16 REQ-52 ..
   }
   enum FetchOutcome {
     NewImage
@@ -19,54 +23,70 @@ package "NINAAllskySafetyMonitor.Core.Acquisition" {
   }
   class WebImageSource {
     -http : HttpClient
-    -url : Uri
-    +FetchAsync(ct) : Task<FetchResult>
-    .. REQ-11 REQ-15 ..
+    -lastModifiedUtc : DateTime?
+    +{static} ImageUrl(web) : Uri
+    +FetchAsync(force, ct)
+    .. REQ-11 REQ-15 REQ-51 ..
   }
   class SftpImageSource {
-    -connector : SftpConnector
-    -remotePath : string
+    -connector : IRemoteFileConnector
     -lastModifiedUtc : DateTime?
-    +FetchAsync(ct) : Task<FetchResult>
-    .. REQ-11 REQ-15 REQ-16 ..
+    +FetchAsync(force, ct)
+    .. REQ-11 REQ-15 REQ-16 REQ-51 ..
+  }
+  interface IRemoteFileConnector {
+    +Connect(settings, connectTimeout) : IRemoteFileSession
+  }
+  interface IRemoteFileSession {
+    +GetLastWriteTimeUtc(path) : DateTime
+    +ReadAllBytes(path) : byte[]
   }
   class SftpConnector {
-    -settings : DirectSourceSettings
     -credentials : ICredentialStore
-    -verifier : HostKeyVerifier
-    +ConnectAsync(ct) : Task<SftpClient>
-    .. REQ-12 REQ-13 ..
+    -log : ILogSink
+    +Connect(settings, connectTimeout)
+    -RestrictHostKeyAlgorithm(info, type)
+    .. REQ-12 REQ-13 REQ-51 REQ-52 REQ-53 ..
+  }
+  class SftpFileSession {
+    -client : SftpClient
+    .. REQ-11 ..
   }
   class HostKeyVerifier {
-    -pinnedFingerprint : string
-    +Verify(e : HostKeyEventArgs) : bool
+    -pinned : string
+    +Verify(receivedSha256) : bool
+    .. REQ-52 ..
+  }
+  class HostKeyMismatchException {
+    +Host : string
+    +Received : string
     .. REQ-52 ..
   }
   class ImageSourceFactory {
-    +Create(s : ImageSourceSettings) : IImageSource
+    +For(kind) : IImageSource
     .. REQ-11 ..
   }
   class JpegIntegrityChecker {
-    +IsComplete(bytes : byte[]) : bool
+    +IsComplete(bytes) : bool
     .. REQ-17 ..
   }
   class ImageAcquirer {
-    -source : IImageSource
-    -checker : JpegIntegrityChecker
-    -clock : IClock
-    +LastSuccessUtc : DateTime?
     +LatestImage : SkyImage?
-    +AcquireAsync(ct) : Task<SkyImage?>
-    .. REQ-14 REQ-17 REQ-51 ..
+    +LastSuccessUtc : DateTime?
+    +LastError : string?
+    +AcquireAsync(ct) : Task
+    .. REQ-14 REQ-17 REQ-18 ..
   }
   class ImageFreshnessEvaluator {
-    -staleAfter : TimeSpan
-    -failAfter : TimeSpan
-    +Evaluate(latest : SkyImage?, lastSuccessUtc, nowUtc) : ConditionCheck
-    .. REQ-15 REQ-18 ..
+    +Evaluate(latest, lastSuccessUtc, lastError, nowUtc, settings) : ConditionCheck
+    .. REQ-15 REQ-18 REQ-50 ..
+  }
+  class ImageFetchTester {
+    +TestAsync(settings, ct) : Task<string>
+    .. REQ-46 ..
   }
   class JpegDecoder {
-    +Decode(bytes : byte[]) : GrayFrame
+    +Decode(bytes) : GrayFrame
   }
 }
 
@@ -74,15 +94,27 @@ IImageSource <|.. WebImageSource
 IImageSource <|.. SftpImageSource
 IImageSource ..> FetchResult
 FetchResult --> FetchOutcome
-SftpImageSource --> SftpConnector
-SftpConnector --> HostKeyVerifier
-ImageSourceFactory ..> IImageSource : creates
-ImageAcquirer --> IImageSource
+SftpImageSource --> IRemoteFileConnector
+IRemoteFileConnector <|.. SftpConnector
+IRemoteFileSession <|.. SftpFileSession
+SftpConnector ..> SftpFileSession : creates
+SftpConnector ..> HostKeyVerifier
+SftpConnector ..> HostKeyMismatchException : throws
+ImageSourceFactory o-- IImageSource
+ImageAcquirer --> ImageSourceFactory
 ImageAcquirer --> JpegIntegrityChecker
+ImageFetchTester ..> ImageSourceFactory
 
 note bottom of SftpConnector
-  Tries Host, then FallbackIp.
-  Key file or password from ICredentialStore.
-  Connect/read timeouts from settings (REQ-51).
+  Tries Host, then FallbackIp if the host can't be reached.
+  Asks the Pi for only HostKeyAlgorithm, so the pinned
+  fingerprint is compared with the right key type.
+  Key file, or password from ICredentialStore.
+  SSH.NET 2026.0.0.
+end note
+note bottom of ImageAcquirer
+  Incomplete JPEG: wait IncompleteRetryS, fetch again
+  (forced), up to IncompleteRetries. Untrusted result
+  (host key mismatch) discards earlier images too.
 end note
 @enduml

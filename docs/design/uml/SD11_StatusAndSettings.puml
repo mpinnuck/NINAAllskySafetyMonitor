@@ -21,7 +21,7 @@ SVM -> SVM : marshal to UI dispatcher
 SVM -> Comp : Compose(snapshot, projection)
 Comp --> SVM : image + ROI circle + mask + expected/detected stars
 SVM -> Hist : Add(snapshot)
-SVM -> SVM : update state, reason, metrics, countdown,\nhistory chart, UNTUNED banner (REQ-45)
+SVM -> SVM : update state, reason, image info, weather line,\ncountdown, override banner, history chart, UNTUNED (REQ-45)
 Imager -> SVM : view
 
 Host -> SVM : RunningChanged  (connect / disconnect)
@@ -45,6 +45,14 @@ else valid
   SetVM -> Store : Save(copy)  (JSON, REQ-55, REQ-56, REQ-57)
   SetVM --> OV : Message = "Saved hh:mm:ss"
   note right of Store : A connected monitor applies new settings\non its next cycle; no reconnect needed.
+end
+opt Test image / Test weather (settings on screen, saved or not)
+  Imager -> OV : Test image
+  OV -> SetVM : TestImageCommand
+  SetVM -> SetVM : ImageFetchTester.TestAsync(copy)  → "OK (Direct): N KB, captured …"
+  Imager -> OV : Test weather
+  OV -> SetVM : TestWeatherCommand
+  SetVM -> SetVM : WeatherFetchTester.TestAsync(copy)  → "Weather OK (ISYDNEY478): …"
 end
 opt Revert
   Imager -> OV : Revert

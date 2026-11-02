@@ -1,6 +1,6 @@
 @startuml SD08_Calibration
 !include _style.iuml
-title SD-08  Calibrate lens and define horizon mask (UC-12, UC-13) — REQ-19 … REQ-22, REQ-47, REQ-57
+title SD-08  Calibrate lens and define the working area (UC-12, UC-13) — REQ-19 … REQ-22, REQ-47, REQ-57
 
 actor Imager
 participant ":CalibrationView" as View
@@ -31,10 +31,10 @@ VM -> Ovl : Render(frame, projection, site, utc)
 Ovl --> VM : overlay (stars + alt/az grid, REQ-21)
 VM --> View : show overlay and RMS error
 Imager -> View : inspect fit by eye
-Imager -> View : draw horizon outline / set min altitude
-View -> VM : MaskOutline updated (REQ-22)
+Imager -> View : set working-area centre and radius,\ndraw outline around trees, house, overlay text
+View -> VM : WorkingArea updated (REQ-22)
 Imager -> View : Accept
 View -> VM : AcceptCommand
-VM -> Store : Save(settings with Calibration.Lens, Calibration.Mask)
+VM -> Store : Save(settings with Calibration.Lens, Calibration.WorkingArea)
 note right of Store : Persisted in the JSON settings (REQ-57).\nRunning MonitorService picks up the\nnew calibration on the next cycle.
 @enduml

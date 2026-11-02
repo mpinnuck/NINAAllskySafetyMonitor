@@ -1,6 +1,6 @@
 @startuml CL06_Geometry
 !include _style.iuml
-title CL-06  Core.Geometry — site, operating window, lens projection, ROI
+title CL-06  Core.Geometry — site, operating window, lens projection, working area, ROI
 
 package "NINAAllskySafetyMonitor.Core.Geometry" {
   class SiteLocationResolver {
@@ -28,17 +28,23 @@ package "NINAAllskySafetyMonitor.Core.Geometry" {
     +ToHorizontal(p : PixelPoint) : HorizontalCoordinate
     .. REQ-19 REQ-24 ..
   }
-  class HorizonMaskDefinition <<record>> {
-    +MinAltitudeDeg : double
+  class WorkingAreaDefinition <<record>> {
+    +CentreAltDeg = 75
+    +CentreAzDeg = 180
+    +RadiusDeg = 60
     +Outline : IReadOnlyList<PixelPoint>
-    .. REQ-22 ..
+    .. REQ-22 REQ-57 ..
   }
-  class HorizonMask {
-    -definition : HorizonMaskDefinition
+  class WorkingArea {
+    -definition : WorkingAreaDefinition
     -projection : LensProjection
-    +IsVisible(h : HorizontalCoordinate) : bool
-    +IsVisible(p : PixelPoint) : bool
+    +Contains(h : HorizontalCoordinate) : bool
+    +Contains(p : PixelPoint) : bool
+    +BuildMask(width, height) : PixelMask
     .. REQ-22 REQ-25 ..
+  }
+  class SkyGeometry <<static>> {
+    +SeparationDeg(a, b : HorizontalCoordinate) : double
   }
   class MountStateInterpreter {
     +IsUsableForRoi(m : MountState?) : bool
@@ -47,34 +53,42 @@ package "NINAAllskySafetyMonitor.Core.Geometry" {
   class RoiCalculator {
     -astro : IAstroCalculator
     -interpreter : MountStateInterpreter
-    -radiusDeg : double
-    +CalculateCentre(m : MountState?, site, nowUtc) : (HorizontalCoordinate, bool isFallback)
+    +CalculateCentre(m : MountState?, site, nowUtc) : HorizontalCoordinate?
     .. REQ-06 REQ-23 REQ-24 REQ-26 ..
   }
-  class RoiMaskBuilder {
+  class RoiBuilder {
     -projection : LensProjection
-    -horizon : HorizonMask
-    +Build(centre, radiusDeg, isFallback, width, height) : RegionOfInterest
-    .. REQ-23 REQ-25 ..
+    -area : WorkingArea
+    +Build(centre : HorizontalCoordinate?, radiusDeg, minInsideFraction, width, height) : RegionOfInterest
+    .. REQ-23 REQ-25 REQ-26 REQ-58 ..
   }
 }
 
 LensProjection --> LensCalibration
+WorkingArea --> WorkingAreaDefinition
+WorkingArea --> LensProjection
+WorkingArea ..> SkyGeometry
+RoiCalculator --> MountStateInterpreter
+RoiBuilder --> LensProjection
+RoiBuilder --> WorkingArea
+RoiBuilder ..> SkyGeometry
+
 note bottom of SiteLocationResolver
   Uses the NINA profile location; a profile
   at 0°, 0° or out of range counts as unset,
   so the configured location is used.
 end note
-HorizonMask --> HorizonMaskDefinition
-HorizonMask --> LensProjection
-RoiCalculator --> MountStateInterpreter
-RoiMaskBuilder --> LensProjection
-RoiMaskBuilder --> HorizonMask
-
 note bottom of RoiCalculator
   Centre is always computed from RA/Dec via IAstroCalculator.
-  Mount-reported Alt/Az is never used for positioning (REQ-06):
-  the ASI Mount driver reports Azimuth in its own home-referenced
-  frame, so it is passed to the decision log for diagnostics only.
+  The ASI Mount driver reports Azimuth in its own home-referenced
+  frame, so mount-reported Alt/Az goes to the decision log for
+  diagnostics only (REQ-06). Null when the mount is not usable.
+end note
+note bottom of RoiBuilder
+  ROI = 15° circle within the working area (REQ-25).
+  No usable mount position (REQ-26), or less than
+  MinInsideFraction of the circle inside the working
+  area (REQ-58): the whole working area is used, and
+  RegionOfInterest.Note says why.
 end note
 @enduml

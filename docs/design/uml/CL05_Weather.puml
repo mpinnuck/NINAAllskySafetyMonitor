@@ -4,41 +4,56 @@ title CL-05  Core.Weather
 
 package "NINAAllskySafetyMonitor.Core.Weather" {
   interface IWeatherProvider {
-    +GetLatestAsync(ct : CancellationToken) : Task<WeatherObservation?>
+    +GetLatestAsync(ct) : Task<WeatherFetchResult>
+    .. REQ-32 ..
+  }
+  class WeatherFetchResult <<record>> {
+    +Observation : WeatherObservation?
+    +Error : string?
   }
   class PwsWeatherClient {
     -http : HttpClient
-    -stationId : string
-    -apiKey : string
     -parser : PwsObservationParser
-    +GetLatestAsync(ct) : Task<WeatherObservation?>
-    .. REQ-32 REQ-51 ..
+    +GetLatestAsync(ct)
+    ~{static} RequestUrl(settings) : Uri
+    ~{static} Redact(text, settings) : string
+    .. REQ-32 REQ-51 REQ-54 ..
   }
   class PwsObservationParser {
-    +Parse(json : string) : WeatherObservation?
+    +Parse(json) : WeatherObservation
     .. REQ-33 ..
   }
   class WeatherPoller {
-    -provider : IWeatherProvider
-    -interval : TimeSpan
+    -lastPollUtc : DateTime?
     +Latest : WeatherObservation?
-    +PollIfDueAsync(nowUtc, ct) : Task
+    +LastError : string?
+    +PollIfDueAsync(ct) : Task
     .. REQ-32 ..
   }
   class WeatherEvaluator {
-    -settings : WeatherSettings
-    +Evaluate(obs : WeatherObservation?, nowUtc) : IReadOnlyList<ConditionCheck>
-    .. REQ-34 REQ-35 REQ-36 ..
+    +Evaluate(obs, lastError, nowUtc, settings) : IReadOnlyList<ConditionCheck>
+    .. REQ-34 REQ-35 REQ-36 REQ-50 ..
+  }
+  class WeatherFetchTester {
+    +TestAsync(settings, ct) : Task<string>
+    .. REQ-46 ..
   }
 }
 
 IWeatherProvider <|.. PwsWeatherClient
+IWeatherProvider ..> WeatherFetchResult
 PwsWeatherClient --> PwsObservationParser
 WeatherPoller --> IWeatherProvider
+WeatherFetchTester ..> PwsWeatherClient
 
 note bottom of WeatherEvaluator
-  Produces three checks: NoRain (precipRate = 0),
-  WindBelowLimit (gust <= limit), WeatherCurrent (age <= 15 min).
-  When weather is disabled all three pass with reason "weather ignored".
+  NoRain: precipRate > 0 fails. WindBelowLimit: gust > MaxGustKmH fails.
+  WeatherCurrent: no data, or older than StaleAfterMin, fails.
+  No data: all three fail with one reason. Weather off: all three pass.
+end note
+note bottom of PwsWeatherClient
+  GET api.weather.com/v2/pws/observations/current
+  ?stationId&format=json&units=m&apiKey.
+  Messages name the station, never the key.
 end note
 @enduml

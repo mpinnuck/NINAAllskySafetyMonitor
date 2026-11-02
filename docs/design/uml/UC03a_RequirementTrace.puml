@@ -14,8 +14,8 @@ rectangle "§2 Site and mount\nREQ-04 … REQ-07" <<requirement>> as R2
 rectangle "§3 Operating window\nREQ-08 … REQ-10" <<requirement>> as R3
 rectangle "§4 Image acquisition\nREQ-11 … REQ-18" <<requirement>> as R4
 rectangle "§5 Calibration\nREQ-19 … REQ-21" <<requirement>> as R5a
-rectangle "§5 Horizon mask\nREQ-22" <<requirement>> as R5b
-rectangle "§6 Region of interest\nREQ-23 … REQ-27" <<requirement>> as R6
+rectangle "§5 Working area\nREQ-22" <<requirement>> as R5b
+rectangle "§6 Region of interest\nREQ-23 … REQ-27, REQ-58" <<requirement>> as R6
 rectangle "§7 Cloud detection\nREQ-28 … REQ-31" <<requirement>> as R7
 rectangle "§8 Weather\nREQ-32 … REQ-36" <<requirement>> as R8
 
@@ -28,7 +28,7 @@ usecase "UC-07 Determine ROI" as UC07
 usecase "UC-08 Detect cloud" as UC08
 usecase "UC-09 Assess weather" as UC09
 usecase "UC-12 Calibrate lens" as UC12
-usecase "UC-13 Horizon mask" as UC13
+usecase "UC-13 Working area" as UC13
 
 R1a ..> UC01
 R1a ..> UC02
