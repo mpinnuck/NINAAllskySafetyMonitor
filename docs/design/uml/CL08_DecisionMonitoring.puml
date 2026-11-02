@@ -10,7 +10,6 @@ package "NINAAllskySafetyMonitor.Core.Decision" {
     .. REQ-38 REQ-39 ..
   }
   class SlewHoldPolicy {
-    -held : SafetyStatus?
     +ShouldHold(m : MountState?) : bool
     .. REQ-27 ..
   }
@@ -24,8 +23,10 @@ package "NINAAllskySafetyMonitor.Core.Decision" {
     -hysteresis : SafetyHysteresis
     -clock : IClock
     -safeAfter : Func<TimeSpan>
+    -slewHold : SlewHoldPolicy
+    -lastDecided : SafetyStatus?
     +Decide(snapshot : MonitorSnapshot) : SafetyStatus
-    .. REQ-03 REQ-37 REQ-38 REQ-39 ..
+    .. REQ-03 REQ-27 REQ-37 REQ-38 REQ-39 ..
   }
 }
 
@@ -39,13 +40,27 @@ package "NINAAllskySafetyMonitor.Core.Monitoring" {
     -engine : SafetyDecisionEngine?
     -manualOverride : ManualOverride?
     -interval : Func<TimeSpan>
+    -mountWatcher : MountWatcher?
+    -wake : SemaphoreSlim
     +CurrentStatus : SafetyStatus
     +IsRunning : bool
     +Start()
     +StopAsync() : Task
+    +RequestEvaluation()
     +event SnapshotAvailable
     ~{static} ReasonKind(reason) : string
-    .. REQ-02 REQ-38 REQ-40 REQ-49 ..
+    .. REQ-02 REQ-27 REQ-38 REQ-40 REQ-49 ..
+  }
+  class MountWatcher {
+    -source : IMountStateSource
+    -pollInterval : Func<TimeSpan>
+    +MoveThresholdDeg = 0.5
+    +Poll() : bool
+    +Start()
+    +StopAsync() : Task
+    +event Changed
+    ~{static} Significant(a, b : MountState?) : bool
+    .. REQ-05 REQ-27 ..
   }
   class MonitoringCycle {
     -settings : Func<MonitorSettings>
@@ -60,8 +75,9 @@ package "NINAAllskySafetyMonitor.Core.Monitoring" {
     -roiBuilder : RoiBuilder
     -cloudDetector : CloudDetector
     -recorder : TuningRecorder
+    -lastImageFetchUtc : DateTime?
     +RunOnceAsync(ct) : Task<MonitorSnapshot>
-    .. REQ-10 REQ-14 REQ-37 ..
+    .. REQ-05 REQ-10 REQ-14 REQ-37 ..
   }
   class FailSafeGuard {
     -timeout : Func<TimeSpan>
@@ -84,7 +100,7 @@ package "NINAAllskySafetyMonitor.Core.Monitoring" {
     +Astro : IAstroCalculator
     +Log : ILogSink
     +Credentials : ICredentialStore
-    +Mount : IMountStateSource
+    +Mount : IMountStateSource?
   }
 }
 
@@ -94,6 +110,7 @@ MonitorService --> IMonitoringCycle
 MonitorService --> FailSafeGuard
 MonitorService --> SafetyDecisionEngine
 MonitorService --> ManualOverride
+MonitorService --> MountWatcher : Changed → RequestEvaluation
 IMonitoringCycle <|.. MonitoringCycle
 MonitorServiceBuilder ..> MonitorService : creates
 MonitorServiceBuilder ..> MonitorPorts
@@ -101,14 +118,18 @@ MonitorServiceBuilder ..> "DecisionLogger" : subscribes to SnapshotAvailable
 
 note bottom of MonitoringCycle
   Reads settings at the start of every cycle. Outside the
-  window: Idle, nothing fetched. Inside: image and weather
-  fetched in parallel; conditions gathered; the provisional
-  reason lists every failed condition.
+  window: Idle, nothing fetched. Inside: image (at most once per
+  image interval) and weather fetched in parallel; ROI placed
+  from the mount; conditions gathered; the provisional reason
+  lists every failed condition.
 end note
 note bottom of MonitorService
   Each snapshot: FailSafeGuard → engine.Decide → override.Apply
   → publish. CurrentStatus applies the override live, so
   a change takes effect at once. State changes are logged.
+  Waits for the image interval, or less when MountWatcher
+  reports a change (every 2 s: slew, park, tracking, move),
+  so a slew is held within seconds (REQ-27).
 end note
 note right of FailSafeGuard
   Timeout + catch-all: any exception or

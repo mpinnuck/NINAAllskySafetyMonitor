@@ -1,6 +1,6 @@
 @startuml CL06_Geometry
 !include _style.iuml
-title CL-06  Core.Geometry — site, operating window, lens projection, working area, ROI
+title CL-06  Core.Geometry — site, operating window, coordinates, lens projection, working area, ROI
 
 package "NINAAllskySafetyMonitor.Core.Geometry" {
   class SiteLocationResolver {
@@ -14,18 +14,37 @@ package "NINAAllskySafetyMonitor.Core.Geometry" {
     +Evaluate(site, nowUtc, sunAltitudeLimitDeg) : ConditionCheck
     .. REQ-08 REQ-09 REQ-10 ..
   }
+  class CoordinateConverter <<static>> {
+    +LocalSiderealDeg(utc, longitudeDeg) : double
+    +ToHorizontal(raHours, decDeg, epoch, site, utc) : HorizontalCoordinate
+    +ToEquatorial(h, site, utc, epoch) : (double, double)
+    .. REQ-24 ..
+  }
+  class SkyGeometry <<static>> {
+    +SeparationDeg(a, b : HorizontalCoordinate) : double
+    +Destination(start, bearingDeg, distanceDeg) : HorizontalCoordinate
+    +Normalise(deg) : double
+  }
   class LensCalibration <<record>> {
     +CentreX : double
     +CentreY : double
     +NorthRotationDeg : double
     +EastIsClockwise : bool
     +RadialCoefficients : double[]
+    +StarsMatched : int
+    +RmsErrorPx : double
+    +RmsErrorDeg : double
+    +CalibratedUtc : DateTime
+    +Manual : bool
     .. REQ-19 ..
   }
   class LensProjection {
-    -calibration : LensCalibration
+    -lens : LensCalibration
     +ToPixel(h : HorizontalCoordinate) : PixelPoint
     +ToHorizontal(p : PixelPoint) : HorizontalCoordinate
+    +HorizonRadiusPx : double
+    +{static} Approximate(width, height) : LensCalibration
+    +{static} FromHorizonRadius(cx, cy, radiusPx, northDeg, eastClockwise) : LensCalibration
     .. REQ-19 REQ-24 ..
   }
   class WorkingAreaDefinition <<record>> {
@@ -37,29 +56,25 @@ package "NINAAllskySafetyMonitor.Core.Geometry" {
   }
   class WorkingArea {
     -definition : WorkingAreaDefinition
-    -projection : LensProjection
+    -projection : LensProjection?
     +Contains(h : HorizontalCoordinate) : bool
-    +Contains(p : PixelPoint) : bool
-    +BuildMask(width, height) : PixelMask
+    ~{static} InsidePolygon(p, polygon) : bool
     .. REQ-22 REQ-25 ..
   }
-  class SkyGeometry <<static>> {
-    +SeparationDeg(a, b : HorizontalCoordinate) : double
-  }
   class MountStateInterpreter {
+    +WhyUnusable(m : MountState?) : string?
     +IsUsableForRoi(m : MountState?) : bool
     .. REQ-07 REQ-26 ..
   }
   class RoiCalculator {
     -astro : IAstroCalculator
     -interpreter : MountStateInterpreter
-    +CalculateCentre(m : MountState?, site, nowUtc) : HorizontalCoordinate?
+    +CalculateCentre(m : MountState?, site, nowUtc) : (HorizontalCoordinate? Centre, string? Unusable)
     .. REQ-06 REQ-23 REQ-24 REQ-26 ..
   }
   class RoiBuilder {
-    -projection : LensProjection
-    -area : WorkingArea
-    +Build(centre : HorizontalCoordinate?, radiusDeg, minInsideFraction, width, height) : RegionOfInterest
+    +Build(centre?, unusableReason?, radiusDeg, minInsideFraction, area : WorkingArea) : RegionOfInterest
+    ~{static} InsideFraction(centre, radiusDeg, area) : double
     .. REQ-23 REQ-25 REQ-26 REQ-58 ..
   }
 }
@@ -69,9 +84,9 @@ WorkingArea --> WorkingAreaDefinition
 WorkingArea --> LensProjection
 WorkingArea ..> SkyGeometry
 RoiCalculator --> MountStateInterpreter
-RoiBuilder --> LensProjection
-RoiBuilder --> WorkingArea
+RoiBuilder ..> WorkingArea
 RoiBuilder ..> SkyGeometry
+CoordinateConverter ..> SkyGeometry
 
 note bottom of SiteLocationResolver
   Uses the NINA profile location; a profile
@@ -79,16 +94,24 @@ note bottom of SiteLocationResolver
   so the configured location is used.
 end note
 note bottom of RoiCalculator
-  Centre is always computed from RA/Dec via IAstroCalculator.
-  The ASI Mount driver reports Azimuth in its own home-referenced
-  frame, so mount-reported Alt/Az goes to the decision log for
-  diagnostics only (REQ-06). Null when the mount is not usable.
+  Centre is always computed from RA/Dec (IAstroCalculator →
+  CoordinateConverter: IAU GMST, J2000 precessed to the date,
+  about 0.01°). The mount-reported Alt/Az go to the decision log
+  for diagnostics only (REQ-06). No centre when the mount is not
+  usable, with the reason ("Mount parked", …).
 end note
 note bottom of RoiBuilder
-  ROI = 15° circle within the working area (REQ-25).
-  No usable mount position (REQ-26), or less than
-  MinInsideFraction of the circle inside the working
-  area (REQ-58): the whole working area is used, and
-  RegionOfInterest.Note says why.
+  The ROI is judged on the sky: InsideFraction samples 400
+  points spread over the 15° circle and tests each with
+  WorkingArea.Contains. No usable mount position (REQ-26), or
+  less than MinInsideFraction inside (REQ-58): the whole working
+  area is used, and RegionOfInterest.Note says why. The pixel
+  mask for cloud detection is built in slice 6.
+end note
+note bottom of LensProjection
+  r = c1·z + c2·z² + c3·z³ (z = zenith distance, radians).
+  Until calibrated: Approximate() from the image size, or a
+  hand-entered model (Manual = true). Calibrated (slice 5b):
+  fitted to catalogue stars by LensFitter (CL-09).
 end note
 @enduml

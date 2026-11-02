@@ -10,6 +10,8 @@ package "NINAAllskySafetyMonitor.Core.Settings" {
     +Window : OperatingWindowSettings
     +ImageSource : ImageSourceSettings
     +Roi : RoiSettings
+    +Mount : MountSettings
+    +LensFit : LensFitSettings
     +Cloud : CloudDetectionSettings
     +Weather : WeatherSettings
     +Decision : DecisionSettings
@@ -57,6 +59,16 @@ package "NINAAllskySafetyMonitor.Core.Settings" {
     +MinInsideFraction = 0.5
     .. REQ-23 REQ-58 ..
   }
+  class MountSettings {
+    +PollIntervalS = 2
+    .. REQ-27 ..
+  }
+  class LensFitSettings {
+    +MinMatchedStars = 15
+    +MaxFitErrorDeg = 0.2
+    +CatalogueLimitMagnitude = 4.5
+    .. REQ-20 ..
+  }
   class CloudDetectionSettings {
     +LimitingMagnitude = 4.0
     +MinStarFraction = 0.70
@@ -103,6 +115,7 @@ package "NINAAllskySafetyMonitor.Core.Settings" {
   }
   class SettingsValidator {
     +Validate(s : MonitorSettings) : IReadOnlyList<string>
+    .. REQ-22 REQ-27 REQ-46 REQ-58 ..
   }
 }
 
@@ -110,6 +123,8 @@ MonitorSettings *-- SiteSettings
 MonitorSettings *-- OperatingWindowSettings
 MonitorSettings *-- ImageSourceSettings
 MonitorSettings *-- RoiSettings
+MonitorSettings *-- MountSettings
+MonitorSettings *-- LensFitSettings
 MonitorSettings *-- CloudDetectionSettings
 MonitorSettings *-- WeatherSettings
 MonitorSettings *-- DecisionSettings

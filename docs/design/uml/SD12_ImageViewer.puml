@@ -1,0 +1,32 @@
+@startuml SD12_ImageViewer
+!include _style.iuml
+title SD-12  View the Allsky image enlarged (UC-14) — REQ-45, REQ-59
+
+actor Imager
+participant ":StatusViewModel" as SVM
+participant ":ImageViewerWindow\n(View mode)" as View
+participant ":ImageViewerViewModel" as VVM
+participant ":OverlayImageComposer" as Ovl
+participant ":LensProjection" as Lens
+participant "MonitorHost" as Host
+
+Imager -> SVM : click the panel image
+SVM -> View ** : open(owner = NINA main window)
+View -> VVM : load
+VVM -> Host : LatestSnapshot
+Host --> VVM : image, ROI, mount
+VVM -> Ovl : Compose(full-size image, lens, area, ROI, layers)
+Ovl --> VVM : image + working area, outline, ROI, N/E/S/W
+VVM --> View : show (~90% of NINA's window)
+loop while open
+  Imager -> View : wheel = zoom, drag = pan
+  Imager -> View : move the mouse
+  View -> VVM : cursor at pixel (x, y)
+  VVM -> Lens : ToHorizontal(x, y)
+  Lens --> VVM : alt 47.3°, az 212.8°
+  VVM --> View : "alt 47.3° az 212.8°"  (REQ-59)
+  Host -> VVM : SnapshotAvailable → refresh image and overlay
+end
+Imager -> View : click outside, or Esc
+View -> View : close
+@enduml

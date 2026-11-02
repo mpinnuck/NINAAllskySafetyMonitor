@@ -4,30 +4,55 @@ left to right direction
 title CL-09  Core.Calibration, Core.Tuning, Core.Logging, Core.Traceability
 
 package "NINAAllskySafetyMonitor.Core.Calibration" {
-  class StarIdentifier {
-    -catalogue : StarCatalogue
-    +Identify(detected, site, utc, approx : LensCalibration?) : IReadOnlyList<(CatalogueStar, DetectedStar)>
+  class CalibrationFrame <<record>> {
+    +Frame : GrayFrame
+    +CaptureUtc : DateTime
+    +Source : string
+  }
+  class FrameTimeReader {
+    +FromFileName(name, timeZone) : DateTime?
+    +FromSkyImage(image : SkyImage) : DateTime
     .. REQ-20 ..
   }
-  class LensModelFitter {
-    +Fit(pairs, site, utc) : LensFitResult
+  class InitialGuessSearch {
+    -catalogue : StarCatalogue
+    +Search(detected, frame, site, utc) : LensCalibration?
+    .. REQ-20 ..
+  }
+  class StarIdentification <<record>> {
+    +Star : CatalogueStar
+    +Position : PixelPoint
+  }
+  class LensFitter {
+    -catalogue : StarCatalogue
+    +Fit(detected, start : LensCalibration, site, utc) : LensFitResult
     .. REQ-19 REQ-20 ..
   }
   class LensFitResult <<record>> {
-    +Calibration : LensCalibration
+    +Lens : LensCalibration
+    +Matches : IReadOnlyList<StarMatch>
+    +StarsMatched : int
     +RmsErrorPx : double
-    +StarsUsed : int
+    +RmsErrorDeg : double
   }
-  class CalibrationOverlayRenderer {
-    +Render(frame, projection, site, utc) : OverlayImage
-    .. REQ-21 ..
+  class CalibrationQualityCheck {
+    -settings : Func<LensFitSettings>
+    +Warnings(result : LensFitResult) : IReadOnlyList<string>
+    .. REQ-20 ..
   }
   class LensCalibrationSession {
     -detector : StarDetector
-    -identifier : StarIdentifier
-    -fitter : LensModelFitter
-    +CalibrateAsync(image : SkyImage, site) : Task<LensFitResult>
+    -search : InitialGuessSearch
+    -fitter : LensFitter
+    -quality : CalibrationQualityCheck
+    +Calibrate(frame : CalibrationFrame, site) : CalibrationOutcome
+    +CalibrateFromIdentified(frame, site, picks : StarIdentification[2..]) : CalibrationOutcome
     .. REQ-19 REQ-20 ..
+  }
+  class CalibrationOutcome <<record>> {
+    +Result : LensFitResult?
+    +Warnings : IReadOnlyList<string>
+    +NeedsIdentification : bool
   }
 }
 
@@ -86,9 +111,12 @@ interface IImageSource
 interface ILogSink
 IImageSource <|.. ReplayImageSource
 ILogSink <|.. RedactingLogSink
-LensCalibrationSession --> StarIdentifier
-LensCalibrationSession --> LensModelFitter
-LensModelFitter ..> LensFitResult
+LensCalibrationSession --> InitialGuessSearch
+LensCalibrationSession --> LensFitter
+LensCalibrationSession --> CalibrationQualityCheck
+LensCalibrationSession ..> CalibrationOutcome
+LensFitter ..> LensFitResult
+LensCalibrationSession ..> StarIdentification
 TuningRecorder --> MetricsCsvWriter
 RedactingLogSink --> SecretRedactor
 DecisionLogger --> SecretRedactor
@@ -99,6 +127,20 @@ note bottom of DecisionLogger
   Files older than RetentionDays [7] are deleted (and the deletion logged).
 end note
 
+note bottom of LensCalibrationSession
+  1. StarDetector finds stars (hot pixels removed by a 3×3 median;
+     only round 2–80 px spots kept).
+  2. InitialGuessSearch tries centre, rotation, scale and east
+     direction; best match of bright catalogue stars wins.
+     None found → NeedsIdentification: the imager clicks 2–3
+     named bright stars instead (StarIdentification).
+  3. LensFitter matches catalogue stars (mag ≤ 4.5) to detected
+     stars, narrowing the match distance, and fits centre,
+     rotation and c1..c3 by least squares, rejecting outliers.
+  4. CalibrationQualityCheck warns below MinMatchedStars [15]
+     or above MaxFitErrorDeg [0.2°] (REQ-20).
+  Prototype on 20 Oct frame: 33 stars, RMS 2.7 px (0.15°).
+end note
 note bottom of RequirementAttribute
   Applied to every class (and to methods where a class
   covers several requirements), and to every test.

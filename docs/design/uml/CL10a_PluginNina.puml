@@ -8,10 +8,9 @@ package "NINA (external)" <<external>> {
   interface ISafetyMonitor {
     +IsSafe : bool
   }
-  interface ITelescopeConsumer {
-    +UpdateDeviceInfo(info : TelescopeInfo)
+  interface ITelescopeMediator {
+    +GetInfo() : TelescopeInfo
   }
-  interface ITelescopeMediator
   interface IProfileService
   abstract class BaseINPC
 }
@@ -24,9 +23,10 @@ package "NINAAllskySafetyMonitor.Plugin.Nina" {
   }
   class AllskySafetyMonitorProvider <<Export(IEquipmentProvider)>> {
     -profileService : IProfileService
+    -telescopeMediator : ITelescopeMediator
     +Name = "Allsky Safety Monitor"
     +GetEquipment() : IList<ISafetyMonitor>
-    .. REQ-01 ..
+    .. REQ-01 REQ-05 ..
   }
   class AllskySafetyMonitorDevice {
     -host : MonitorHost
@@ -44,11 +44,11 @@ package "NINAAllskySafetyMonitor.Plugin.Nina" {
     +CurrentStatus : SafetyStatus
     +LatestSnapshot : MonitorSnapshot?
     +Override : ManualOverride
-    +StartAsync(profile : IProfileService) : Task
+    +StartAsync(profile, telescopeMediator) : Task
     +StopAsync() : Task
     +event SnapshotAvailable
     +event RunningChanged
-    .. REQ-02 REQ-03 ..
+    .. REQ-02 REQ-03 REQ-05 ..
   }
   class PluginSettingsStore <<singleton>> {
     +{static} Instance : PluginSettingsStore
@@ -60,11 +60,9 @@ package "NINAAllskySafetyMonitor.Plugin.Nina" {
     .. REQ-55 REQ-56 ..
   }
   class NinaMountStateSource {
-    -mediator : ITelescopeMediator
-    -latest : TelescopeInfo?
+    -telescope : ITelescopeMediator
     +GetCurrent() : MountState?
-    +UpdateDeviceInfo(info)
-    .. REQ-05 REQ-07 ..
+    .. REQ-05 REQ-06 REQ-07 ..
   }
   class NinaSiteLocationSource {
     -profile : IProfileService
@@ -94,15 +92,20 @@ package "NINAAllskySafetyMonitor.Astrometry" {
     +ToEquatorial(..)
     .. REQ-08 REQ-24 REQ-31 ..
   }
+  note bottom of NovasAstroCalculator
+    Sun from NINA.Astrometry; RA/Dec ↔ alt/az
+    delegated to Core's CoordinateConverter.
+  end note
 }
 
 interface IAstroCalculator
+interface IMountStateSource
 IAstroCalculator <|.. NovasAstroCalculator
 PluginBase <|-- AllskySafetyPlugin
 IEP <|.. AllskySafetyMonitorProvider
 ISafetyMonitor <|.. AllskySafetyMonitorDevice
 BaseINPC <|-- AllskySafetyMonitorDevice
-ITelescopeConsumer <|.. NinaMountStateSource
+IMountStateSource <|.. NinaMountStateSource
 AllskySafetyMonitorProvider ..> AllskySafetyMonitorDevice : creates
 AllskySafetyMonitorDevice --> MonitorHost
 WindowsCredentialStore ..> CredentialNativeMethods
@@ -123,6 +126,13 @@ note bottom of MonitorHost
   When stopped, CurrentStatus is unsafe, "Not connected".
   Override lives here, so it survives reconnects but
   not a NINA restart (REQ-40).
+end note
+note bottom of NinaMountStateSource
+  Pulls TelescopeInfo from the mediator when asked (every
+  2 s by MountWatcher and once per cycle): connected, AtPark,
+  TrackingEnabled, Slewing, RA, Dec, EquatorialSystem, and the
+  reported Alt/Az (diagnostics only, REQ-06). Not connected →
+  MountState(Connected = false); read error → null (REQ-07).
 end note
 note bottom of AllskySafetyMonitorDevice
   IsSafe = Connected && host.CurrentStatus.IsSafe.

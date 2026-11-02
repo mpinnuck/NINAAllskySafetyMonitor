@@ -4,43 +4,49 @@ title SD-05  Mount slewing, parked or disconnected; ROI outside the working area
 
 participant "ITelescopeMediator" as TM
 participant ":NinaMountStateSource" as Mount
+participant ":MountWatcher" as MW
+participant ":MonitorService" as Svc
 participant ":MonitoringCycle" as Cyc
 participant ":RoiCalculator" as Roi
-participant ":MountStateInterpreter" as Int
 participant ":RoiBuilder" as RB
 participant ":WorkingArea" as WA
 participant ":SafetyDecisionEngine" as Eng
 participant ":SlewHoldPolicy" as Hold
 
-TM -> Mount : UpdateDeviceInfo(TelescopeInfo)
-Mount -> Mount : cache → MountState\n(NaN → null position, REQ-07)
+== Every 2 s (MountWatcher) ==
+MW -> Mount : GetCurrent()
+Mount -> TM : GetInfo()
+TM --> Mount : TelescopeInfo
+Mount --> MW : MountState
+alt slew started/ended, park, tracking, connect, move > 0.5°
+  MW -> Svc : Changed → RequestEvaluation()
+  note right of Svc : "Mount changed (slewing): re-evaluating now".\nThe next cycle runs at once and reuses the\nlatest image (fetched once per image interval).
+end
 
 == Slewing to a new target ==
+Svc -> Cyc : RunOnceAsync()
 Cyc -> Mount : GetCurrent()
 Mount --> Cyc : MountState(Slewing = true)
+Cyc --> Svc : snapshot(Mount = slewing)
+Svc -> Eng : Decide(snapshot)
 Eng -> Hold : ShouldHold(mount)
 Hold --> Eng : true
-Eng --> Cyc : previous SafetyStatus (held, REQ-27)
-note right of Cyc : Cloud analysis is skipped while slewing;\nthe ROI moves on the first cycle after.
+Eng --> Svc : last decision, reason "Mount slewing: holding last decision (…)"\n(Unsafe "Mount slewing" if none yet; clear-period timer unchanged)  REQ-27
 
-== Tracking a target ==
+== Tracking a target (slew finished → re-evaluated at once) ==
 Cyc -> Roi : CalculateCentre(mount, site, now)
-Roi -> Int : IsUsableForRoi(mount)
-Int --> Roi : true
-Roi --> Cyc : centre at the target's RA/Dec
-Cyc -> RB : Build(centre, 15°, minInside 0.5, w, h)
-RB -> WA : Contains(pixel) for each ROI pixel
+Roi --> Cyc : centre from RA/Dec (mount Alt/Az not used)
+Cyc -> RB : Build(centre, null, 15°, 0.5, area)
+RB -> WA : Contains(point) for 400 points over the circle
 alt at least 50% of the circle inside the working area
   RB --> Cyc : ROI = circle within the working area  (REQ-25)
 else less than 50% inside (low target, behind trees)
-  RB --> Cyc : ROI = whole working area,\nNote "ROI 30% inside the working area: judging the whole working area"  (REQ-58)
+  RB --> Cyc : ROI = whole working area,\nNote "ROI 20% inside the working area: judging the whole working area"  (REQ-58)
 end
 
 == Parked / not tracking / disconnected ==
 Cyc -> Roi : CalculateCentre(mount, site, now)
-Roi -> Int : IsUsableForRoi(mount)
-Int --> Roi : false
-Roi --> Cyc : null
-Cyc -> RB : Build(null, …)
-RB --> Cyc : ROI = whole working area,\nNote "Mount position unavailable: judging the whole working area"  (REQ-26)
+Roi --> Cyc : (null, "Mount parked")
+Cyc -> RB : Build(null, "Mount parked", …)
+RB --> Cyc : ROI = whole working area,\nNote "Mount parked: judging the whole working area"  (REQ-26)
 @enduml

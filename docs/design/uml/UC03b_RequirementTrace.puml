@@ -13,7 +13,7 @@ rectangle "§9 Manual override\nREQ-40" <<requirement>> as R9b
 rectangle "§10 Tuning\nREQ-41, REQ-43" <<requirement>> as R10a
 rectangle "§10 Offline replay\nREQ-42" <<requirement>> as R10b
 rectangle "§11 Logging\nREQ-44" <<requirement>> as R11
-rectangle "§12 UI status\nREQ-45" <<requirement>> as R12a
+rectangle "§12 UI status and viewer\nREQ-45, REQ-59" <<requirement>> as R12a
 rectangle "§12 UI settings\nREQ-46" <<requirement>> as R12b
 rectangle "§12 UI calibration\nREQ-47" <<requirement>> as R12c
 rectangle "§13.1 Platform\nREQ-48" <<requirement>> as N1

@@ -6,9 +6,13 @@ title CL-07  Core.Analysis — cloud detection
 package "NINAAllskySafetyMonitor.Core.Analysis" {
   class StarCatalogue {
     -stars : IReadOnlyList<CatalogueStar>
-    +LoadEmbedded() : StarCatalogue
+    +{static} LoadEmbedded() : StarCatalogue
     +BrighterThan(limitMag : double) : IEnumerable<CatalogueStar>
-    .. REQ-29 ..
+    +Named() : IEnumerable<CatalogueStar>
+    .. REQ-20 REQ-29 ..
+  }
+  class GrayFrameDecoder {
+    +Decode(jpeg : byte[]) : GrayFrame
   }
   class ExpectedStar <<record>> {
     +Star : CatalogueStar
@@ -22,7 +26,8 @@ package "NINAAllskySafetyMonitor.Core.Analysis" {
     .. REQ-29 REQ-31 ..
   }
   class StarDetector {
-    +Detect(frame : GrayFrame, mask : PixelMask) : IReadOnlyList<DetectedStar>
+    +Detect(frame : GrayFrame, mask : PixelMask?) : IReadOnlyList<DetectedStar>
+    .. REQ-20 REQ-29 ..
   }
   class StarMatcher {
     -tolerancePx : double
@@ -97,6 +102,19 @@ CloudDetector --> BackgroundStatistics
 CloudDetector --> BrightnessTest
 CloudDetector --> MoonBrightnessAdjuster
 
+note bottom of StarCatalogue
+  Embedded resource Resources/BrightStars.csv in the Core DLL:
+  Yale Bright Star Catalogue (5th ed., public domain), stars
+  brighter than mag 4.5 (about 900), J2000, with names for the
+  brightest (for star identification). Shared by calibration
+  (5b) and cloud detection (6).
+end note
+note bottom of StarDetector
+  3×3 median removes single hot pixels; background
+  subtracted; spots of 2–80 px above k·noise, roughly
+  round; centroid and flux. Unmatched spots (noise, tree
+  gaps) are ignored by matching.
+end note
 note bottom of CloudDetector
   Cloud = star test says cloud OR brightness test says cloud.
   Star test inconclusive (< 8 expected) -> brightness test alone.

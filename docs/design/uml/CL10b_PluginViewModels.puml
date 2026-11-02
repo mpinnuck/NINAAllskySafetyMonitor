@@ -13,13 +13,17 @@ package "NINAAllskySafetyMonitor.Plugin.ViewModels" {
     +IsConnected, IsSafe : bool
     +StateText, ReasonText, LastUpdateText
     +ImageInfoText, WeatherInfoText
+    +RoiInfoText, MountInfoText
+    +ShowOverlay : bool
+    +OverlayLegendText
+    +OpenViewerCommand
     +CountdownText
     +OverrideModes, OverrideMode
     +OverrideActive, OverrideBanner
     +Metrics : MetricsViewModel
     +History : HistoryChartViewModel
     +UntunedVisible : bool
-    .. REQ-40 REQ-43 REQ-45 ..
+    .. REQ-40 REQ-43 REQ-45 REQ-58 REQ-59 ..
   }
   class MetricsViewModel {
     +StarFraction, Brightness, Rain, Gust
@@ -38,19 +42,39 @@ package "NINAAllskySafetyMonitor.Plugin.ViewModels" {
     +SftpPassword, PasswordStatus
     +SaveCommand, RevertCommand
     +TestImageCommand, TestWeatherCommand
-    .. REQ-46 REQ-53 REQ-55 ..
+    +working area, ROI, mount interval, fit limits,
+     hand-entered lens fields
+    +CalibrateFromFrameCommand (file picker)
+    +CalibrateFromCurrentImageCommand
+    +EditOutlineCommand
+    +CalibrationStatusText
+    .. REQ-22 REQ-23 REQ-27 REQ-46 REQ-53 REQ-55 REQ-58 ..
+  }
+  class ImageViewerViewModel {
+    +Mode : View | Calibration
+    +Image : BitmapSource
+    +Zoom, PanX, PanY
+    +CursorText  "alt 47.3° az 212.8°"
+    +ShowWorkingArea, ShowOutline, ShowRoi,
+     ShowCompass, ShowGrid, ShowCatalogueStars
+    +CloseOnOutsideClick : bool  (View only)
+    .. REQ-21 REQ-59 ..
   }
   class CalibrationViewModel {
-    +CalibrateCommand
-    +ShowOverlay : bool
-    +WorkingAreaCentreAlt, WorkingAreaCentreAz, WorkingAreaRadius
+    -session : LensCalibrationSession
+    -frame : CalibrationFrame
+    +FitCommand
+    +IdentifyStarsCommand  (pick named star, click it)
+    +DrawOutlineCommand, ClearOutlineCommand
     +Outline : ObservableCollection<PixelPoint>
-    +AcceptCommand
-    .. REQ-19 REQ-21 REQ-22 REQ-47 ..
+    +ResultText  "33 stars, 2.7 px (0.15°)"
+    +Warnings
+    +SaveCommand, CancelCommand
+    .. REQ-19 REQ-20 REQ-21 REQ-22 REQ-47 REQ-57 ..
   }
-  class OverlayImageComposer {
-    +Compose(s : MonitorSnapshot, projection) : BitmapSource
-    .. REQ-45 ..
+  class OverlayImageComposer <<Plugin.Imaging>> {
+    +Compose(image, originalWidth, lens, area, roi, layers) : BitmapSource
+    .. REQ-21 REQ-22 REQ-23 REQ-45 ..
   }
   class DelegateCommand {
     +Execute(parameter)
@@ -68,7 +92,10 @@ package "NINAAllskySafetyMonitor.Plugin.Views" {
   class OptionsTemplates <<XAML ResourceDictionary>> {
     "Allsky Safety Monitor_Options"
   }
-  class CalibrationTemplates <<XAML ResourceDictionary>>
+  class ImageViewerWindow <<WPF Window>> {
+    owned by NINA's main window, ~90% of it
+    mouse wheel = zoom, drag = pan
+  }
 }
 class AllskySafetyPlugin
 class PluginSettingsStore
@@ -82,7 +109,11 @@ StatusViewModel --> HistoryChartViewModel
 StatusViewModel --> OverlayImageComposer
 StatusTemplates ..> StatusViewModel
 OptionsTemplates ..> SettingsViewModel
-CalibrationTemplates ..> CalibrationViewModel
+ImageViewerWindow ..> ImageViewerViewModel
+ImageViewerViewModel o-- CalibrationViewModel : Calibration mode
+ImageViewerViewModel --> OverlayImageComposer
+StatusViewModel ..> ImageViewerWindow : click image (View mode)
+SettingsViewModel ..> ImageViewerWindow : calibrate / edit outline\n(Calibration mode)
 AllskySafetyPlugin --> SettingsViewModel
 SettingsViewModel --> PluginSettingsStore
 SettingsViewModel ..> SettingsValidator
@@ -100,6 +131,13 @@ end note
 note bottom of SettingsViewModel
   Edits a copy of the saved settings. Save validates,
   then saves; Revert discards unsaved edits.
+end note
+note bottom of ImageViewerWindow
+  View mode: latest image + overlay; an outside click
+  or Esc closes it. Calibration mode: chosen frame, fit
+  result, star circles and alt/az grid; closes only with
+  Save or Cancel, so a stray click can't lose an outline.
+  Cursor alt/az from LensProjection.ToHorizontal (REQ-59).
 end note
 note right of StatusViewModel
   Snapshots arrive on a background thread
