@@ -60,6 +60,7 @@ public sealed class MonitoringCycleCloudTests
         MonitorSnapshot s = await Cycle().RunOnceAsync(CancellationToken.None);
 
         Assert.True(s.Conditions.AllPassed, s.Status.Reason);
+        Assert.False(s.NotASkyFrame);
         Assert.NotNull(s.Cloud);
         Assert.False(s.Cloud!.CloudPresent);
         Assert.StartsWith("Clear: ", s.Conditions.Checks.Single(c => c.Condition == SafetyCondition.NoCloud).Reason);
@@ -87,6 +88,7 @@ public sealed class MonitoringCycleCloudTests
         Assert.Equal("Not a sky frame (Allsky notice image?)", s.Status.Reason);
         Assert.Null(s.Cloud);
         Assert.True(s.Conditions.Checks.Single(c => c.Condition == SafetyCondition.NoCloud).Undetermined);
+        Assert.True(s.NotASkyFrame);
     }
 
     [Fact]

@@ -178,6 +178,7 @@ public sealed class StatusViewModel : DockableVM
         get
         {
             if (!showOverlay || image is null) return string.Empty;
+            if (host.LatestSnapshot?.NotASkyFrame == true) return "Overlay hidden: this image is not a sky frame";
             bool approximate = PluginSettingsStore.Instance.Current.Calibration.Lens is not { Manual: false };
             return "Yellow dashed: working area (green when the whole area is judged) · Blue: drawn outline · Green: ROI (orange dotted: target not used) · Small circles: expected stars, green found, red missing"
                 + (approximate ? " · Positions on the image are approximate until the lens is calibrated" : string.Empty);
@@ -263,7 +264,7 @@ public sealed class StatusViewModel : DockableVM
     /// <summary>The decoded image with the overlay, or without it when switched off or if drawing fails.</summary>
     private BitmapSource? Compose(MonitorSnapshot? snapshot)
     {
-        if (decoded is null || !showOverlay) return decoded;
+        if (decoded is null || !showOverlay || snapshot?.NotASkyFrame == true) return decoded;
         try
         {
             CalibrationData cal = PluginSettingsStore.Instance.Current.Calibration;

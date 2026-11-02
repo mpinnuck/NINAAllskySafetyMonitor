@@ -109,24 +109,24 @@ public sealed class MonitoringCycle : IMonitoringCycle
 
         // Decoding and analysis take a second or two: keep them off the caller's thread.
         SkyImage? image = acquirer.LatestImage;
-        (ConditionCheck cloudCheck, CloudAssessment? cloud) = await Task.Run(() => AssessCloud(s, image, roi, site, now), ct).ConfigureAwait(false);
+        (ConditionCheck cloudCheck, CloudAssessment? cloud, bool notSky) = await Task.Run(() => AssessCloud(s, image, roi, site, now), ct).ConfigureAwait(false);
         checks.Add(cloudCheck);
 
         // Distinct: with no weather data, rain, wind and data age all fail for the same reason.
         string reason = string.Join(" · ", checks.Where(c => !c.Passed).Select(c => c.Reason).Distinct());
         var status = new SafetyStatus(SafetyState.Unsafe, false, reason, null, OverrideMode.Auto, untuned, now);
         WeatherObservation? obs = s.Weather.Enabled ? weather.Latest : null;
-        return new MonitorSnapshot(image, roi, cloud, obs, new SafetyConditions(checks), status, mountState);
+        return new MonitorSnapshot(image, roi, cloud, obs, new SafetyConditions(checks), status, mountState) { NotASkyFrame = notSky };
     }
 
     /// <summary>Decodes the image, checks it is a sky frame and judges cloud in the ROI.</summary>
-    private (ConditionCheck Check, CloudAssessment? Cloud) AssessCloud(MonitorSettings s, SkyImage? image, RegionOfInterest roi, SiteLocation site, DateTime now)
+    private (ConditionCheck Check, CloudAssessment? Cloud, bool NotSkyFrame) AssessCloud(MonitorSettings s, SkyImage? image, RegionOfInterest roi, SiteLocation site, DateTime now)
     {
-        if (decoder is null || cloudDetector is null) return (Unknown("Cloud detection unavailable"), null);
-        if (image is null) return (Unknown("No image to judge cloud"), null);
+        if (decoder is null || cloudDetector is null) return (Unknown("Cloud detection unavailable"), null, false);
+        if (image is null) return (Unknown("No image to judge cloud"), null, false);
         if (s.Calibration.Lens is not { RadialCoefficients: [> 0, ..] } lens)
         {
-            return (Unknown("Lens not calibrated: calibrate it in the plugin options"), null);
+            return (Unknown("Lens not calibrated: calibrate it in the plugin options"), null, false);
         }
 
         GrayFrame frame;
@@ -136,12 +136,12 @@ public sealed class MonitoringCycle : IMonitoringCycle
         }
         catch (Exception e)
         {
-            return (Unknown($"Image could not be decoded: {e.Message}"), null);
+            return (Unknown($"Image could not be decoded: {e.Message}"), null, true);
         }
 
         var area = new WorkingArea(s.Calibration.WorkingArea, new LensProjection(lens));
         ConditionCheck skyFrame = skyFrameCheck.Evaluate(frame, area, lens);
-        if (!skyFrame.Passed) return (skyFrame, null);
+        if (!skyFrame.Passed) return (skyFrame, null, true);
 
         MoonState? moon = astro is null ? null : new MoonState(astro.MoonPosition(site, now), astro.MoonIllumination(now));
         ClearSkyReference? reference = s.Calibration.ClearSkyReference ?? sessionReference;
@@ -156,7 +156,7 @@ public sealed class MonitoringCycle : IMonitoringCycle
         ConditionCheck check = cloud.Undetermined
             ? Unknown(cloud.Summary)
             : new ConditionCheck(SafetyCondition.NoCloud, !cloud.CloudPresent, cloud.Summary);
-        return (check, cloud);
+        return (check, cloud, false);
     }
 
     /// <summary>Decodes the image, reusing the last result when a cycle sees the same image again.</summary>

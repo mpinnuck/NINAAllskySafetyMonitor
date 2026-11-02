@@ -136,7 +136,8 @@ package "NINAAllskySafetyMonitor.Core.Domain" {
     +Conditions : SafetyConditions
     +Status : SafetyStatus
     +Mount : MountState?
-    .. REQ-41 REQ-45 ..
+    +NotASkyFrame : bool  (UI shows it without overlay)
+    .. REQ-41 REQ-45 REQ-60 ..
   }
 
   enum SafetyState {

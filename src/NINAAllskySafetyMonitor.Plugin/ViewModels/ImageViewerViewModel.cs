@@ -28,6 +28,7 @@ public sealed class ImageViewerViewModel : INotifyPropertyChanged
     private SkyImage? shownImage;
     private RegionOfInterest? roi;
     private CloudAssessment? cloud;
+    private bool notSkyFrame;
     private BitmapSource? image;
     private string cursorText = string.Empty;
     private bool showWorkingArea = true;
@@ -113,6 +114,7 @@ public sealed class ImageViewerViewModel : INotifyPropertyChanged
         };
         vm.roi = s.Roi;
         vm.cloud = s.Cloud;
+        vm.notSkyFrame = s.NotASkyFrame;
         vm.Recompose();
         return vm;
     }
@@ -169,7 +171,8 @@ public sealed class ImageViewerViewModel : INotifyPropertyChanged
                 if (!showStars) content = content with { Stars = Array.Empty<OverlayStar>() };
             }
 
-            Image = OverlayImageComposer.Compose(source, originalWidth, Lens(), content);
+            // A notice image (not a sky frame) is shown as it is: the lens model does not apply to it.
+            Image = Calibration is null && notSkyFrame ? source : OverlayImageComposer.Compose(source, originalWidth, Lens(), content);
         }
         catch (Exception e)
         {
@@ -193,6 +196,7 @@ public sealed class ImageViewerViewModel : INotifyPropertyChanged
 
                 roi = snapshot.Roi;
                 cloud = snapshot.Cloud;
+                notSkyFrame = snapshot.NotASkyFrame;
                 Recompose();
             }
             catch (Exception e)
