@@ -33,6 +33,14 @@ class ReviewSession:
         n = shown.index(self._index) + 1 if self._index in shown else 0
         return n, len(shown)
 
+    def shown_rows(self) -> List[ReviewRow]:
+        return [self.rows[i] for i in self._shown()]
+
+    def go_to(self, row: ReviewRow) -> bool:
+        """Makes row current when it matches the filter."""
+        i = next((i for i in self._shown() if self.rows[i] is row), None)
+        return self._move_to(i)
+
     def next(self) -> bool:
         return self._move_to(next((i for i in self._shown() if self._after(i)), None))
 

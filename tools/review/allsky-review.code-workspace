@@ -4,6 +4,7 @@
     { "name": "review tests", "path": "../../tests/review" }
   ],
   "settings": {
+    "git.openRepositoryInParentFolders": "always",
     "python.defaultInterpreterPath": "${workspaceFolder:review tool}/.venv/bin/python",
     "python.testing.pytestEnabled": true,
     "python.testing.unittestEnabled": false,

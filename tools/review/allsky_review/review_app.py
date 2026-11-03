@@ -10,6 +10,7 @@ from typing import Optional
 from .frame_view import FrameView
 from .metrics_panel import MetricsPanel
 from .review_session import ReviewSession
+from .review_table import ReviewTable
 from .review_workbook import ReviewWorkbook
 from .row_filter import RowFilter
 from .traceability import requirement
@@ -21,8 +22,14 @@ class ReviewApp:
         self.root = root
         self.session = session
         root.title(f"Allsky review — {session.workbook.run_folder}")
-        root.geometry("1400x900")
+        width = min(1400, root.winfo_screenwidth())
+        height = min(900, root.winfo_screenheight())
+        x = (root.winfo_screenwidth() - width) // 2
+        y = (root.winfo_screenheight() - height) // 2
+        root.geometry(f"{width}x{height}+{x}+{y}")
         root.minsize(900, 600)
+        self.table = ReviewTable(root, on_pick=self._pick)
+        self.table.pack(side="bottom", fill="x")
         self.frame = FrameView(root)
         self.frame.pack(side="left", fill="both", expand=True)
         self.metrics = MetricsPanel(root, on_filter=self._set_filter, width=360)
@@ -55,8 +62,14 @@ class ReviewApp:
         self.session.set_filter(row_filter)
         self._refresh()
 
+    def _pick(self, row) -> None:
+        if row is not self.session.current:
+            self.session.go_to(row)
+            self._refresh()
+
     def _refresh(self, message: Optional[str] = None) -> None:
         row = self.session.current
+        self.table.show(self.session.shown_rows(), row)
         if row is not self._shown_row:
             self.frame.show(row.image if row is not None else None)
             self._shown_row = row
