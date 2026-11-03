@@ -52,6 +52,13 @@ public sealed class FrameAnalyser
 
     public WorkingAreaDefinition WorkingArea => settings.Calibration.WorkingArea;
 
+    /// <summary>True when the Sun was below the operating-window limit, so the frame will be judged.</summary>
+    public bool IsNight(SavedFrame frame)
+    {
+        ArgumentNullException.ThrowIfNull(frame);
+        return astro.SunAltitudeDeg(site, frame.CaptureUtc) < settings.Window.SunAltitudeLimitDeg;
+    }
+
     public FrameResult Analyse(SavedFrame frame)
     {
         ArgumentNullException.ThrowIfNull(frame);
