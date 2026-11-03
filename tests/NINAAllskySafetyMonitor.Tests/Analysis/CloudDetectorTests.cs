@@ -161,6 +161,23 @@ public sealed class CloudDetectorTests
     }
 
     [Fact]
+    [Requirement("REQ-42")]
+    public void SeveralRoisOnOneFrameAgreeWithSeparateRuns()
+    {
+        ClearSkyReference r = Reference();
+        CloudDetector shared = Detector();
+        var north = new HorizontalCoordinate(65, 200);
+        Assess(Clear, SyntheticCloudSky.Roi(SyntheticCloudSky.SouthHigh), r);
+        CloudAssessment first = shared.Assess(Clear, SyntheticCloudSky.Roi(SyntheticCloudSky.SouthHigh), new WorkingAreaDefinition(), SyntheticCloudSky.Lens, SyntheticSky.Site, SyntheticSky.FrameUtc, MoonDown, r).Assessment;
+        CloudAssessment second = shared.Assess(Clear, SyntheticCloudSky.Roi(north), new WorkingAreaDefinition(), SyntheticCloudSky.Lens, SyntheticSky.Site, SyntheticSky.FrameUtc, MoonDown, r).Assessment;
+        CloudAssessment alone = Detector().Assess(Clear, SyntheticCloudSky.Roi(north), new WorkingAreaDefinition(), SyntheticCloudSky.Lens, SyntheticSky.Site, SyntheticSky.FrameUtc, MoonDown, r).Assessment;
+
+        Assert.Equal(alone.RelativeBrightness, second.RelativeBrightness);
+        Assert.Equal(alone.DetectedStars, second.DetectedStars);
+        Assert.False(first.CloudPresent);
+    }
+
+    [Fact]
     public void ToleranceFollowsTheLensFit()
     {
         Assert.Equal(4.0, CloudDetector.MatchTolerancePx(new LensCalibration { RmsErrorPx = 0.8 }, 2500));

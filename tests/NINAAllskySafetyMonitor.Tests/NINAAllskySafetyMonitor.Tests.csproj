@@ -19,6 +19,8 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\NINAAllskySafetyMonitor.Core\NINAAllskySafetyMonitor.Core.csproj" />
+    <!-- The offline replay harness (cross-platform). -->
+    <ProjectReference Include="..\..\tools\NINAAllskySafetyMonitor.Harness\NINAAllskySafetyMonitor.Harness.csproj" />
   </ItemGroup>
 
   <ItemGroup>

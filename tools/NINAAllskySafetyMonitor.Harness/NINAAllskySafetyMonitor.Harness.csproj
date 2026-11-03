@@ -18,6 +18,10 @@
   </ItemGroup>
 
   <ItemGroup>
+    <InternalsVisibleTo Include="NINAAllskySafetyMonitor.Tests" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="..\..\src\NINAAllskySafetyMonitor.Core\NINAAllskySafetyMonitor.Core.csproj" />
   </ItemGroup>
 </Project>

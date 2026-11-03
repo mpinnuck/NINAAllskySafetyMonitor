@@ -29,6 +29,8 @@ public sealed class CloudDetector
     private readonly BrightnessTest brightnessTest;
     private readonly MoonBrightnessAdjuster moonAdjuster;
     private readonly ClearSkyReferenceBuilder referenceBuilder;
+    private readonly object blocksSync = new();
+    private (GrayFrame Frame, PixelMask Area, BlockStatistics Blocks)? lastBlocks;
 
     public CloudDetector(Func<CloudDetectionSettings> settings, StarCatalogue catalogue)
     {
@@ -81,7 +83,7 @@ public sealed class CloudDetector
             StarTest(frame, roiMask, projection, site, utc, moon, tolerance, s);
 
         // Brightness test against the reference.
-        BlockStatistics blocks = background.Measure(frame, areaMask);
+        BlockStatistics blocks = Blocks(frame, areaMask);
         double moonAlt = moon?.Position.AltDeg ?? -90;
         double moonFactor = moonAdjuster.Factor(moonAlt, moon?.Illumination ?? 0);
         BrightnessTestResult brightness = brightnessTest.Evaluate(blocks, reference, roiMask, moonFactor);
@@ -116,6 +118,19 @@ public sealed class CloudDetector
             Moon = moon,
         };
         return new CloudDetection(assessment, captured);
+    }
+
+    /// <summary>The background map of the frame, measured once however many ROIs are judged on it.</summary>
+    private BlockStatistics Blocks(GrayFrame frame, PixelMask areaMask)
+    {
+        lock (blocksSync)
+        {
+            if (lastBlocks is { } last && ReferenceEquals(last.Frame, frame) && ReferenceEquals(last.Area, areaMask)) return last.Blocks;
+        }
+
+        BlockStatistics blocks = background.Measure(frame, areaMask);
+        lock (blocksSync) lastBlocks = (frame, areaMask, blocks);
+        return blocks;
     }
 
     private (StarTestResult Result, IReadOnlyList<ExpectedStar> Expected, IReadOnlyList<DetectedStar?> Found) StarTest(

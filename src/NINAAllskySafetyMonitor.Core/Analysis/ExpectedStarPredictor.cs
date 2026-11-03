@@ -14,6 +14,8 @@ namespace NINAAllskySafetyMonitor.Core.Analysis;
 public sealed class ExpectedStarPredictor
 {
     private readonly StarCatalogue catalogue;
+    private readonly object sync = new();
+    private (SiteLocation Site, DateTime Utc, double LimitMag, IReadOnlyList<(CatalogueStar Star, HorizontalCoordinate Sky)> Stars)? lastSky;
 
     public ExpectedStarPredictor(StarCatalogue catalogue)
     {
@@ -34,10 +36,8 @@ public sealed class ExpectedStarPredictor
         ArgumentNullException.ThrowIfNull(site);
 
         var expected = new List<ExpectedStar>();
-        foreach (CatalogueStar star in catalogue.BrighterThan(limitMag))
+        foreach ((CatalogueStar star, HorizontalCoordinate sky) in StarsAbove(site, utc, limitMag))
         {
-            HorizontalCoordinate sky = CoordinateConverter.ToHorizontal(star.RaHours, star.DecDeg, CoordinateEpoch.J2000, site, utc);
-            if (sky.AltDeg <= 0) continue;
             if (moon is { IsUp: true } m && SkyGeometry.SeparationDeg(sky, m.Position) < moonExclusionDeg) continue;
             PixelPoint p = projection.ToPixel(sky);
             if (!roiMask.Contains((int)Math.Round(p.X), (int)Math.Round(p.Y))) continue;
@@ -46,5 +46,24 @@ public sealed class ExpectedStarPredictor
 
         expected.Sort((a, b) => a.Star.Magnitude.CompareTo(b.Star.Magnitude));
         return expected;
+    }
+
+    /// <summary>Catalogue stars above the horizon, worked out once per frame time however many ROIs are judged.</summary>
+    private IReadOnlyList<(CatalogueStar Star, HorizontalCoordinate Sky)> StarsAbove(SiteLocation site, DateTime utc, double limitMag)
+    {
+        lock (sync)
+        {
+            if (lastSky is { } c && c.Utc == utc && c.LimitMag == limitMag && c.Site == site) return c.Stars;
+        }
+
+        var stars = new List<(CatalogueStar, HorizontalCoordinate)>();
+        foreach (CatalogueStar star in catalogue.BrighterThan(limitMag))
+        {
+            HorizontalCoordinate sky = CoordinateConverter.ToHorizontal(star.RaHours, star.DecDeg, CoordinateEpoch.J2000, site, utc);
+            if (sky.AltDeg > 0) stars.Add((star, sky));
+        }
+
+        lock (sync) lastSky = (site, utc, limitMag, stars);
+        return stars;
     }
 }

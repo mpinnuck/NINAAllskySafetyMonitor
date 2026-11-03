@@ -33,7 +33,8 @@ public static class SyntheticCloudSky
         bool thick = true,
         double cloudBrightness = 1.8,
         double texture = 0.25,
-        int seed = 3)
+        int seed = 3,
+        DateTime? utc = null)
     {
         var rng = new Random(seed);
         var projection = new LensProjection(Lens);
@@ -52,7 +53,10 @@ public static class SyntheticCloudSky
             }
         }
 
-        foreach (SkyStar s in SyntheticSky.Sky(4.6))
+        IEnumerable<SkyStar> sky = utc is DateTime t
+            ? SkyStars.AboveHorizon(StarCatalogue.LoadEmbedded().BrighterThan(4.6), SyntheticSky.Site, t)
+            : SyntheticSky.Sky(4.6);
+        foreach (SkyStar s in sky)
         {
             PixelPoint p = projection.ToPixel(s.Position);
             if (p.X < 5 || p.Y < 5 || p.X >= Size - 5 || p.Y >= Size - 5) continue;
