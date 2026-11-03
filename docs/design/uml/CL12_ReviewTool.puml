@@ -1,0 +1,102 @@
+@startuml CL12_ReviewTool
+!include _style.iuml
+title CL-12  Review tool — step through review.xlsx (Python 3, Tkinter; Pillow, openpyxl; macOS and Windows)
+
+package "allsky_review  (tools/review)" {
+  class ReviewApp {
+    -session : ReviewSession
+    -frame : FrameView
+    -metrics : MetricsPanel
+    +run(run_folder)
+    keys: C Clear · X Cloud · U Unsure ·
+      ← → previous / next · N next unreviewed ·
+      Delete clears my verdict · F filter
+    .. REQ-62 ..
+  }
+  class ReviewSession {
+    -rows : list[ReviewRow]
+    -filter : RowFilter
+    -index : int
+    +current : ReviewRow
+    +next() / previous() / next_unreviewed()
+    +record(verdict)  saves, then moves on
+    +set_filter(filter)
+    +tally() : Tally
+    .. REQ-62 ..
+  }
+  class ReviewWorkbook {
+    +load(run_folder) : list[ReviewRow]
+    +set_verdict(row, verdict)
+    +save()
+    +is_open_in_excel() : bool
+    .. REQ-61 REQ-62 ..
+  }
+  class ReviewRow <<dataclass>> {
+    +excel_row : int
+    +night, local_time, target : str
+    +verdict : Clear | Cloud | Unknown
+    +stars_found, stars_expected : int
+    +star_fraction, brightness, uniformity : float?
+    +picked_because : str
+    +image : Path
+    +my_verdict : Clear | Cloud | Unsure | None
+    +agrees : bool?
+    .. REQ-62 ..
+  }
+  enum RowFilter {
+    ALL
+    UNREVIEWED
+    MONITOR_CLOUD
+    MONITOR_CLEAR
+    DISAGREE
+    .. REQ-62 ..
+  }
+  class Tally <<dataclass>> {
+    +total, reviewed, agree, disagree : int
+    +false_cloud, missed_cloud : int
+    +agreement : float?
+    .. REQ-62 ..
+  }
+  class FrameView {
+    +show(image : Path)
+    +zoom_at(x, y)  click: 1× → 3× → fit
+    .. REQ-62 ..
+  }
+  class MetricsPanel {
+    +show(row : ReviewRow, position, tally : Tally)
+    .. REQ-62 ..
+  }
+  class WorkbookOpenError <<exception>>
+  class "requirement()" as Req <<decorator>> {
+    tags classes and tests with REQ ids,
+    like [Requirement] in C#
+  }
+}
+
+ReviewApp --> ReviewSession
+ReviewApp --> FrameView
+ReviewApp --> MetricsPanel
+ReviewSession --> ReviewWorkbook
+ReviewSession o-- "*" ReviewRow
+ReviewSession ..> RowFilter
+ReviewSession ..> Tally
+ReviewWorkbook ..> ReviewRow
+ReviewWorkbook ..> WorkbookOpenError
+
+note bottom of ReviewWorkbook
+  Reads the Review sheet of review.xlsx written by the harness
+  (CL-11a), finding columns by their headings; the image path comes
+  from the HYPERLINK formula. Writes only the My verdict column, so the
+  drop-down, the Agrees formulas and the Summary sheet stay intact
+  (Excel recalculates them when opened). Saved after every verdict,
+  to a temporary file then renamed. Excel's lock file (~$review.xlsx)
+  means the workbook is open: the save is refused with a message and
+  retried on the next verdict, nothing is lost.
+end note
+note bottom of ReviewSession
+  Starts at the first row without a verdict.
+  Filters: all, not reviewed, monitor said Cloud,
+  monitor said Clear, verdicts disagree.
+  Tally matches the Summary sheet.
+end note
+@enduml

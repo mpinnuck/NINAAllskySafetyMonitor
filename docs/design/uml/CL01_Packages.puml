@@ -29,6 +29,8 @@ package "NINAAllskySafetyMonitor.Core  (.NET 8 class library — no NINA referen
 
 package "NINAAllskySafetyMonitor.Harness\n(.NET 8 console, macOS / Windows:\noffline replay and review)" as H
 package "SkiaSharp, ClosedXML\n(NuGet, MIT)" as LIB <<external>>
+package "allsky_review\n(Python 3 / Tkinter, macOS / Windows:\nstep through review.xlsx)" as RV
+package "Pillow, openpyxl\n(pip)" as PYLIB <<external>>
 package "NINAAllskySafetyMonitor.Tests\n(unit + coverage)" as T
 package "NINA 3.x host\n(NINA.Equipment, NINA.Profile,\nNINA.Astrometry, NINA.Core)" as NINA <<external>>
 
@@ -64,6 +66,9 @@ H ..> LIB
 H ..> CTR
 T ..> C
 T ..> CTR
+RV ..> H : reads review.xlsx\nand review images
+RV ..> PYLIB
+T ..> RV : Python tests\n(tests/review)
 
 note right of C
   All safety logic lives in Core.

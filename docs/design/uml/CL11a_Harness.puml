@@ -44,6 +44,7 @@ package "NINAAllskySafetyMonitor.Harness" {
   class FrameAnalyser {
     -decoder, skyFrameCheck, window, cloudDetector
     -reference : ClearSkyReference?
+    +IsNight(frame) : bool
     +Analyse(frame : SavedFrame) : FrameResult
     .. REQ-42 ..
   }
@@ -78,6 +79,14 @@ package "NINAAllskySafetyMonitor.Harness" {
     +Save(path, settings)
     .. REQ-61 ..
   }
+  class ProgressLine {
+    +Update(text, force)
+    +Message(text)
+    +Finish()
+    one console line, overwritten in place;
+    a line every 30 s when redirected
+    .. REQ-42 ..
+  }
   class ConsoleLogSink {
     +Write(level, message)
   }
@@ -91,6 +100,7 @@ Program --> ReviewSelector
 Program --> AnnotatedFrameWriter
 Program --> ResultsCsvWriter
 Program --> ReviewWorkbookWriter
+Program --> ProgressLine
 FrameCatalog ..> SavedFrame
 FrameAnalyser --> SkiaFrameDecoder
 FrameAnalyser --> TargetGrid

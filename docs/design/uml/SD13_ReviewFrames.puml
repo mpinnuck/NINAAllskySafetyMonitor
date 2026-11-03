@@ -1,0 +1,45 @@
+@startuml SD13_ReviewFrames
+!include _style.iuml
+title SD-13  Review the replay results (UC-20) — REQ-62
+
+actor Imager
+participant ":ReviewApp" as App
+participant ":ReviewSession" as Ses
+participant ":ReviewWorkbook" as Wb
+participant ":FrameView" as FV
+participant ":MetricsPanel" as MP
+database "review.xlsx\nreview/…jpg" as Files
+
+Imager -> App : python3 tools/review/review.py ~~/AllskyFrames/Replay/run1\n(or choose the folder)
+App -> Wb : load(run folder)
+Wb -> Files : read Review sheet
+Wb --> App : rows
+App -> Ses : create(rows) — first row without a verdict
+loop until the imager closes the window
+  App -> FV : show(current.image)
+  App -> MP : show(current, n of m, tally)
+  alt C / X / U
+    Imager -> App : verdict key
+    App -> Ses : record(Clear | Cloud | Unsure)
+    Ses -> Wb : set_verdict(row), save()
+    alt workbook open in Excel (~$review.xlsx)
+      Wb --> Ses : WorkbookOpenError
+      Ses --> App : kept in memory
+      App --> Imager : "Close review.xlsx in Excel — the verdict is saved next time"
+    else saved
+      Wb -> Files : write My verdict, temp file then rename
+    end
+    Ses -> Ses : next row in the filter
+  else ← / → / N
+    Imager -> App : move
+    App -> Ses : previous() / next() / next_unreviewed()
+  else F
+    Imager -> App : choose filter
+    App -> Ses : set_filter(…)
+  else click on the image
+    Imager -> FV : zoom_at(x, y)
+  end
+end
+App -> Ses : last save on close
+note over Imager, Files : Opening review.xlsx in Excel afterwards shows the verdicts,\nAgrees column and Summary counts (REQ-61).
+@enduml

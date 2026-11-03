@@ -1,18 +1,18 @@
-# Design v1.8 (2026-11-03)
+# Design v1.9 (2026-11-03)
 
-Traced to `../requirements/requirements.md` v5.5 (REQ-01 … REQ-61). Version 1.8 designs slice 7 (offline replay harness); §1.5 of the PDF lists the changes from v1.7.
+Traced to `../requirements/requirements.md` v5.6 (REQ-01 … REQ-62). Version 1.9 adds the review tool (REQ-62) and the harness progress line; §1.5 of the PDF lists the changes from v1.8.
 
 | File | Contents |
 |---|---|
 | `uml/*.puml` | PlantUML sources in Rational Rose style (`uml/_style.iuml`). These are the editable masters. |
-| `review/NINAAllskySafetyMonitor-Design-v1.8.pdf` | Software Design Document for review, generated from the sources. Earlier versions are in `review/superseded/`. |
+| `review/NINAAllskySafetyMonitor-Design-v1.9.pdf` | Software Design Document for review, generated from the sources. Earlier versions are in `review/superseded/`. |
 | `review/traceability.xlsx` | REQ → use case → design class → scenario, generated from the sources. Do not edit by hand. |
 
 Diagram index:
 
-- **Use cases:** UC01 operation, UC02 set-up and tuning, UC03a/UC03b requirement trace.
-- **Classes:** CL01 packages, CL02 domain, CL03a ports, CL03b settings, CL04 acquisition, CL05 weather, CL06 geometry, CL07 cloud detection, CL08 decision and monitoring, CL09 calibration/tuning/logging/traceability, CL10a plugin NINA integration, CL10b plugin view models and image viewer, CL11 harness and tests.
-- **Scenarios:** SD01 connect, SD02 monitoring cycle, SD03 cloud detection, SD04 hysteresis, SD05 slew and fallback, SD06 acquire image, SD07 failure and idle, SD08 calibration, SD09 offline replay, SD10 override and disconnect, SD11 status and settings, SD12 image viewer.
+- **Use cases:** UC01 operation, UC02 set-up, tuning and review, UC03a/UC03b requirement trace.
+- **Classes:** CL01 packages, CL02 domain, CL03a ports, CL03b settings, CL04 acquisition, CL05 weather, CL06 geometry, CL07 cloud detection, CL08 decision and monitoring, CL09 calibration/tuning/logging/traceability, CL10a plugin NINA integration, CL10b plugin view models and image viewer, CL11a harness, CL11b tests, CL12 review tool.
+- **Scenarios:** SD01 connect, SD02 monitoring cycle, SD03 cloud detection, SD04 hysteresis, SD05 slew and fallback, SD06 acquire image, SD07 failure and idle, SD08 calibration, SD09 offline replay, SD10 override and disconnect, SD11 status and settings, SD12 image viewer, SD13 review the replay results.
 
 ## Rendering
 

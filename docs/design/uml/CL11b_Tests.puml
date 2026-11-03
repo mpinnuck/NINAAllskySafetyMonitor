@@ -16,6 +16,7 @@ package "NINAAllskySafetyMonitor.Tests" {
     }
     class RequirementTagScanner <<static>> {
       +Scan(folder) : map REQ → files
+      C#: [Requirement(...)]  Python: @requirement(...)
     }
     class RequirementInfo <<record>> {
       +Id : string
@@ -25,6 +26,10 @@ package "NINAAllskySafetyMonitor.Tests" {
       +Root : string
       +RequirementsFile : string
     }
+  }
+  package "review  (Python, pytest)" as TP {
+    class test_review_workbook
+    class test_review_session
   }
   package "Fakes" as TF {
     class FakeClock
@@ -64,6 +69,7 @@ UnitTestFixtures ..> TF
 note bottom of RequirementTagScanner
   Scans source files for [Requirement(...)] rather
   than reflecting over assemblies, so it also covers
+  the Python review tool (tools/review, tests/review) and
   the Windows-only Plugin and Astrometry projects
   when the tests run on the Mac.
 end note

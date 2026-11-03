@@ -15,6 +15,7 @@ rectangle "NINAAllskySafetyMonitor" {
   usecase "UC-15 Edit\nsettings" as UC15
   usecase "UC-16 Record\ntuning data" as UC16
   usecase "UC-17 Replay frames\noffline" as UC17
+  usecase "UC-20 Review replay\nresults" as UC20
   usecase "UC-04 Run\nmonitoring cycle" as UC04
   usecase "UC-06 Acquire\nAllsky image" as UC06
   usecase "UC-08 Detect\ncloud in ROI" as UC08
@@ -25,11 +26,13 @@ Imager --> UC13
 Imager --> UC14
 Imager --> UC15
 Imager --> UC17
+Imager --> UC20
 Timer --> UC04
 
 UC12 ..> UC06 : <<include>>
 UC13 ..> UC06 : <<include>>
 UC16 ..> UC04 : <<extend>>\n[tuning mode on]
 UC17 ..> UC08 : <<include>>
+UC20 ..> UC17 : <<extend>>\n[after a replay]
 UC06 --> Allsky
 @enduml
