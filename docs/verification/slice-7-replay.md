@@ -1,6 +1,6 @@
-# Slice 7 verification: offline replay harness
+# Slice 7 verification: offline replay harness and review tool
 
-Requirements: REQ-42, REQ-61 (also REQ-29, REQ-30, REQ-31, REQ-60). Requirements v5.5, design v1.8.
+Requirements: REQ-42, REQ-61, REQ-62 (also REQ-29, REQ-30, REQ-31, REQ-60). Requirements v5.6, design v1.9.
 
 The harness re-runs the plugin's cloud detection over saved Allsky frames, on the Mac, without NINA.
 - **Frames:** night folders `yyyyMMdd` of `allsky-yyyyMMddHHmmss.jpg`, or one night folder. One frame per 60 s is used (`--step`). Frames with the Sun above the plugin's limit are skipped.
@@ -41,9 +41,26 @@ Preparation:
 | 10 | Copy settings.json, change **cloud below** from 70 to 60 % (`Cloud.MinStarFraction` 0.70 → 0.60), replay one night to `~/AllskyFrames/Replay/run60` | Fewer Cloud verdicts in results.csv than run1; the **Settings** sheet records the file used | 42 |
 | 11 | `--use-settings-reference` on a night (settings with a captured reference) | Reference column "In use" from the first frame; no "captured" message | 30, 42 |
 
+## D. Review tool (Mac, Terminal, in the repo folder)
+
+Preparation: `pip3 install -r tools/review/requirements.txt` (Pillow, openpyxl, pytest). Tkinter comes with the python.org Python; with Homebrew's Python also `brew install python-tk`. Close `review.xlsx` in Excel before starting.
+
+| # | Step | Expected | REQ |
+|---|---|---|---|
+| D1 | `python3 -m pytest tests/review` | All pass | 62 |
+| D2 | `python3 tools/review/review.py ~/AllskyFrames/Replay/run1` | Window: the marked-up frame on the left, metrics on the right (night, time, target, monitor verdict in colour, stars, fraction, brightness, non-uniformity, picked because), "1 of n", the counts and the keys. Starts at the first frame without a verdict | 62 |
+| D3 | Press **C**, **X**, **U** on three frames | Each verdict shows, the next frame appears straight away; counts update (reviewed, agree, disagree, false cloud, missed cloud) | 62 |
+| D4 | **←**, **→**, **N**, **Delete** | Previous / next; next not reviewed; Delete clears my verdict on the current frame | 62 |
+| D5 | **F** repeatedly, or the **Show** menu | Not reviewed yet, Monitor said Cloud, Monitor said Clear, Verdicts disagree, All frames; "n of m" changes with the filter | 62 |
+| D6 | Click on the frame, click again | Zooms 3× at the point clicked; back to the whole frame | 62 |
+| D7 | Open review.xlsx in Excel, press **C** in the tool; close Excel, press **X** | First: red message "review.xlsx is open in Excel…", the verdict kept; second: both saved | 62 |
+| D8 | Close the tool, open review.xlsx in Excel | My verdict column has the verdicts, Agrees Yes/No, the drop-down still works, Summary counts match the tool's | 61, 62 |
+| D9 | Run the tool again on the same folder | Starts at the first frame still without a verdict | 62 |
+
 Unit tests behind this slice:
 - Harness: `FrameCatalogTests`, `TargetGridTests`, `ReviewSelectorTests`, `ProgressLineTests`, `ReplayTests` (decoder, end-to-end run on synthetic frames with reference capture, results.csv, review.xlsx and images, option parsing).
 - Core: `SunCalculatorTests` (against astropy), `CloudDetectorTests.SeveralRoisOnOneFrameAgreeWithSeparateRuns`.
+- Review tool (pytest, `tests/review`): `test_review_workbook` (reading by headings, writing only My verdict with formulas and drop-down kept, refused while Excel has it open), `test_review_session` (start point, moving, filters, counts, saving later). C#: `RequirementTagScannerTests` (Python tags count towards coverage).
 
 ## Results
 

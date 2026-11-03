@@ -1,0 +1,25 @@
+{
+  "folders": [
+    { "name": "review tool", "path": "." },
+    { "name": "review tests", "path": "../../tests/review" }
+  ],
+  "settings": {
+    "python.defaultInterpreterPath": "${workspaceFolder:review tool}/.venv/bin/python",
+    "python.testing.pytestEnabled": true,
+    "python.testing.unittestEnabled": false,
+    "python.testing.pytestArgs": ["${workspaceFolder:review tests}"]
+  },
+  "launch": {
+    "version": "0.2.0",
+    "configurations": [
+      {
+        "name": "Review run1",
+        "type": "debugpy",
+        "request": "launch",
+        "program": "${workspaceFolder:review tool}/review.py",
+        "args": ["${userHome}/AllskyFrames/Replay/run1"],
+        "console": "integratedTerminal"
+      }
+    ]
+  }
+}

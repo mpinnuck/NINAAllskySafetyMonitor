@@ -44,3 +44,8 @@ docs/design/out/
 # macOS / Windows
 .DS_Store
 Thumbs.db
+
+# Python (review tool)
+__pycache__/
+.pytest_cache/
+.venv/

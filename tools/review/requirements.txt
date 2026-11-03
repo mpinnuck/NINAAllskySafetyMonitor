@@ -1,0 +1,4 @@
+# Python packages for the review tool (tools/review). pip3 install -r tools/review/requirements.txt
+pillow>=10
+openpyxl>=3.1
+pytest>=8

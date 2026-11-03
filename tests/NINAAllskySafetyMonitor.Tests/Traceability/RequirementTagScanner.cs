@@ -3,13 +3,17 @@ using System.Text.RegularExpressions;
 namespace NINAAllskySafetyMonitor.Tests.Traceability;
 
 /// <summary>
-/// Finds [Requirement("REQ-nn", ...)] tags in C# source files. Scanning source rather than
-/// assemblies lets one test cover every project, including the Windows-only plugin.
+/// Finds requirement tags in source files: [Requirement("REQ-nn", ...)] in C# and @requirement("REQ-nn", ...)
+/// in Python (the review tool). Scanning source rather than assemblies lets one test cover every project,
+/// including the Windows-only plugin and the Python review tool.
 /// </summary>
 public static class RequirementTagScanner
 {
     private static readonly Regex Attribute =
         new(@"\[Requirement\((?<args>[^)]*)\)\]", RegexOptions.Compiled);
+
+    private static readonly Regex Decorator =
+        new(@"^\s*@requirement\((?<args>[^)]*)\)", RegexOptions.Compiled | RegexOptions.Multiline);
 
     private static readonly Regex Id = new(@"REQ-\d+", RegexOptions.Compiled);
 
@@ -18,12 +22,18 @@ public static class RequirementTagScanner
     {
         var map = new Dictionary<string, List<string>>(StringComparer.Ordinal);
 
-        foreach (string file in Directory.EnumerateFiles(folder, "*.cs", SearchOption.AllDirectories))
+        foreach (string file in Directory.EnumerateFiles(folder, "*.*", SearchOption.AllDirectories))
         {
-            if (IsBuildOutput(file)) continue;
+            Regex? tag = Path.GetExtension(file) switch
+            {
+                ".cs" => Attribute,
+                ".py" => Decorator,
+                _ => null,
+            };
+            if (tag is null || IsBuildOutput(file)) continue;
 
             string source = File.ReadAllText(file);
-            foreach (Match attribute in Attribute.Matches(source))
+            foreach (Match attribute in tag.Matches(source))
             {
                 foreach (Match id in Id.Matches(attribute.Groups["args"].Value))
                 {
@@ -45,6 +55,7 @@ public static class RequirementTagScanner
     private static bool IsBuildOutput(string file)
     {
         string sep = Path.DirectorySeparatorChar.ToString();
-        return file.Contains(sep + "bin" + sep) || file.Contains(sep + "obj" + sep);
+        return file.Contains(sep + "bin" + sep) || file.Contains(sep + "obj" + sep)
+            || file.Contains(sep + "__pycache__" + sep) || file.Contains(sep + ".venv" + sep) || file.Contains(sep + "venv" + sep);
     }
 }
