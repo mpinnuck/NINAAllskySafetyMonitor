@@ -1,11 +1,11 @@
-# Design v1.9 (2026-11-03)
+# Design v1.10 (2026-11-03)
 
-Traced to `../requirements/requirements.md` v5.6 (REQ-01 … REQ-62). Version 1.9 adds the review tool (REQ-62) and the harness progress line; §1.5 of the PDF lists the changes from v1.8.
+Traced to `../requirements/requirements.md` v5.6 (REQ-01 … REQ-62). Version 1.10 brings the review tool design up to date with the tool as built (table, ↑/↓ and wheel, resume); §1.5 of the PDF lists the changes from v1.9.
 
 | File | Contents |
 |---|---|
 | `uml/*.puml` | PlantUML sources in Rational Rose style (`uml/_style.iuml`). These are the editable masters. |
-| `review/NINAAllskySafetyMonitor-Design-v1.9.pdf` | Software Design Document for review, generated from the sources. Earlier versions are in `review/superseded/`. |
+| `review/NINAAllskySafetyMonitor-Design-v1.10.pdf` | Software Design Document for review, generated from the sources. Earlier versions are in `review/superseded/`. |
 | `review/traceability.xlsx` | REQ → use case → design class → scenario, generated from the sources. Do not edit by hand. |
 
 Diagram index:

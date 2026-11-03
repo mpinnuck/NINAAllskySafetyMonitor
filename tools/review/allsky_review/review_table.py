@@ -9,7 +9,7 @@ from .review_row import ReviewRow
 from .traceability import requirement
 
 COLUMNS = (
-    ("row", "Row", 50, "e"), ("night", "Night", 90, "w"), ("time", "Local time", 140, "w"),
+    ("row", "Row", 50, "e"), ("night", "Night", 90, "w"), ("time", "Local time", 165, "w"),
     ("target", "Target", 110, "w"), ("monitor", "Monitor", 70, "w"), ("mine", "Mine", 70, "w"),
     ("agrees", "Agrees", 60, "w"), ("stars", "Stars", 80, "e"), ("fraction", "Star fraction", 90, "e"),
     ("brightness", "Brightness", 80, "e"), ("uniformity", "Uniformity", 80, "e"), ("why", "Picked because", 300, "w"),
@@ -34,8 +34,7 @@ class ReviewTable(ttk.Frame):
         self._on_pick = on_pick
         self._rows: Dict[str, ReviewRow] = {}
         self._order: List[str] = []
-        self._quiet = False
-        self.tree = ttk.Treeview(self, columns=[c[0] for c in COLUMNS], show="headings", height=height, selectmode="browse")
+        self.tree = ttk.Treeview(self, columns=[c[0] for c in COLUMNS], show="headings", height=height, selectmode="extended")
         for key, title, width, anchor in COLUMNS:
             self.tree.heading(key, text=title)
             self.tree.column(key, width=width, anchor=anchor, stretch=key == "why")
@@ -47,31 +46,32 @@ class ReviewTable(ttk.Frame):
         self.tree.bind("<<TreeviewSelect>>", self._picked)
 
     def show(self, rows: List[ReviewRow], current: Optional[ReviewRow]) -> None:
-        """Lists rows (rebuilding only when the set changed), refreshes their values and selects current."""
-        self._quiet = True
-        try:
-            order = [str(r.excel_row) for r in rows]
-            if order != self._order:
-                self.tree.delete(*self.tree.get_children())
-                for iid in order:
-                    self.tree.insert("", "end", iid=iid)
-                self._order = order
-            self._rows = {str(r.excel_row): r for r in rows}
-            for iid, row in self._rows.items():
-                values = _values(row)
-                if tuple(str(v) for v in values) != tuple(self.tree.item(iid, "values")):
-                    self.tree.item(iid, values=values)
-                self.tree.item(iid, tags=("disagree",) if row.agrees is False else ())
-            if current is not None and str(current.excel_row) in self._rows:
-                iid = str(current.excel_row)
-                self.tree.selection_set(iid)
-                self.tree.see(iid)
-            else:
-                self.tree.selection_set(())
-        finally:
-            self._quiet = False
+        """Lists rows (rebuilding only when the set changed), refreshes their values and selects current.
+        Selecting current here also raises <<TreeviewSelect>> (Tk delivers it later); _picked then finds the
+        row already current and does nothing."""
+        order = [str(r.excel_row) for r in rows]
+        if order != self._order:
+            self.tree.delete(*self.tree.get_children())
+            for iid in order:
+                self.tree.insert("", "end", iid=iid)
+            self._order = order
+        self._rows = {str(r.excel_row): r for r in rows}
+        for iid, row in self._rows.items():
+            values = _values(row)
+            if tuple(str(v) for v in values) != tuple(self.tree.item(iid, "values")):
+                self.tree.item(iid, values=values)
+            self.tree.item(iid, tags=("disagree",) if row.agrees is False else ())
+        if current is not None and str(current.excel_row) in self._rows:
+            iid = str(current.excel_row)
+            self.tree.selection_set(iid)
+            self.tree.see(iid)
+        else:
+            self.tree.selection_set(())
+
+    def selected_rows(self) -> List[ReviewRow]:
+        return [self._rows[iid] for iid in self.tree.selection() if iid in self._rows]
 
     def _picked(self, _event) -> None:
         selected = self.tree.selection()
-        if not self._quiet and selected:
+        if len(selected) == 1:
             self._on_pick(self._rows[selected[0]])

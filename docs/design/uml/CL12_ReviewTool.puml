@@ -7,10 +7,15 @@ package "allsky_review  (tools/review)" {
     -session : ReviewSession
     -frame : FrameView
     -metrics : MetricsPanel
+    -table : ReviewTable
     +run(run_folder)
+    -restore_state() / save_state()
+      .review-state.json in the run folder:
+      last row and filter
     keys: C Clear · X Cloud · U Unsure ·
-      ← → previous / next · N next unreviewed ·
-      Delete clears my verdict · F filter
+      ↑ ↓ or mouse wheel previous / next ·
+      N next unreviewed · Delete clears my verdict ·
+      F filter
     .. REQ-62 ..
   }
   class ReviewSession {
@@ -18,7 +23,10 @@ package "allsky_review  (tools/review)" {
     -filter : RowFilter
     -index : int
     +current : ReviewRow
+    +shown_rows() : list[ReviewRow]
     +next() / previous() / next_unreviewed()
+    +go_to(row) : bool
+    +restore(excel_row, filter_name)
     +record(verdict)  saves, then moves on
     +set_filter(filter)
     +tally() : Tally
@@ -62,6 +70,14 @@ package "allsky_review  (tools/review)" {
     +zoom_at(x, y)  click: 1× → 3× → fit
     .. REQ-62 ..
   }
+  class ReviewTable {
+    +show(rows, current)
+    one line per row in the filter: Excel row,
+    night, time, target, both verdicts, Agrees,
+    metrics, why; disagreements in red;
+    picking a line calls on_pick(row)
+    .. REQ-62 ..
+  }
   class MetricsPanel {
     +show(row : ReviewRow, position, tally : Tally)
     .. REQ-62 ..
@@ -76,6 +92,7 @@ package "allsky_review  (tools/review)" {
 ReviewApp --> ReviewSession
 ReviewApp --> FrameView
 ReviewApp --> MetricsPanel
+ReviewApp --> ReviewTable
 ReviewSession --> ReviewWorkbook
 ReviewSession o-- "*" ReviewRow
 ReviewSession ..> RowFilter
@@ -92,9 +109,12 @@ note bottom of ReviewWorkbook
   to a temporary file then renamed. Excel's lock file (~$review.xlsx)
   means the workbook is open: the save is refused with a message and
   retried on the next verdict, nothing is lost.
+  Asks Excel to recalculate on opening, since
+  openpyxl keeps no cached formula results.
 end note
 note bottom of ReviewSession
-  Starts at the first row without a verdict.
+  Starts at the first row without a verdict, or
+  where the last session stopped (restore).
   Filters: all, not reviewed, monitor said Cloud,
   monitor said Clear, verdicts disagree.
   Tally matches the Summary sheet.

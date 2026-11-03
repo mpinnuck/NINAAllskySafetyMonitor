@@ -1,6 +1,7 @@
 """The review window: the frame, the metrics panel and the keys."""
 from __future__ import annotations
 
+import json
 import sys
 import tkinter as tk
 from pathlib import Path
@@ -14,6 +15,8 @@ from .review_table import ReviewTable
 from .review_workbook import ReviewWorkbook
 from .row_filter import RowFilter
 from .traceability import requirement
+
+STATE_FILE = ".review-state.json"
 
 
 @requirement("REQ-62")
@@ -39,20 +42,60 @@ class ReviewApp:
             root.bind(f"<KeyPress-{key.upper()}>", lambda _e, v=verdict: self._record(v))
         for key in ("<Delete>", "<BackSpace>"):
             root.bind(key, lambda _e: self._record(None))
-        root.bind("<Right>", lambda _e: self._move(self.session.next, "Last frame in this filter"))
-        root.bind("<Left>", lambda _e: self._move(self.session.previous, "First frame in this filter"))
+        root.bind("<Down>", lambda _e: self._wheel_step(1))
+        root.bind("<Up>", lambda _e: self._wheel_step(-1))
+        self.table.tree.bind("<Down>", lambda _e: self._wheel_step(1))
+        self.table.tree.bind("<Up>", lambda _e: self._wheel_step(-1))
         for key in ("n", "N"):
             root.bind(f"<KeyPress-{key}>", lambda _e: self._move(self.session.next_unreviewed, "No frames left to review in this filter"))
         for key in ("f", "F"):
             root.bind(f"<KeyPress-{key}>", lambda _e: self._set_filter(self.session.filter.following()))
         root.protocol("WM_DELETE_WINDOW", self._close)
+        for widget in (root, self.table.tree):
+            widget.bind("<MouseWheel>", self._wheel)
+            widget.bind("<Button-4>", lambda _e: self._wheel_step(-1))
+            widget.bind("<Button-5>", lambda _e: self._wheel_step(1))
+        self._restore_state()
         self._shown_row = None
         self._refresh()
+
+    def _wheel(self, event) -> str:
+        self._wheel_step(-1 if event.delta > 0 else 1)
+        return "break"
+
+    def _wheel_step(self, direction: int) -> str:
+        if direction < 0:
+            self._move(self.session.previous, "First frame in this filter")
+        else:
+            self._move(self.session.next, "Last frame in this filter")
+        return "break"
+
+    def _state_path(self) -> Path:
+        return self.session.workbook.run_folder / STATE_FILE
+
+    def _restore_state(self) -> None:
+        try:
+            state = json.loads(self._state_path().read_text(encoding="utf-8"))
+            self.session.restore(state.get("row"), state.get("filter"))
+        except (OSError, ValueError, AttributeError):
+            pass
+
+    def _save_state(self) -> None:
+        row = self.session.current
+        state = {"row": row.excel_row if row else None, "filter": self.session.filter.name}
+        try:
+            self._state_path().write_text(json.dumps(state), encoding="utf-8")
+        except OSError:
+            pass
 
     def _record(self, verdict: Optional[str]) -> None:
         if self.session.current is None:
             return
-        self.session.record(verdict)
+        picked = self.table.selected_rows()
+        if len(picked) > 1:
+            self.session.record_many(picked, verdict)
+        else:
+            self.session.record(verdict)
         self._refresh(self.session.save_error)
 
     def _move(self, step, at_end: str) -> None:
@@ -82,6 +125,7 @@ class ReviewApp:
                     "Verdicts not saved",
                     f"{self.session.save_error}\n\nRetry after closing it in Excel, or Cancel to quit without saving the last verdicts."):
                 break
+        self._save_state()
         self.root.destroy()
 
 

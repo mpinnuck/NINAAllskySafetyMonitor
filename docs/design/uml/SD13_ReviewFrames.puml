@@ -15,7 +15,10 @@ App -> Wb : load(run folder)
 Wb -> Files : read Review sheet
 Wb --> App : rows
 App -> Ses : create(rows) — first row without a verdict
+App -> Files : read .review-state.json
+App -> Ses : restore(last row, filter)
 loop until the imager closes the window
+  App -> App : table.show(shown_rows, current)
   App -> FV : show(current.image)
   App -> MP : show(current, n of m, tally)
   alt C / X / U
@@ -30,9 +33,12 @@ loop until the imager closes the window
       Wb -> Files : write My verdict, temp file then rename
     end
     Ses -> Ses : next row in the filter
-  else ← / → / N
+  else ↑ / ↓ / mouse wheel / N
     Imager -> App : move
     App -> Ses : previous() / next() / next_unreviewed()
+  else pick a line in the table
+    Imager -> App : on_pick(row)
+    App -> Ses : go_to(row)
   else F
     Imager -> App : choose filter
     App -> Ses : set_filter(…)
@@ -41,5 +47,6 @@ loop until the imager closes the window
   end
 end
 App -> Ses : last save on close
+App -> Files : write .review-state.json (row, filter)
 note over Imager, Files : Opening review.xlsx in Excel afterwards shows the verdicts,\nAgrees column and Summary counts (REQ-61).
 @enduml

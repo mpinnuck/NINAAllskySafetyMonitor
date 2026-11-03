@@ -92,6 +92,7 @@ class ReviewWorkbook:
         if self.is_open_in_excel():
             raise WorkbookOpenError(f"{WORKBOOK} is open in Excel. Close it there and the verdicts will be saved.")
         temp = self.path.with_name(WORKBOOK + ".saving")
+        self._book.calculation.fullCalcOnLoad = True  # openpyxl keeps no cached Agrees values; make Excel recalculate
         try:
             self._book.save(temp)
             os.replace(temp, self.path)

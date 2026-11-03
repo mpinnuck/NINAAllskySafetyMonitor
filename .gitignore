@@ -49,3 +49,5 @@ Thumbs.db
 __pycache__/
 .pytest_cache/
 .venv/
+# Office lock files (~$review.xlsx while Excel has it open)
+~$*

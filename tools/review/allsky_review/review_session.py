@@ -41,6 +41,14 @@ class ReviewSession:
         i = next((i for i in self._shown() if self.rows[i] is row), None)
         return self._move_to(i)
 
+    def restore(self, excel_row: Optional[int], filter_name: Optional[str]) -> None:
+        """Goes back to where the last session stopped; ignores a row or filter that no longer exists."""
+        row_filter = next((f for f in RowFilter if f.name == filter_name), RowFilter.ALL)
+        self.set_filter(row_filter)
+        row = next((r for r in self.rows if r.excel_row == excel_row), None)
+        if row is not None:
+            self.go_to(row)
+
     def next(self) -> bool:
         return self._move_to(next((i for i in self._shown() if self._after(i)), None))
 
@@ -68,6 +76,20 @@ class ReviewSession:
             # Last row in the filter: stay, unless it no longer matches (e.g. "not reviewed").
             if not self.filter.matches(row) and not self.previous():
                 self._index = None
+        return saved
+
+    def record_many(self, rows: List[ReviewRow], verdict: Optional[str]) -> bool:
+        """Records the verdict (None clears it) for every row, with one save. Stays on the current row,
+        or moves to a neighbour when it no longer matches the filter."""
+        if verdict is not None and verdict not in MY_VERDICTS:
+            raise ValueError(f"Verdict must be one of {', '.join(MY_VERDICTS)}.")
+        for row in rows:
+            row.my_verdict = verdict
+            self.workbook.set_verdict(row)
+        saved = self.save()
+        current = self.current
+        if current is not None and not self.filter.matches(current) and not self.next() and not self.previous():
+            self._index = None
         return saved
 
     def save(self) -> bool:

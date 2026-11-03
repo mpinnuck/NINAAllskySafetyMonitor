@@ -24,6 +24,38 @@ class TestReviewSession:
         assert s.current.target == "RA02 Dec-35"
         assert session(run_folder).rows[0].my_verdict == "Cloud"
 
+    def test_restore_returns_to_the_saved_row_and_filter(self, run_folder):
+        s = session(run_folder)
+        s.restore(4, "ALL")
+        assert s.current.excel_row == 4
+        s.restore(999, "NOPE")
+        assert s.current.excel_row == 4 and s.filter is RowFilter.ALL
+
+    def test_shown_rows_are_those_in_the_filter_in_sheet_order(self, run_folder):
+        s = session(run_folder)
+        assert [r.excel_row for r in s.shown_rows()] == [2, 3, 4, 5, 6]
+        s.set_filter(RowFilter.MONITOR_CLOUD)
+        assert [r.target for r in s.shown_rows()] == ["RA01 Dec-45", "RA03 Dec-25"]
+        s.set_filter(RowFilter.UNREVIEWED)
+        assert [r.excel_row for r in s.shown_rows()] == [2, 4, 6]
+
+    def test_go_to_picks_a_row_in_the_filter_only(self, run_folder):
+        s = session(run_folder)
+        assert s.go_to(s.rows[3]) and s.current.target == "RA04 Dec-15" and s.position() == (4, 5)
+        s.set_filter(RowFilter.MONITOR_CLOUD)  # RA04 is not in it: moves to the first Cloud row
+        assert s.current.target == "RA01 Dec-45"
+        assert not s.go_to(s.rows[1])  # monitor said Clear: not in this filter
+        assert s.current.target == "RA01 Dec-45"
+        assert s.go_to(s.rows[2]) and s.current.target == "RA03 Dec-25"
+
+    def test_record_many_sets_every_row_with_one_save(self, run_folder):
+        s = session(run_folder)
+        assert s.record_many(s.rows[1:4], "Cloud")
+        assert [r.my_verdict for r in session(run_folder).rows[:5]] == [None, "Cloud", "Cloud", "Cloud", None]
+        assert s.current is s.rows[0]
+        assert s.record_many(s.rows[1:3], None)
+        assert [r.my_verdict for r in session(run_folder).rows[:4]] == [None, None, None, "Cloud"]
+
     def test_next_previous_and_next_unreviewed(self, run_folder):
         s = session(run_folder)
         assert s.next() and s.current.target == "RA02 Dec-35"
