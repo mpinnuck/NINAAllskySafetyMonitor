@@ -127,6 +127,7 @@ note bottom of ReviewWorkbookWriter
   target, verdict, metrics, why, link to the image, "My verdict"
   drop-down Clear / Cloud / Unsure, Agrees formula); Summary sheet
   (agreement counts and % by formula, updating as verdicts are
-  typed); Settings sheet (thresholds used). results.csv holds every row.
+  typed); Settings sheet (thresholds and working circle used: centre alt,
+  az and radius). results.csv holds every row.
 end note
 @enduml

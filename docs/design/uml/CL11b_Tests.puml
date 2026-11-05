@@ -30,6 +30,13 @@ package "NINAAllskySafetyMonitor.Tests" {
   package "review  (Python, pytest)" as TP {
     class test_review_workbook
     class test_review_session
+    class test_working_area
+  }
+  class LensProjectionCases <<json>> {
+    tests/data/lens-projection-cases.json
+    alt/az → pixel for the real lens,
+    checked by LensProjectionTests (C#)
+    and test_working_area (Python)
   }
   package "Fakes" as TF {
     class FakeClock

@@ -1,6 +1,6 @@
 @startuml CL12_ReviewTool
 !include _style.iuml
-title CL-12  Review tool — step through review.xlsx (Python 3, Tkinter; Pillow, openpyxl; macOS and Windows)
+title CL-12  Review tool — step through review.xlsx and adjust the working circle (Python 3, Tkinter; Pillow, openpyxl; macOS and Windows)
 
 package "allsky_review  (tools/review)" {
   class ReviewApp {
@@ -15,8 +15,9 @@ package "allsky_review  (tools/review)" {
     keys: C Clear · X Cloud · U Unsure ·
       ↑ ↓ or mouse wheel previous / next ·
       N next unreviewed · Delete clears my verdict ·
-      F filter
-    .. REQ-62 ..
+      F filter · S working circle
+    -preview : WorkingArea?
+    .. REQ-62 REQ-63 ..
   }
   class ReviewSession {
     -rows : list[ReviewRow]
@@ -37,7 +38,11 @@ package "allsky_review  (tools/review)" {
     +set_verdict(row, verdict)
     +save()
     +is_open_in_excel() : bool
-    .. REQ-61 REQ-62 ..
+    +settings_path() : Path?
+    +run_working_area() : WorkingArea?
+    +original_image(row) : Path?
+    from the Settings sheet the harness wrote
+    .. REQ-61 REQ-62 REQ-63 ..
   }
   class ReviewRow <<dataclass>> {
     +excel_row : int
@@ -67,6 +72,7 @@ package "allsky_review  (tools/review)" {
   }
   class FrameView {
     +show(image : Path)
+    +show_image(image, message)
     +zoom_at(x, y)  click: 1× → 3× → fit
     .. REQ-62 ..
   }
@@ -83,6 +89,36 @@ package "allsky_review  (tools/review)" {
     .. REQ-62 ..
   }
   class WorkbookOpenError <<exception>>
+  class WorkingArea <<dataclass>> {
+    +centre_alt, centre_az, radius : float
+    +validate()
+    .. REQ-63 ..
+  }
+  class LensModel {
+    +to_pixel(alt, az) : (x, y)
+    port of LensProjection.ToPixel
+    .. REQ-63 ..
+  }
+  class WorkingCircleDrawing <<module>> {
+    +destination(alt, az, bearing, distance)
+    +circle_pixels(lens, area)
+    +draw_working_area(frame, lens, area, outline, title) : Image
+    port of SkyGeometry.Destination and the
+    harness's drawing (AnnotatedFrameWriter)
+    .. REQ-63 ..
+  }
+  class SettingsFile {
+    +path : Path
+    +lens, outline, working_area
+    +save_working_area(area)
+    .. REQ-63 ..
+  }
+  class SettingsWindow <<Toplevel>> {
+    centre altitude, azimuth, radius
+    "run used: alt / az / radius"
+    Apply · Save · Revert · Close
+    .. REQ-63 ..
+  }
   class "requirement()" as Req <<decorator>> {
     tags classes and tests with REQ ids,
     like [Requirement] in C#
@@ -93,6 +129,12 @@ ReviewApp --> ReviewSession
 ReviewApp --> FrameView
 ReviewApp --> MetricsPanel
 ReviewApp --> ReviewTable
+ReviewApp --> SettingsWindow
+ReviewApp ..> WorkingCircleDrawing
+SettingsWindow --> SettingsFile
+SettingsFile ..> WorkingArea
+WorkingCircleDrawing ..> LensModel
+WorkingCircleDrawing ..> WorkingArea
 ReviewSession --> ReviewWorkbook
 ReviewSession o-- "*" ReviewRow
 ReviewSession ..> RowFilter
@@ -111,6 +153,22 @@ note bottom of ReviewWorkbook
   retried on the next verdict, nothing is lost.
   Asks Excel to recalculate on opening, since
   openpyxl keeps no cached formula results.
+end note
+note bottom of SettingsFile
+  The settings.json given to the harness (path from the
+  Settings sheet, or chosen). Writes back only CentreAltDeg,
+  CentreAzDeg, RadiusDeg (and the informational Centre copy);
+  every other value is kept as read. The first save keeps the
+  file as settings.json.bak; saves go to a temporary file then
+  rename. The plugin's own settings on the AstroPC are not
+  touched: the imager enters the three values there.
+end note
+note bottom of LensModel
+  Same maths as Core: r = c1·z + c2·z² + … (z = zenith distance),
+  angle = north rotation ± azimuth. No altitude clamp, so a circle
+  below the horizon is drawn as the harness draws it. A shared
+  table of alt/az → pixel cases is checked by both the C# and the
+  Python tests.
 end note
 note bottom of ReviewSession
   Starts at the first row without a verdict, or

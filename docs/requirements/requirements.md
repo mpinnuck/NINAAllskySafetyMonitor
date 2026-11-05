@@ -1,6 +1,6 @@
 # NINAAllskySafetyMonitor — Requirements
 
-Version 5.6 · 2026-11-03
+Version 5.7 · 2026-11-05
 
 A safety monitor for NINA on the AstroPC. It analyses images from an Allsky camera, combines them with rain and wind data from a weather station, and reports a safe/unsafe status to NINA.
 
@@ -90,6 +90,7 @@ Defaults shown in *[brackets]* are configurable. How configurable values are sto
 - **REQ-42** Saved frames can be re-analysed offline, without the rig or a live NINA session, to test threshold changes. The re-analysis judges a spread of sky positions across the working area *[Dec −45° to +45° every 10°, RA every 1 h]*, followed as they move through each night, and captures its own clear-sky reference.
 - **REQ-61** The results of an offline re-analysis can be checked by eye: a row per frame and sky position with its metrics and verdict; a marked-up copy of each frame where the verdict changes, or where a metric is within *[10%]* of its limit; a place to record the imager's own verdict for those frames; and a count of how often the two agree. Results are readable by Excel.
 - **REQ-62** The frames picked for review (REQ-61) can be gone through one at a time: each marked-up frame is shown large with its metrics and verdict, and the imager's own verdict is recorded with a single action and kept with the results. The frames shown can be limited to those not yet reviewed, those judged cloud or clear, or those where the two verdicts disagree, and the agreement counts are shown as the review goes.
+- **REQ-63** The working area (REQ-22) can be adjusted away from the rig: its centre and radius can be changed and seen on saved frames, alongside the values the re-analysis used, and saved to the settings used for re-analysis, so the result can be checked (REQ-42) before it is entered in the monitor. Nothing else in those settings is changed.
 - **REQ-43** Until the thresholds have been tuned, conservative defaults (biased towards unsafe) are used and an "UNTUNED" warning is shown.
 
 ## 11. Logging

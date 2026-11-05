@@ -1,0 +1,42 @@
+@startuml SD14_AdjustWorkingCircle
+!include _style.iuml
+title SD-14  Adjust the working circle offline (UC-21) — REQ-63
+
+actor Imager
+participant ":ReviewApp" as App
+participant ":ReviewWorkbook" as Wb
+participant ":SettingsWindow" as Win
+participant ":SettingsFile" as SF
+participant "working_area" as WA
+participant ":FrameView" as FV
+database "settings.json\nframes" as Files
+
+Imager -> App : S
+App -> Wb : settings_path(), run_working_area()
+Wb --> App : path and the circle the run used
+App -> SF : open(settings.json)
+SF -> Files : read
+App -> Win : open(settings, run circle)
+Win --> Imager : centre alt, az, radius (current); "run used: …"
+loop until Close
+  Imager -> Win : change values, Apply
+  Win -> App : preview(area)
+  App -> Wb : original_image(current row)
+  App -> WA : draw_working_area(frame, lens, area, outline)
+  WA --> App : frame with circle and outline
+  App -> FV : show_image(…)
+  opt next / previous frame, verdict keys
+    Imager -> App : ↑ ↓ C X U
+    App -> FV : preview on that frame
+  end
+  opt Save
+    Imager -> Win : Save
+    Win -> SF : save_working_area(area)
+    SF -> Files : first save: settings.json.bak;\nwrite temp, rename
+  end
+end
+Imager -> Win : Close
+Win -> App : preview(none)
+App -> FV : marked-up copy again
+note over Imager, Files : Re-run the harness with the saved settings.json to check the circle (REQ-42),\nthen enter the three values in the plugin's working area options.
+@enduml
