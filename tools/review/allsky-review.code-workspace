@@ -14,11 +14,11 @@
     "version": "0.2.0",
     "configurations": [
       {
-        "name": "Review run1",
+        "name": "Review run2",
         "type": "debugpy",
         "request": "launch",
         "program": "${workspaceFolder:review tool}/review.py",
-        "args": ["${userHome}/AllskyFrames/Replay/run1"],
+        "args": ["${userHome}/AllskyFrames/Replay/run2"],
         "console": "integratedTerminal"
       }
     ]

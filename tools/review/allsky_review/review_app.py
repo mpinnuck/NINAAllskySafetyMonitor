@@ -8,6 +8,7 @@ from pathlib import Path
 from tkinter import filedialog, messagebox
 from typing import Optional
 
+from . import __version__
 from .frame_view import FrameView
 from .metrics_panel import MetricsPanel
 from .review_session import ReviewSession
@@ -31,6 +32,10 @@ class ReviewApp:
         y = (root.winfo_screenheight() - height) // 2
         root.geometry(f"{width}x{height}+{x}+{y}")
         root.minsize(900, 600)
+        header = tk.Frame(root)
+        header.pack(side="top", fill="x", padx=10, pady=(4, 0))
+        tk.Label(header, text=f"Allsky review — {session.workbook.run_folder}", anchor="w").pack(side="left")
+        tk.Label(header, text=f"v{__version__}", font=("Helvetica", 9), fg="#777777").pack(side="right")
         self.table = ReviewTable(root, on_pick=self._pick)
         self.table.pack(side="bottom", fill="x")
         self.frame = FrameView(root)

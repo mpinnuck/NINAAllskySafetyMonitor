@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Review the frames a replay picked (REQ-62).
 
-    python3 tools/review/review.py ~/AllskyFrames/Replay/run1
+    python3 tools/review/review.py ~/AllskyFrames/Replay/run2
 
 Without a folder, asks for one. Needs Pillow and openpyxl: pip3 install -r tools/review/requirements.txt
 """
