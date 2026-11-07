@@ -14,6 +14,7 @@ namespace NINAAllskySafetyMonitor.Plugin.Nina;
 [Requirement("REQ-05", "REQ-06", "REQ-07")]
 public sealed class NinaMountStateSource : IMountStateSource
 {
+    private static readonly NinaLogSink Log = new();
     private readonly ITelescopeMediator telescope;
 
     public NinaMountStateSource(ITelescopeMediator telescope)
@@ -47,7 +48,7 @@ public sealed class NinaMountStateSource : IMountStateSource
         }
         catch (Exception e)
         {
-            NINA.Core.Utility.Logger.Warning($"[AllskySafetyMonitor] Could not read the mount state: {e.Message}");
+            Log.Write(LogLevel.Warning, $"Could not read the mount state: {e.Message}");
             return null;
         }
     }

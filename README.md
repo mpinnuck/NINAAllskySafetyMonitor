@@ -5,7 +5,7 @@ A NINA safety-monitor plugin. It analyses the latest image from an Allsky camera
 ## Quick Links
 
 - 📖 **[User Guide](docs/USER_GUIDE.md)** — For NINA imagers: how to set up and use the plugin
-- 📋 **Requirements:** [`docs/requirements/requirements.md`](docs/requirements/requirements.md) (v5.9, REQ-01 … REQ-64)
+- 📋 **Requirements:** [`docs/requirements/requirements.md`](docs/requirements/requirements.md) (v5.10, REQ-01 … REQ-64)
 - 🏗️ **Design:** [`docs/design/`](docs/design/) — PDF design document, PlantUML sources, traceability matrix
 
 ## Solution layout
@@ -35,4 +35,4 @@ Folders inside Core and Tests match the design packages (CL-01): one folder per 
 
 ## Traceability
 
-The traceability scanner collects `[Requirement("REQ-xx")]` tags from C# and Python. Unknown requirement IDs fail tests; full implementation/test coverage is currently reported but its two gate tests remain skipped while the recovered project snapshot is incomplete.
+The traceability scanner collects `[Requirement("REQ-xx")]` tags from C# and Python, including combined C# attributes. Unknown IDs and unexpected implementation/test coverage gaps fail the test suite. Explicit exceptions document the unrecovered REQ-29 low-count rule and UI/platform requirements that need manual NINA verification.

@@ -1,6 +1,6 @@
 # NINAAllskySafetyMonitor — Requirements
 
-Version 5.9 · 2026-11-07
+Version 5.10 · 2026-11-08
 
 Requirement IDs are permanent. New requirements are appended; gaps in the sequence are intentional.
 
@@ -64,10 +64,27 @@ Defaults shown in *[brackets]* are configurable. How configurable values are sto
 ## 7. Cloud detection
 
 - **REQ-28** Cloud detected in the ROI is always shown to the imager. It makes the status unsafe only when the imager chooses that cloud decides safety *[off]*.
-- **REQ-29** Primary test: predict which catalogue stars should be visible in the ROI (down to a limiting magnitude *[4.4]*), detect stars in the image, and compute the detected fraction. If the fraction falls below *[0.70]*, there is cloud. If fewer than *[8]* stars are expected, the test still decides when the count leaves little doubt: cloud when so few are found that it would be unlikely in clear sky *[less than 1 in 100, taking 95% of expected stars as found]*; clear when the fraction reaches the limit above. Otherwise, or when fewer than *[3]* stars are expected, the test is inconclusive and only REQ-30 applies.
+- **REQ-29** Primary cloud test. Let `n` be the number of catalogue stars expected in the ROI and `k` the number detected. Apply the rows of Table 1 in order; the first matching row gives the star-test result. `N_min` is the configured minimum expected stars *[8]*; `F_min` is the configured minimum star fraction *[0.70]*; `N_floor` is 3; `P_detect` is 0.95 and `P_cloud` is 0.01 (fixed values in this requirement, not settings).
+
+  **Table 1 — REQ-29 star-test decisions** (assumes `0 <= k <= n`)
+
+| # | Condition | Star-test result | Meaning |
+|---|---|---|---|
+| 1 | `n < N_floor` (including `n = 0`) | Inconclusive | Too few expected stars to judge; only REQ-30 applies. |
+| 2 | `n >= max(N_min, N_floor)` and `k / n < F_min` | Cloud | Detected fraction below the limit. |
+| 3 | `n >= max(N_min, N_floor)` and `k / n >= F_min` | Clear | Detected fraction at or above the limit. |
+| 4 | `N_floor <= n < N_min` and `k / n >= F_min` | Clear | Clear by fraction even though the count is below the normal minimum. |
+| 5 | `N_floor <= n < N_min`, `k / n < F_min`, and `P(X <= k) < P_cloud` | Cloud | So few detections would be unlikely in clear sky. |
+| 6 | `N_floor <= n < N_min`, `k / n < F_min`, and `P(X <= k) >= P_cloud` | Inconclusive | Low count but not statistically decisive; only REQ-30 applies. |
+
+  `P(X <= k) = sum(i = 0 to k) C(n, i) * P_detect^i * (1 - P_detect)^(n - i)` is the probability that at most `k` of the `n` expected stars are detected in clear sky, assuming each star is detected independently with probability `P_detect`.
+
+  A star-test result is not the final cloud decision. The overall cloud result is cloud if REQ-29 says cloud **or** REQ-30 says cloud; if REQ-29 is inconclusive and REQ-30 is skipped or unavailable, cloud is undetermined (REQ-50). A REQ-29 "clear" result does not prevent REQ-30 from finding cloud.
+
+  **Snapshot status (2026-11-08):** rows 4–6 are not implemented in the checked-in code; currently every `n < N_min` is inconclusive. This is the low-count probability rule lost with the damaged M2 and remains pending recovery and verification. Remove this status note when the rule is implemented and tested.
 - **REQ-30** Secondary test, comparing the ROI with a clear-sky reference: a map of sky brightness and non-uniformity over the working area, captured automatically on the first tuned clear night. Cloud lit by city glow appears brighter and blotchier than clear sky. The map uses 32 px blocks with at least half the pixels in the working area; non-uniformity is `(84th percentile − 16th percentile) / 2 / median` per block (median is floored at 1). Percentiles provide robustness to stars and hot pixels without removing them. Because the Allsky camera adjusts its exposure to keep overall image brightness steady, the test does not depend on exposure:
   - brightness of the ROI relative to the rest of the working area, both compared with the reference, above *[1.3×]* → cloud;
-  - non-uniformity (standard deviation ÷ median, after removing stars) above *[1.5×]* the reference → cloud.
+  - non-uniformity `(P84 − P16) / 2 / median` above *[1.5×]* the reference → cloud.
   Until a reference exists, this test is skipped and REQ-29 alone decides.
 - **REQ-31** Stars within *[15°]* of the Moon are excluded from the expected list. Brightness and non-uniformity limits are multiplied by `1 + 0.5 × illumination × max(0, sin(Moon altitude))` (altitude in degrees); below-horizon or new Moon leaves the limits unchanged.
 
@@ -105,7 +122,7 @@ Defaults shown in *[brackets]* are configurable. How configurable values are sto
   - the latest Allsky image with the ROI circle, working area, and detected vs expected stars overlaid;
   - a large SAFE / UNSAFE / IDLE indicator showing the reason for the current state, with a safe state that was assumed (REQ-50) shown distinctly, and the cloud result shown alongside as advice when it does not decide safety;
   - current metrics: star fraction, brightness, rain, wind gust, image age, weather data age, and the countdown to safe;
-  - a history graph of the metrics and the safe state for the night.
+  - a history graph of star fraction, relative brightness and safe state for the night; rain, wind gust, image age, weather age and safe countdown are shown as current values.
 - **REQ-46** A settings view edits every configurable value.
 - **REQ-47** A calibration view supports lens calibration (REQ-19–21) and defining the working area (REQ-22).
 - **REQ-59** The Allsky image, with its overlay, can be viewed enlarged, and the altitude and azimuth of any point on it can be read.
@@ -116,13 +133,13 @@ Defaults shown in *[brackets]* are configurable. How configurable values are sto
 
 ## 13.1 Platform
 
-- **REQ-48** Runs on the Windows AstroPC within NINA 3.3.0.1057 or later. Release builds must target the installed NINA.Plugin package and corresponding .NET runtime.
+- **REQ-48** Runs on the Windows AstroPC within NINA 3.3.0.1057 or later. Release builds must target the exact NINA.Plugin package and corresponding .NET runtime installed on the AstroPC, and the release candidate must be installed and smoke-tested in NINA before release.
 
 ## 13.2 Reliability
 
 - **REQ-49** A failure in the safety monitor (crash, hang, network fault) must not disrupt NINA or a running sequence.
 - **REQ-50** Fail-safe: failures and states that cannot be determined result in **unsafe**, unless the imager enables the option to assume genuinely undetermined conditions safe. Known failures are never undetermined: stale images, a fetch outage past its unsafe limit, stale weather, and an invalid/non-sky image are always **unsafe**. Detected rain or wind is always **unsafe**, and so is detected cloud when it decides safety (REQ-28). A monitor error or a missed liveness deadline is always **unsafe**.
-- **REQ-64** If the monitoring loop faults or no cycle completes within one configured image interval plus the cycle timeout, the monitor reports **unsafe** until monitoring resumes and completes a cycle.
+- **REQ-64** If the monitoring loop faults or a cycle remains in progress longer than the configured cycle timeout after it starts, the monitor reports **unsafe** until monitoring resumes and a subsequent cycle completes. The normal wait between scheduled cycles is not a missed liveness deadline.
 - **REQ-51** Every network operation (image fetch, weather poll) has a timeout, so a stalled connection can't hang the monitor.
 
 ## 13.3 Security

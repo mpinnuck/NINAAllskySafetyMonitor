@@ -9,8 +9,21 @@ namespace NINAAllskySafetyMonitor.Tests.Traceability;
 /// </summary>
 public sealed class RequirementCoverageTests
 {
-    private const string PartialImplementation =
-        "Enabled once every package is implemented; see CoverageReport for current gaps.";
+    private static readonly IReadOnlyDictionary<string, string> ImplementationGaps =
+        new Dictionary<string, string>
+        {
+            ["REQ-29"] = "The low-count probability rule is pending recovery; existing star-test code only covers the standard fraction rule.",
+        };
+
+    private static readonly IReadOnlyDictionary<string, string> ManualVerification =
+        new Dictionary<string, string>
+        {
+            ["REQ-21"] = "Calibration overlay requires visual verification in the NINA UI.",
+            ["REQ-45"] = "Status view requires visual verification in the NINA UI.",
+            ["REQ-47"] = "Calibration/settings views require visual verification in the NINA UI.",
+            ["REQ-48"] = "Release packaging requires the AstroPC's installed NINA package and runtime smoke test.",
+            ["REQ-59"] = "Enlarged viewer and cursor mapping require visual verification in the NINA UI.",
+        };
 
     private readonly ITestOutputHelper output;
     private readonly IReadOnlyList<RequirementInfo> requirements;
@@ -47,17 +60,17 @@ public sealed class RequirementCoverageTests
         Assert.True(unknown.Count == 0, "Tags name unknown requirements: " + string.Join(", ", unknown));
     }
 
-    [Fact(Skip = PartialImplementation)]
+    [Fact]
     public void EveryRequirementHasImplementation()
     {
-        var missing = Missing(implemented);
+        var missing = Missing(implemented, ImplementationGaps.Keys);
         Assert.True(missing.Count == 0, "Requirements with no implementing class: " + string.Join(", ", missing));
     }
 
-    [Fact(Skip = PartialImplementation)]
+    [Fact]
     public void EveryRequirementHasTest()
     {
-        var missing = Missing(tested);
+        var missing = Missing(tested, ManualVerification.Keys.Concat(ImplementationGaps.Keys));
         Assert.True(missing.Count == 0, "Requirements with no test: " + string.Join(", ", missing));
     }
 
@@ -65,14 +78,21 @@ public sealed class RequirementCoverageTests
     public void CoverageReport()
     {
         output.WriteLine($"Requirements: {requirements.Count}");
-        output.WriteLine($"Implemented:  {requirements.Count - Missing(implemented).Count}");
-        output.WriteLine($"Tested:       {requirements.Count - Missing(tested).Count}");
-        output.WriteLine("Not implemented: " + string.Join(", ", Missing(implemented)));
-        output.WriteLine("Not tested:      " + string.Join(", ", Missing(tested)));
+        output.WriteLine($"Implemented:  {requirements.Count - Missing(implemented, ImplementationGaps.Keys).Count - ImplementationGaps.Count}");
+        output.WriteLine($"Tested:       {requirements.Count - Missing(tested, ManualVerification.Keys.Concat(ImplementationGaps.Keys)).Count - ManualVerification.Count - ImplementationGaps.Count}");
+        output.WriteLine("Not implemented: " + string.Join(", ", Missing(implemented, ImplementationGaps.Keys)));
+        output.WriteLine("Not tested:      " + string.Join(", ", Missing(tested, ManualVerification.Keys.Concat(ImplementationGaps.Keys))));
+        output.WriteLine("Known implementation gaps: " + string.Join("; ", ImplementationGaps.Select(kv => $"{kv.Key}: {kv.Value}")));
+        output.WriteLine("Manual verification: " + string.Join("; ", ManualVerification.Select(kv => $"{kv.Key}: {kv.Value}")));
     }
 
-    private List<string> Missing(IReadOnlyDictionary<string, IReadOnlyList<string>> tags) =>
-        requirements.Select(r => r.Id).Where(id => !tags.ContainsKey(id)).ToList();
+    private List<string> Missing(IReadOnlyDictionary<string, IReadOnlyList<string>> tags, IEnumerable<string>? exempt = null)
+    {
+        var exemptions = (exempt ?? Array.Empty<string>()).ToHashSet(StringComparer.Ordinal);
+        return requirements.Select(r => r.Id)
+            .Where(id => !tags.ContainsKey(id) && !exemptions.Contains(id))
+            .ToList();
+    }
 
     private static IReadOnlyDictionary<string, IReadOnlyList<string>> MergeScans(
         IReadOnlyDictionary<string, IReadOnlyList<string>> a,

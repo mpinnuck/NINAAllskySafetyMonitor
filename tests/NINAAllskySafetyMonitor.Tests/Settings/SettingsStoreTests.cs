@@ -197,4 +197,43 @@ public sealed class SettingsStoreTests : IDisposable
         File.WriteAllText(SettingsPath, "{ not json");
         Assert.Throws<InvalidDataException>(() => new SettingsStore(SettingsPath).Load());
     }
+
+    [Fact]
+    public void NullNestedSettingsSectionsAreNormalizedToDefaults()
+    {
+        Directory.CreateDirectory(folder);
+        File.WriteAllText(SettingsPath,
+            """{"Site":null,"ImageSource":{"Direct":null,"Web":null},"Weather":null,"Calibration":{"WorkingArea":null}}""");
+
+        MonitorSettings loaded = new SettingsStore(SettingsPath).Load();
+
+        Assert.NotNull(loaded.Site);
+        Assert.NotNull(loaded.ImageSource.Direct);
+        Assert.NotNull(loaded.ImageSource.Web);
+        Assert.NotNull(loaded.Weather);
+        Assert.NotNull(loaded.Calibration.WorkingArea);
+        Assert.Empty(loaded.Calibration.WorkingArea.Outline);
+        Assert.Contains(new SettingsValidator().Validate(loaded), error => error.Contains("Weather API key"));
+    }
+
+    [Fact]
+    public void SaveAndBackupNeverPersistLegacyOrCurrentWeatherApiKeys()
+    {
+        Directory.CreateDirectory(folder);
+        var legacy = new MonitorSettings();
+        legacy.Weather.ApiKey = "legacy-short-key";
+        File.WriteAllText(SettingsPath, SettingsStore.ToJson(legacy));
+
+        var next = new MonitorSettings();
+        next.Weather.ApiKey = "new-short-key";
+        new SettingsStore(SettingsPath).Save(next);
+
+        string current = File.ReadAllText(SettingsPath);
+        string backup = File.ReadAllText(SettingsPath + ".bak");
+        Assert.DoesNotContain("legacy-short-key", current);
+        Assert.DoesNotContain("new-short-key", current);
+        Assert.DoesNotContain("legacy-short-key", backup);
+        Assert.DoesNotContain("new-short-key", backup);
+        Assert.Empty(SettingsStore.FromJson(backup).Weather.ApiKey);
+    }
 }

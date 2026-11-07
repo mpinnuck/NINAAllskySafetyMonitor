@@ -10,6 +10,7 @@ using NINA.Profile.Interfaces;
 using NINA.WPF.Base.ViewModel;
 using NINAAllskySafetyMonitor.Core.Domain;
 using NINAAllskySafetyMonitor.Core.Geometry;
+using NINAAllskySafetyMonitor.Core.Abstractions;
 using NINAAllskySafetyMonitor.Core.Settings;
 using NINAAllskySafetyMonitor.Core.Traceability;
 using NINAAllskySafetyMonitor.Plugin.Imaging;
@@ -25,10 +26,12 @@ namespace NINAAllskySafetyMonitor.Plugin.ViewModels;
 /// </summary>
 [Export(typeof(IDockableVM))]
 [Requirement("REQ-43", "REQ-45", "REQ-50", "REQ-58", "REQ-59")]
-public sealed class StatusViewModel : DockableVM
+public sealed class StatusViewModel : DockableVM, IDisposable
 {
+    private static readonly NinaLogSink Log = new();
     private readonly MonitorHost host = MonitorHost.Instance;
     private readonly DispatcherTimer refreshTimer;
+    private readonly Application? application;
     private SkyImage? shownImage;
     private BitmapSource? decoded;
     private int originalWidth;
@@ -41,16 +44,28 @@ public sealed class StatusViewModel : DockableVM
     public StatusViewModel(IProfileService profileService) : base(profileService)
     {
         Title = "Allsky Safety";
-        host.SnapshotAvailable += (_, _) => OnUiThread(Refresh);
-        host.RunningChanged += (_, _) => OnUiThread(Refresh);
-        host.Override.Changed += (_, _) => OnUiThread(Refresh);
+        host.SnapshotAvailable += OnSnapshotAvailable;
+        host.RunningChanged += OnHostChanged;
+        host.Override.Changed += OnHostChanged;
 
         // Safety net: also refresh every few seconds, so the panel can never stay stale if an event is
         // missed, and so the image age keeps counting.
         refreshTimer = new DispatcherTimer(DispatcherPriority.Background, Application.Current?.Dispatcher ?? Dispatcher.CurrentDispatcher) { Interval = TimeSpan.FromSeconds(5) };
-        refreshTimer.Tick += (_, _) => Refresh();
+        refreshTimer.Tick += OnRefreshTimer;
         refreshTimer.Start();
+        application = Application.Current;
+        if (application is not null) application.Exit += OnApplicationExit;
         OpenViewerCommand = new DelegateCommand(OpenViewer);
+    }
+
+    public void Dispose()
+    {
+        refreshTimer.Stop();
+        refreshTimer.Tick -= OnRefreshTimer;
+        host.SnapshotAvailable -= OnSnapshotAvailable;
+        host.RunningChanged -= OnHostChanged;
+        host.Override.Changed -= OnHostChanged;
+        if (application is not null) application.Exit -= OnApplicationExit;
     }
 
     /// <summary>Cloud metrics behind the latest decision.</summary>
@@ -99,13 +114,11 @@ public sealed class StatusViewModel : DockableVM
         get
         {
             if (!host.IsRunning) return string.Empty;
-            CloudAssessment? cloud = host.LatestSnapshot?.Conditions.Cloud;
-            if (cloud is null) return string.Empty;
-            
-            // Only show as advisory if cloud does not decide safety
             MonitorSettings settings = PluginSettingsStore.Instance.Current;
             if (settings.Cloud.DecidesSafety) return string.Empty;
-            
+            CloudAssessment? cloud = host.LatestSnapshot?.Conditions.Cloud;
+            if (cloud is null) return "Cloud: unavailable (check lens calibration and image status)";
+
             return $"Cloud: {cloud.Summary}";
         }
     }
@@ -261,7 +274,7 @@ public sealed class StatusViewModel : DockableVM
         }
         catch (Exception e)
         {
-            NINA.Core.Utility.Logger.Warning($"[AllskySafetyMonitor] Could not update the metrics: {e.Message}");
+            Log.Write(LogLevel.Warning, $"Could not update the metrics: {e.Message}");
         }
 
         RaisePropertyChanged(nameof(IsConnected));
@@ -285,6 +298,14 @@ public sealed class StatusViewModel : DockableVM
         RaisePropertyChanged(nameof(ShowOverlay));
     }
 
+    private void OnSnapshotAvailable(object? sender, MonitorSnapshot snapshot) => OnUiThread(Refresh);
+
+    private void OnHostChanged(object? sender, EventArgs e) => OnUiThread(Refresh);
+
+    private void OnRefreshTimer(object? sender, EventArgs e) => Refresh();
+
+    private void OnApplicationExit(object sender, ExitEventArgs e) => Dispose();
+
     /// <summary>The decoded image with the overlay, or without it when switched off or if drawing fails.</summary>
     private BitmapSource? Compose(MonitorSnapshot? snapshot)
     {
@@ -297,7 +318,7 @@ public sealed class StatusViewModel : DockableVM
         }
         catch (Exception e)
         {
-            NINA.Core.Utility.Logger.Warning($"[AllskySafetyMonitor] Could not draw the overlay: {e.Message}");
+            Log.Write(LogLevel.Warning, $"Could not draw the overlay: {e.Message}");
             return decoded;
         }
     }
@@ -311,7 +332,7 @@ public sealed class StatusViewModel : DockableVM
         }
         catch (Exception e)
         {
-            NINA.Core.Utility.Logger.Warning($"[AllskySafetyMonitor] Could not open the image viewer: {e.Message}");
+            Log.Write(LogLevel.Warning, $"Could not open the image viewer: {e.Message}");
         }
     }
 

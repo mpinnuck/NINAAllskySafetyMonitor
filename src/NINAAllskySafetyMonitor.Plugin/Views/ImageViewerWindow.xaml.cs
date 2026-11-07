@@ -1,7 +1,9 @@
 using System.Windows;
 using System.Windows.Input;
 using System.Windows.Threading;
+using NINAAllskySafetyMonitor.Core.Abstractions;
 using NINAAllskySafetyMonitor.Core.Domain;
+using NINAAllskySafetyMonitor.Plugin.Nina;
 using NINAAllskySafetyMonitor.Plugin.ViewModels;
 
 namespace NINAAllskySafetyMonitor.Plugin.Views;
@@ -14,6 +16,7 @@ namespace NINAAllskySafetyMonitor.Plugin.Views;
 /// </summary>
 public partial class ImageViewerWindow : Window
 {
+    private static readonly NinaLogSink Log = new();
     private const double DragThreshold = 4;
     private static readonly TimeSpan OpeningGrace = TimeSpan.FromMilliseconds(600);
     private readonly ImageViewerViewModel vm;
@@ -158,7 +161,7 @@ public partial class ImageViewerWindow : Window
         }
         catch (Exception e)
         {
-            NINA.Core.Utility.Logger.Error($"[AllskySafetyMonitor] Image viewer: {e}");
+            Log.Write(LogLevel.Error, $"Image viewer: {e}");
         }
     }
 }

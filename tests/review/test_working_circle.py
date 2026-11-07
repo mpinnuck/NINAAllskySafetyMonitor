@@ -75,13 +75,18 @@ class TestWorkingCircle:
         path = tmp_path / "settings.json"
         original = json.dumps(settings_data(), indent=2)
         path.write_text(original, encoding="utf-8")
+        existing_backup = path.with_name("settings.json.bak")
+        existing_backup.write_text("backup from another editor", encoding="utf-8")
         settings = SettingsFile(path)
         area = WorkingArea(65, 200, 45, settings.area.outline)
 
         settings.save_working_area(area)
         saved = json.loads(path.read_text(encoding="utf-8"))
-        backup = path.with_name("settings.json.bak")
+        backups = list(tmp_path.glob("settings.json.bak.*"))
+        assert len(backups) == 1
+        backup = backups[0]
         assert json.loads(backup.read_text(encoding="utf-8")) == json.loads(original)
+        assert existing_backup.read_text(encoding="utf-8") == "backup from another editor"
         assert saved["Cloud"] == {"MinStarFraction": 0.7}
         assert saved["Calibration"]["Lens"] == settings_data()["Calibration"]["Lens"]
         assert saved["Calibration"]["WorkingArea"] == {
@@ -97,6 +102,7 @@ class TestWorkingCircle:
         settings.reload()
         settings.save_working_area(WorkingArea(67, 201, 46, settings.area.outline))
         assert json.loads(backup.read_text(encoding="utf-8")) == json.loads(original)
+        assert len(list(tmp_path.glob("settings.json.bak.*"))) == 2
 
     def test_lens_projection_and_circle_preview_use_original_frame(self):
         lens = LensModel(settings_data()["Calibration"]["Lens"])

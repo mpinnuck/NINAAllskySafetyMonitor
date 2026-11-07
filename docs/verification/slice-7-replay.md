@@ -1,6 +1,6 @@
 # Slice 7 verification: offline replay harness and review tool
 
-Requirements: REQ-42, REQ-61, REQ-62 (also REQ-29, REQ-30, REQ-31, REQ-60). Requirements v5.9, design v1.12.
+Requirements: REQ-42, REQ-61, REQ-62 (also REQ-29, REQ-30, REQ-31, REQ-60). Requirements v5.10, design v1.12.
 
 The harness re-runs the plugin's cloud detection over saved Allsky frames, on the Mac, without NINA.
 - **Frames:** night folders `yyyyMMdd` of `allsky-yyyyMMddHHmmss.jpg`, or one night folder. One frame per 60 s is used (`--step`). Frames with the Sun above the plugin's limit are skipped.

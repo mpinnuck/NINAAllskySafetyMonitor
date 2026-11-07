@@ -134,12 +134,18 @@ public sealed class SettingsValidatorTests
     }
 
     [Fact]
-    public void WebSourceNeedsAbsoluteUrl()
+    public void WebSourceRequiresAbsoluteHttpOrHttpsUrl()
     {
         var s = ValidSettings();
         s.ImageSource.Kind = ImageSourceKind.Web;
         s.ImageSource.Web.BaseUrl = "not a url";
-        Assert.Contains(new SettingsValidator().Validate(s), e => e.Contains("absolute URL"));
+        Assert.Contains(new SettingsValidator().Validate(s), e => e.Contains("HTTP or HTTPS"));
+
+        s.ImageSource.Web.BaseUrl = "file:///tmp/image.jpg";
+        Assert.Contains(new SettingsValidator().Validate(s), e => e.Contains("HTTP or HTTPS"));
+
+        s.ImageSource.Web.BaseUrl = "https://example.test/images/";
+        Assert.DoesNotContain(new SettingsValidator().Validate(s), e => e.Contains("HTTP or HTTPS"));
     }
 
     [Fact]

@@ -1,5 +1,5 @@
 using System.IO;
-using NINA.Core.Utility;
+using NINAAllskySafetyMonitor.Core.Abstractions;
 using NINAAllskySafetyMonitor.Core.Analysis;
 using NINAAllskySafetyMonitor.Core.Settings;
 using NINAAllskySafetyMonitor.Core.Traceability;
@@ -14,6 +14,7 @@ namespace NINAAllskySafetyMonitor.Plugin.Nina;
 [Requirement("REQ-30", "REQ-55", "REQ-56", "REQ-57")]
 public sealed class PluginSettingsStore
 {
+    private static readonly NinaLogSink Log = new();
     private readonly SettingsStore store;
     private readonly object sync = new();
     private MonitorSettings current;
@@ -88,6 +89,8 @@ public sealed class PluginSettingsStore
             previous.Weather.ApiKey = string.Empty;
             File.WriteAllText(store.Path + ".bak", SettingsStore.ToJson(previous));
         }
+
+        loadError = null;
     }
 
     private MonitorSettings LoadOrDefaults()
@@ -101,7 +104,7 @@ public sealed class PluginSettingsStore
         catch (Exception e)
         {
             loadError = $"Settings could not be loaded; defaults are in use. The original file was not changed. {e.Message}";
-            Logger.Error($"[AllskySafetyMonitor] Could not load settings, using defaults: {e.Message}");
+            Log.Write(LogLevel.Error, $"Could not load settings, using defaults: {e.Message}");
             return new MonitorSettings();
         }
     }

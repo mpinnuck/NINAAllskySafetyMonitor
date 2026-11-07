@@ -1,5 +1,6 @@
 using NINA.Core.Utility;
 using NINAAllskySafetyMonitor.Core.Abstractions;
+using NINAAllskySafetyMonitor.Core.Logging;
 
 namespace NINAAllskySafetyMonitor.Plugin.Nina;
 
@@ -7,12 +8,22 @@ namespace NINAAllskySafetyMonitor.Plugin.Nina;
 public sealed class NinaLogSink : ILogSink
 {
     private const string Prefix = "[AllskySafetyMonitor] ";
+    private readonly SecretRedactor redactor = new(() =>
+    {
+        var credentials = new WindowsCredentialStore();
+        return new[]
+        {
+            credentials.GetSecret(CredentialKeys.SftpPassword),
+            credentials.GetSecret(CredentialKeys.WeatherApiKey),
+        };
+    });
 
     /// <inheritdoc />
     public void Write(LogLevel level, string message)
     {
         try
         {
+            message = redactor.Redact(message);
             switch (level)
             {
                 case LogLevel.Error:

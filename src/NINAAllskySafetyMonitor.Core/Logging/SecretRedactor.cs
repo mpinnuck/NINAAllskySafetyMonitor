@@ -6,7 +6,6 @@ namespace NINAAllskySafetyMonitor.Core.Logging;
 [Requirement("REQ-54")]
 public sealed class SecretRedactor
 {
-    private const int MinimumLength = 4;
     private readonly Func<IEnumerable<string?>> secrets;
 
     /// <param name="secrets">Read on every call, so changed settings are picked up.</param>
@@ -32,7 +31,7 @@ public sealed class SecretRedactor
         foreach (string? secret in current)
         {
             string s = secret?.Trim() ?? string.Empty;
-            if (s.Length >= MinimumLength) text = text.Replace(s, "***", StringComparison.Ordinal);
+            if (s.Length > 0) text = text.Replace(s, "***", StringComparison.Ordinal);
         }
 
         return text;

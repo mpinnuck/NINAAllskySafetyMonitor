@@ -108,3 +108,17 @@ class TestReviewWorkbook:
         assert workbook.run_working_area().centre_az == 190
         assert workbook.run_working_area().radius == 55
         assert workbook.load()[0].original_image == source
+
+    def test_incomplete_settings_sheet_values_are_ignored_and_invalid_values_reported(self, run_folder):
+        book = load_workbook(run_folder / "review.xlsx")
+        used = book.create_sheet("Settings")
+        used.append(["Working area centre altitude (°)", None])
+        used.append(["Working area centre azimuth (°)", 190])
+        used.append(["Working area radius (°)", 55])
+        book.save(run_folder / "review.xlsx")
+        assert ReviewWorkbook(run_folder).run_working_area() is None
+
+        used["B1"] = "not a number"
+        book.save(run_folder / "review.xlsx")
+        with pytest.raises(ValueError, match="invalid working-area"):
+            ReviewWorkbook(run_folder).run_working_area()

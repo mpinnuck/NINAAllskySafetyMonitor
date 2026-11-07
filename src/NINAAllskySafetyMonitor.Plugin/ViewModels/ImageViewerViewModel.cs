@@ -3,6 +3,7 @@ using System.Globalization;
 using System.Runtime.CompilerServices;
 using System.Windows;
 using System.Windows.Media.Imaging;
+using NINAAllskySafetyMonitor.Core.Abstractions;
 using NINAAllskySafetyMonitor.Core.Domain;
 using NINAAllskySafetyMonitor.Core.Geometry;
 using NINAAllskySafetyMonitor.Core.Settings;
@@ -21,6 +22,7 @@ namespace NINAAllskySafetyMonitor.Plugin.ViewModels;
 [Requirement("REQ-21", "REQ-45", "REQ-59")]
 public sealed class ImageViewerViewModel : INotifyPropertyChanged
 {
+    private static readonly NinaLogSink Log = new();
     private readonly MonitorHost? host;
     private BitmapSource source;
     private int originalWidth;
@@ -176,7 +178,7 @@ public sealed class ImageViewerViewModel : INotifyPropertyChanged
         }
         catch (Exception e)
         {
-            NINA.Core.Utility.Logger.Warning($"[AllskySafetyMonitor] Could not draw the viewer overlay: {e.Message}");
+            Log.Write(LogLevel.Warning, $"Could not draw the viewer overlay: {e.Message}");
             Image = source;
         }
     }
@@ -201,7 +203,7 @@ public sealed class ImageViewerViewModel : INotifyPropertyChanged
             }
             catch (Exception e)
             {
-                NINA.Core.Utility.Logger.Warning($"[AllskySafetyMonitor] Could not update the image viewer: {e.Message}");
+                Log.Write(LogLevel.Warning, $"Could not update the image viewer: {e.Message}");
             }
         });
     }

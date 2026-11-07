@@ -99,8 +99,11 @@ public sealed class MonitorServiceTests
     {
         var started = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         var release = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        int runs = 0;
         var cycle = new DelegateCycle(async _ =>
         {
+            if (Interlocked.Increment(ref runs) == 1)
+                return DelegateCycle.Snapshot(SafetyState.Safe, true, "previously safe");
             started.TrySetResult();
             await release.Task;
             return DelegateCycle.Snapshot(SafetyState.Safe, true, "previously safe");
@@ -108,22 +111,57 @@ public sealed class MonitorServiceTests
         var service = new MonitorService(
             cycle,
             new FailSafeGuard(clock, log, () => TimeSpan.FromMilliseconds(50)),
-            () => TimeSpan.Zero,
+            () => TimeSpan.FromHours(1),
             clock,
             log);
 
         service.Start();
+        Assert.True(await WaitFor(() => service.CurrentStatus.IsSafe));
+        service.RequestEvaluation();
         await started.Task.WaitAsync(TimeSpan.FromSeconds(2));
         await Task.Delay(100);
 
         Assert.False(service.CurrentStatus.IsSafe);
         Assert.Contains("No monitoring cycle completed", service.CurrentStatus.Reason);
+        Assert.Contains(log.Entries, entry => entry.Message.Contains("No monitoring cycle completed"));
 
         Task stopping = service.StopAsync();
         Assert.False(service.CurrentStatus.IsSafe);
         Assert.Equal("Monitoring is stopping", service.CurrentStatus.Reason);
         release.TrySetResult();
         await stopping;
+    }
+
+    [Fact]
+    public async Task RestartResetsPreviousSafeStatusUntilANewCycleCompletes()
+    {
+        var restartedCycle = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var finishRestartedCycle = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        int runs = 0;
+        var cycle = new DelegateCycle(async _ =>
+        {
+            if (Interlocked.Increment(ref runs) == 1)
+                return DelegateCycle.Snapshot(SafetyState.Safe, true, "safe");
+            restartedCycle.TrySetResult();
+            await finishRestartedCycle.Task;
+            return DelegateCycle.Snapshot(SafetyState.Safe, true, "safe");
+        });
+        var service = Service(cycle);
+
+        service.Start();
+        Assert.True(await WaitFor(() => service.CurrentStatus.IsSafe));
+        await service.StopAsync();
+        Assert.Equal(SafetyState.Starting, service.CurrentStatus.State);
+        Assert.False(service.CurrentStatus.IsSafe);
+
+        service.Start();
+        await restartedCycle.Task.WaitAsync(TimeSpan.FromSeconds(2));
+        Assert.Equal(SafetyState.Starting, service.CurrentStatus.State);
+        Assert.False(service.CurrentStatus.IsSafe);
+
+        finishRestartedCycle.TrySetResult();
+        Assert.True(await WaitFor(() => service.CurrentStatus.IsSafe));
+        await service.StopAsync();
     }
 
     [Fact]

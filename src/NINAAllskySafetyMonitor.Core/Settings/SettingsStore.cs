@@ -1,6 +1,8 @@
 using System.Text.Encodings.Web;
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using System.Text.Json.Serialization;
+using NINAAllskySafetyMonitor.Core.Domain;
 using NINAAllskySafetyMonitor.Core.Traceability;
 
 namespace NINAAllskySafetyMonitor.Core.Settings;
@@ -63,9 +65,23 @@ public sealed class SettingsStore
             if (!string.IsNullOrEmpty(folder)) Directory.CreateDirectory(folder);
 
             string temp = Path + "." + Guid.NewGuid().ToString("N") + ".tmp";
-            File.WriteAllText(temp, ToJson(settings));
-            if (File.Exists(Path)) File.Copy(Path, Path + ".bak", overwrite: true);
-            File.Move(temp, Path, overwrite: true);
+            try
+            {
+                MonitorSettings safe = Clone(settings);
+                safe.Weather.ApiKey = string.Empty;
+                File.WriteAllText(temp, ToJson(safe));
+                if (File.Exists(Path))
+                {
+                    string backup = SafeBackupJson(File.ReadAllText(Path));
+                    File.WriteAllText(Path + ".bak", backup);
+                }
+
+                File.Move(temp, Path, overwrite: true);
+            }
+            finally
+            {
+                if (File.Exists(temp)) File.Delete(temp);
+            }
         }
     }
 
@@ -74,9 +90,86 @@ public sealed class SettingsStore
 
     /// <summary>Parses settings JSON; an empty document yields defaults.</summary>
     /// <exception cref="JsonException">The text is not valid settings JSON.</exception>
-    public static MonitorSettings FromJson(string json) =>
-        JsonSerializer.Deserialize<MonitorSettings>(json, Options) ?? new MonitorSettings();
+    public static MonitorSettings FromJson(string json)
+    {
+        MonitorSettings settings = JsonSerializer.Deserialize<MonitorSettings>(json, Options) ?? new MonitorSettings();
+        return Normalize(settings);
+    }
 
     /// <summary>Returns an independent deep copy, used by editors so unsaved changes never affect the running monitor.</summary>
     public static MonitorSettings Clone(MonitorSettings settings) => FromJson(ToJson(settings));
+
+    private static MonitorSettings Normalize(MonitorSettings s)
+    {
+        s.Site ??= new SiteSettings();
+        s.Window ??= new OperatingWindowSettings();
+        s.ImageSource ??= new ImageSourceSettings();
+        s.Roi ??= new RoiSettings();
+        s.Mount ??= new MountSettings();
+        s.LensFit ??= new LensFitSettings();
+        s.Cloud ??= new CloudDetectionSettings();
+        s.Weather ??= new WeatherSettings();
+        s.Decision ??= new DecisionSettings();
+        s.Tuning ??= new TuningSettings();
+        s.Logging ??= new LoggingSettings();
+        s.Calibration ??= new CalibrationData();
+
+        s.ImageSource.Web ??= new WebSourceSettings();
+        s.ImageSource.Direct ??= new DirectSourceSettings();
+        s.Calibration.WorkingArea ??= new Geometry.WorkingAreaDefinition();
+        s.Calibration.WorkingArea = s.Calibration.WorkingArea with
+        {
+            Outline = s.Calibration.WorkingArea.Outline ?? Array.Empty<PixelPoint>(),
+        };
+        if (s.Calibration.Lens is { RadialCoefficients: null } lens)
+            s.Calibration.Lens = lens with { RadialCoefficients = Array.Empty<double>() };
+        if (s.Calibration.ClearSkyReference is { Blocks: null })
+            s.Calibration.ClearSkyReference = null;
+
+        s.ImageSource.Web.BaseUrl ??= string.Empty;
+        s.ImageSource.Web.FileName ??= string.Empty;
+        s.ImageSource.Direct.Host ??= string.Empty;
+        s.ImageSource.Direct.FallbackIp ??= string.Empty;
+        s.ImageSource.Direct.User ??= string.Empty;
+        s.ImageSource.Direct.RemotePath ??= string.Empty;
+        s.ImageSource.Direct.KeyFile ??= string.Empty;
+        s.ImageSource.Direct.HostKeyAlgorithm ??= string.Empty;
+        s.ImageSource.Direct.HostKeyFingerprint ??= string.Empty;
+        s.Weather.StationId ??= string.Empty;
+        s.Weather.ApiKey ??= string.Empty;
+        s.Logging.Folder ??= new LoggingSettings().Folder;
+        s.Tuning.OutputFolder ??= new TuningSettings().OutputFolder;
+        return s;
+    }
+
+    private static string SafeBackupJson(string json)
+    {
+        JsonNode? root;
+        try
+        {
+            root = JsonNode.Parse(json, documentOptions: new JsonDocumentOptions
+            {
+                AllowTrailingCommas = true,
+                CommentHandling = JsonCommentHandling.Skip,
+            });
+        }
+        catch (JsonException e)
+        {
+            throw new InvalidDataException("The existing settings file could not be backed up safely.", e);
+        }
+
+        if (root is JsonObject settings && Find(settings, "Weather") is JsonObject weather)
+        {
+            string? apiKey = weather.Select(kv => kv.Key).FirstOrDefault(k => string.Equals(k, "ApiKey", StringComparison.OrdinalIgnoreCase));
+            if (apiKey is not null) weather[apiKey] = string.Empty;
+        }
+
+        return root?.ToJsonString(Options) ?? "{}";
+    }
+
+    private static JsonNode? Find(JsonObject value, string name)
+    {
+        string? key = value.Select(kv => kv.Key).FirstOrDefault(k => string.Equals(k, name, StringComparison.OrdinalIgnoreCase));
+        return key is null ? null : value[key];
+    }
 }

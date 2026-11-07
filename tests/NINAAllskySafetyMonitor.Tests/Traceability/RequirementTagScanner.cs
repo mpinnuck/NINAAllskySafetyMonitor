@@ -10,7 +10,7 @@ namespace NINAAllskySafetyMonitor.Tests.Traceability;
 public static class RequirementTagScanner
 {
     private static readonly Regex Attribute =
-        new(@"\[Requirement\((?<args>[^)]*)\)\]", RegexOptions.Compiled);
+        new(@"Requirement\s*\((?<args>[^)]*)\)", RegexOptions.Compiled);
 
     private static readonly Regex Decorator =
         new(@"^\s*@requirement\((?<args>[^)]*)\)", RegexOptions.Compiled | RegexOptions.Multiline);

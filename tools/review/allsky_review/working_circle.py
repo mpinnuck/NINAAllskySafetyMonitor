@@ -7,6 +7,7 @@ import os
 import shutil
 import tempfile
 from dataclasses import dataclass
+from datetime import datetime
 from pathlib import Path
 from typing import Any, Optional, Tuple
 
@@ -117,11 +118,10 @@ class SettingsFile:
         _set(settings_area, "CentreAltDeg", area.centre_alt)
         _set(settings_area, "CentreAzDeg", area.centre_az)
         _set(settings_area, "RadiusDeg", area.radius)
-        backup = self.path.with_name(self.path.name + ".bak")
+        backup = self._backup_path()
         temp_path: Optional[Path] = None
         try:
-            if not backup.exists():
-                shutil.copy2(self.path, backup)
+            shutil.copy2(self.path, backup)
             with tempfile.NamedTemporaryFile(
                 mode="w", encoding="utf-8", dir=self.path.parent,
                 prefix=self.path.name + ".", suffix=".tmp", delete=False,
@@ -136,6 +136,13 @@ class SettingsFile:
             if temp_path is not None and temp_path.exists():
                 temp_path.unlink()
         self.reload()
+
+    def _backup_path(self) -> Path:
+        backup = self.path.with_name(self.path.name + ".bak")
+        if not backup.exists():
+            return backup
+        timestamp = datetime.now().strftime("%Y%m%d-%H%M%S-%f")
+        return self.path.with_name(f"{self.path.name}.bak.{timestamp}")
 
 
 @requirement("REQ-63")
@@ -159,7 +166,7 @@ def draw_working_area(
     for bearing in range(0, 361, 2):
         alt, az = _destination(area.centre_alt, area.centre_az, bearing, area.radius)
         points.append(lens.to_pixel(max(0, alt), az))
-    for i in range(0, len(points) - 1, 2):
+    for i in range(len(points) - 1):
         draw.line((points[i], points[i + 1]), fill="#FFD54F", width=max(2, result.width // 400))
     if len(area.outline) >= 3:
         draw.line(area.outline + (area.outline[0],), fill="#4FC3F7", width=max(2, result.width // 400))

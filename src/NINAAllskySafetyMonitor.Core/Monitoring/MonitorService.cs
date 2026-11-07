@@ -12,7 +12,8 @@ namespace NINAAllskySafetyMonitor.Core.Monitoring;
 /// the manual override, then is published through <see cref="SnapshotAvailable"/>. Status is Starting
 /// (unsafe) until the first cycle completes. A manual override takes effect at once, not at the next cycle.
 /// A change of mount state, or <see cref="RequestEvaluation"/>, runs the next cycle at once instead of
-/// waiting for the interval.
+/// waiting for the interval. A cycle that exceeds the guard timeout is reported unsafe; the expected
+/// wait between cycles does not count against liveness.
 /// </summary>
 [Requirement("REQ-02", "REQ-27", "REQ-38", "REQ-40", "REQ-49", "REQ-64")]
 public sealed class MonitorService
@@ -30,7 +31,9 @@ public sealed class MonitorService
     private CancellationTokenSource? cts;
     private Task? loop;
     private SafetyStatus decidedStatus;
-    private long lastCycleCompletedTimestamp;
+    private long cycleStartedTimestamp;
+    private bool cycleInProgress;
+    private bool livenessFailureLogged;
     private bool hasStarted;
     private bool stopRequested;
 
@@ -68,14 +71,16 @@ public sealed class MonitorService
             bool running;
             bool started;
             bool stopping;
-            long completed;
+            long startedAt;
+            bool inProgress;
             lock (sync)
             {
                 s = decidedStatus;
                 running = loop is { IsCompleted: false };
                 started = hasStarted;
                 stopping = stopRequested;
-                completed = lastCycleCompletedTimestamp;
+                startedAt = cycleStartedTimestamp;
+                inProgress = cycleInProgress;
             }
 
             if (started && stopping) return UnsafeStatus("Monitoring is stopping");
@@ -88,14 +93,23 @@ public sealed class MonitorService
                 return UnsafeStatus(reason);
             }
 
-            if (running && completed != 0)
+            if (running && inProgress && startedAt != 0)
             {
                 try
                 {
-                    TimeSpan deadline = interval() + guard.Timeout;
+                    TimeSpan deadline = guard.Timeout;
                     if (deadline < TimeSpan.Zero) deadline = TimeSpan.Zero;
-                    if (Stopwatch.GetElapsedTime(completed) > deadline)
+                    if (Stopwatch.GetElapsedTime(startedAt) > deadline)
                     {
+                        bool logFailure;
+                        lock (sync)
+                        {
+                            logFailure = !livenessFailureLogged;
+                            livenessFailureLogged = true;
+                        }
+
+                        if (logFailure)
+                            log.Write(LogLevel.Error, $"No monitoring cycle completed within {deadline.TotalSeconds:0} s of its start");
                         return UnsafeStatus($"No monitoring cycle completed within {deadline.TotalSeconds:0} s");
                     }
                 }
@@ -122,11 +136,15 @@ public sealed class MonitorService
         lock (sync)
         {
             if (loop is { IsCompleted: false }) return;
+            cts?.Dispose();
             cts = new CancellationTokenSource();
             CancellationToken token = cts.Token;
             hasStarted = true;
             stopRequested = false;
-            lastCycleCompletedTimestamp = Stopwatch.GetTimestamp();
+            decidedStatus = SafetyStatus.Starting(clock.UtcNow);
+            cycleStartedTimestamp = 0;
+            cycleInProgress = false;
+            livenessFailureLogged = false;
             loop = Task.Run(() => RunLoopAsync(token), token);
         }
 
@@ -180,6 +198,11 @@ public sealed class MonitorService
             cts?.Dispose();
             cts = null;
             loop = null;
+            cycleInProgress = false;
+            cycleStartedTimestamp = 0;
+            hasStarted = false;
+            stopRequested = false;
+            decidedStatus = SafetyStatus.Starting(clock.UtcNow);
         }
     }
 
@@ -191,6 +214,11 @@ public sealed class MonitorService
             cts.Dispose();
             cts = null;
             loop = null;
+            cycleInProgress = false;
+            cycleStartedTimestamp = 0;
+            hasStarted = false;
+            stopRequested = false;
+            decidedStatus = SafetyStatus.Starting(clock.UtcNow);
         }
     }
 
@@ -200,6 +228,13 @@ public sealed class MonitorService
         {
             while (!token.IsCancellationRequested)
             {
+                lock (sync)
+                {
+                    cycleStartedTimestamp = Stopwatch.GetTimestamp();
+                    cycleInProgress = true;
+                    livenessFailureLogged = false;
+                }
+
                 MonitorSnapshot snapshot = await guard.RunAsync(cycle, token).ConfigureAwait(false);
                 SafetyStatus decided = engine?.Decide(snapshot) ?? snapshot.Status;
 
@@ -208,7 +243,9 @@ public sealed class MonitorService
                 {
                     previous = decidedStatus;
                     decidedStatus = decided;
-                    lastCycleCompletedTimestamp = Stopwatch.GetTimestamp();
+                    cycleInProgress = false;
+                    cycleStartedTimestamp = 0;
+                    livenessFailureLogged = false;
                 }
 
                 // Log changes of state or of the kind of reason. Numbers (image age, Sun altitude, countdown)
@@ -233,7 +270,8 @@ public sealed class MonitorService
             lock (sync)
             {
                 decidedStatus = failed;
-                lastCycleCompletedTimestamp = Stopwatch.GetTimestamp();
+                cycleInProgress = false;
+                cycleStartedTimestamp = 0;
             }
 
             Publish(new MonitorSnapshot(null, null, null, null,

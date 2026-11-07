@@ -1,6 +1,6 @@
 # Design v1.12 (2026-11-06)
 
-Traced to `../requirements/requirements.md` v5.9 (REQ-01 … REQ-64). Version 1.12 makes cloud advisory by default and specifies the small-count star rule; §1.5 of the PDF lists the changes from v1.11. The small-count rule is not present in the checked-in implementation and remains unverified pending recovery of the missing work.
+Traced to `../requirements/requirements.md` v5.10 (REQ-01 … REQ-64). Version 1.12 makes cloud advisory by default and specifies the small-count star rule; §1.5 of the PDF lists the changes from v1.11. The small-count rule is not present in the checked-in implementation and remains unverified pending recovery of the missing work. The requirements revision also clarifies the snapshot gap, liveness deadline, history-chart scope and release smoke-test criterion; the design PDF has not yet been regenerated for those clarifications.
 
 | File | Contents |
 |---|---|

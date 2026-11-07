@@ -17,10 +17,10 @@ public sealed class SecretRedactorTests
     }
 
     [Fact]
-    public void EmptyOrVeryShortSecretsAreIgnored()
+    public void EmptySecretsAreIgnoredAndShortSecretsAreRedacted()
     {
         var r = new SecretRedactor(() => new[] { null, "", "ab" });
-        Assert.Equal("about abc", r.Redact("about abc"));
+        Assert.Equal("key=***", r.Redact("key=ab"));
     }
 
     [Fact]

@@ -15,6 +15,7 @@ namespace NINAAllskySafetyMonitor.Plugin.Nina;
 [Requirement("REQ-01", "REQ-02", "REQ-03", "REQ-49")]
 public sealed class AllskySafetyMonitorDevice : BaseINPC, ISafetyMonitor
 {
+    private static readonly NinaLogSink Log = new();
     private readonly IProfileService profileService;
     private readonly ITelescopeMediator telescopeMediator;
     private readonly MonitorHost host = MonitorHost.Instance;
@@ -75,7 +76,7 @@ public sealed class AllskySafetyMonitorDevice : BaseINPC, ISafetyMonitor
         }
         catch (Exception e)
         {
-            Logger.Error($"[AllskySafetyMonitor] Connect failed: {e}");
+            Log.Write(NINAAllskySafetyMonitor.Core.Abstractions.LogLevel.Error, $"Connect failed: {e}");
             Connected = false;
             return false;
         }
@@ -93,7 +94,7 @@ public sealed class AllskySafetyMonitorDevice : BaseINPC, ISafetyMonitor
         }
         catch (Exception e)
         {
-            Logger.Error($"[AllskySafetyMonitor] Disconnect failed: {e}");
+            Log.Write(NINAAllskySafetyMonitor.Core.Abstractions.LogLevel.Error, $"Disconnect failed: {e}");
         }
 
         Connected = false;

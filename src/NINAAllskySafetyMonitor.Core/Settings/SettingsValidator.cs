@@ -26,9 +26,10 @@ public sealed class SettingsValidator
         Range(errors, img.TimeoutS, 1, 300, "Image fetch timeout must be between 1 s and 300 s.");
 
         if (img.Kind == ImageSourceKind.Web &&
-            !Uri.TryCreate(img.Web.BaseUrl, UriKind.Absolute, out _))
+            (!Uri.TryCreate(img.Web.BaseUrl, UriKind.Absolute, out Uri? webUri)
+             || webUri.Scheme is not ("http" or "https")))
         {
-            errors.Add("Web source base URL must be an absolute URL.");
+            errors.Add("Web source base URL must be an absolute HTTP or HTTPS URL.");
         }
 
         if (img.Kind == ImageSourceKind.Web && string.IsNullOrWhiteSpace(img.Web.FileName))

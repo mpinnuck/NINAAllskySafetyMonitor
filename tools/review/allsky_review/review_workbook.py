@@ -1,6 +1,7 @@
 """Reads the Review sheet of review.xlsx and writes the imager's verdicts back to it."""
 from __future__ import annotations
 
+import math
 import os
 import re
 from datetime import date, datetime
@@ -99,13 +100,15 @@ class ReviewWorkbook:
                 "Working area radius (°)",
             )
             if all(label in values for label in labels):
-                area = WorkingArea(
-                    float(values[labels[0]]),
-                    float(values[labels[1]]),
-                    float(values[labels[2]]),
-                )
-                area.validate()
-                return area
+                numbers = [values[label] for label in labels]
+                if any(value in (None, "") for value in numbers):
+                    return None
+                try:
+                    area = WorkingArea(*(_workbook_number(value) for value in numbers))
+                    area.validate()
+                    return area
+                except (TypeError, ValueError, OverflowError) as e:
+                    raise ValueError("The Settings sheet has invalid working-area values.") from e
         return None
 
     def set_verdict(self, row: ReviewRow) -> None:
@@ -191,3 +194,10 @@ def _float(value) -> Optional[float]:
 def _int(value) -> Optional[int]:
     f = _float(value)
     return None if f is None else int(round(f))
+
+
+def _workbook_number(value) -> float:
+    result = float(value)
+    if not math.isfinite(result):
+        raise ValueError("Working-area values must be finite numbers.")
+    return result
