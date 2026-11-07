@@ -17,6 +17,7 @@ public sealed class ReviewWorkbookWriter
     {
         "Night", "Local time", "Target", "Verdict", "Stars found", "Stars expected", "Star fraction",
         "Relative brightness", "Non-uniformity ratio", "Picked because", "Image", "My verdict", "Agrees",
+        "Source image",
     };
 
     private readonly List<object?[]> rows = new();
@@ -46,6 +47,7 @@ public sealed class ReviewWorkbookWriter
             t.Cloud.UniformityRatio,
             why,
             imagePath,
+            frame.Path,
         });
     }
 
@@ -84,12 +86,14 @@ public sealed class ReviewWorkbookWriter
             imagePath = imagePath.Replace("\"", "\"\"", StringComparison.Ordinal);
             review.Cell(row, 11).FormulaA1 = $"HYPERLINK(\"{imagePath}\",\"open\")";
             review.Cell(row, 13).FormulaA1 = $"IF(L{row}=\"\",\"\",IF(L{row}=\"Unsure\",\"\",IF(L{row}=D{row},\"Yes\",\"No\")))";
+            review.Cell(row, 14).Value = (string)v[11]!;
         }
 
         review.Column(1).Style.NumberFormat.Format = "yyyy-mm-dd";
         review.Column(2).Style.NumberFormat.Format = "yyyy-mm-dd hh:mm:ss";
         review.Range(2, 7, Math.Max(2, last), 9).Style.NumberFormat.Format = "0.00";
         review.Column(11).Style.Font.FontColor = XLColor.Blue;
+        review.Column(14).Hide();
         if (rows.Count > 0)
         {
             IXLRange mine = review.Range(2, 12, last, 12);
@@ -137,6 +141,9 @@ public sealed class ReviewWorkbookWriter
             ("Targets", $"Dec {options.DecFromDeg:+0;-0} to {options.DecToDeg:+0;-0} every {options.DecStepDeg}°, RA every {options.RaStepH} h"),
             ("Sun below (°)", settings.Window.SunAltitudeLimitDeg),
             ("ROI radius (°)", settings.Roi.RadiusDeg),
+            ("Working area centre altitude (°)", settings.Calibration.WorkingArea.CentreAltDeg),
+            ("Working area centre azimuth (°)", settings.Calibration.WorkingArea.CentreAzDeg),
+            ("Working area radius (°)", settings.Calibration.WorkingArea.RadiusDeg),
             ("Limiting magnitude", c.LimitingMagnitude),
             ("Cloud below star fraction", c.MinStarFraction),
             ("Minimum expected stars", c.MinExpectedStars),

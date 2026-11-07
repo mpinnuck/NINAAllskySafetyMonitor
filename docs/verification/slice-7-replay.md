@@ -57,6 +57,8 @@ Preparation: `pip3 install -r tools/review/requirements.txt` (Pillow, openpyxl, 
 | D8 | Close the tool, open review.xlsx in Excel | My verdict column has the verdicts, Agrees Yes/No, the drop-down still works, Summary counts match the tool's | 61, 62 |
 | D9 | Close the tool on a frame part-way through with a filter chosen; run it again on the same folder | Opens on the same frame with the same filter (`.review-state.json` in the run folder); delete that file and it starts at the first frame without a verdict | 62 |
 | D10 | Click a line in the table under the frame; then **↑**/**↓** with the table selected | That frame is shown; the selected line follows the frame; lines where the verdicts disagree are red; the Local time column shows the full date and time | 62 |
+| D11 | Press **S**; use **↑/↓** and **←/→**, then hold **Shift** while nudging; navigate to another frame | Altitude and azimuth move by 1° (5° with Shift), altitude clamps at 0–90°, azimuth wraps around 0–360°, and each nudge previews on the clean source frame while navigating; the original workbook image is unchanged | 63 |
+| D12 | Choose **Save**, then inspect settings.json and settings.json.bak | Only `Calibration.WorkingArea.CentreAltDeg`, `CentreAzDeg`, and `RadiusDeg` changed; the first backup matches the settings file before editing | 63 |
 
 Unit tests behind this slice:
 - Harness: `FrameCatalogTests`, `TargetGridTests`, `ReviewSelectorTests`, `ProgressLineTests`, `ReplayTests` (decoder, end-to-end run on synthetic frames with reference capture, results.csv, review.xlsx and images, option parsing).

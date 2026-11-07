@@ -62,7 +62,7 @@ Calibration uses the time encoded in the frame filename as local time. If the co
 - **The settings page reports a load error:** the original settings file is left intact and a backup is created on the next successful save. Preserve both files before attempting manual recovery.
 - **A monitor loop error or timeout:** the state becomes unsafe. Disconnect and reconnect only after the underlying operation has stopped.
 
-The offline replay harness can re-analyse saved Allsky frames and create a review workbook. The working-circle editor described by REQ-63 is not present in this checked-in snapshot; that feature must be verified against the recovered work before being relied on.
+The offline replay harness can re-analyse saved Allsky frames and create a review workbook. Open it with `python3 tools/review/review.py <run-folder>`. In the review tool, press **S** to edit the working-circle centre and radius. In the editor, **↑/↓** move the centre altitude and **←/→** move its azimuth by 1°; hold **Shift** for 5° steps. The circle preview updates as you move it. **Apply** previews typed edits; navigating to another frame keeps the preview active. **Save** updates only the working-circle values in the settings file used for the replay and creates a `.bak` copy on the first save. Re-run the harness with the saved settings to check the analysis before copying the values into NINA.
 
 ## Compatibility note
 

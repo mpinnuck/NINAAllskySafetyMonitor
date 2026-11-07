@@ -89,3 +89,22 @@ class TestReviewWorkbook:
         row.my_verdict = "Maybe"
         with pytest.raises(ValueError):
             wb.set_verdict(row)
+
+    def test_reads_settings_path_run_circle_and_optional_source_image(self, run_folder, tmp_path):
+        source = tmp_path / "source.jpg"
+        book = load_workbook(run_folder / "review.xlsx")
+        review = book["Review"]
+        review["N1"], review["N2"] = "Source image", str(source)
+        used = book.create_sheet("Settings")
+        used.append(["Settings file", str(tmp_path / "settings.json")])
+        used.append(["Working area centre altitude (°)", 70])
+        used.append(["Working area centre azimuth (°)", 190])
+        used.append(["Working area radius (°)", 55])
+        book.save(run_folder / "review.xlsx")
+
+        workbook = ReviewWorkbook(run_folder)
+        assert workbook.settings_path() == tmp_path / "settings.json"
+        assert workbook.run_working_area().centre_alt == 70
+        assert workbook.run_working_area().centre_az == 190
+        assert workbook.run_working_area().radius == 55
+        assert workbook.load()[0].original_image == source

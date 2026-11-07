@@ -26,6 +26,7 @@ class ReviewRow:
     picked_because: str
     image: Optional[Path]
     my_verdict: Optional[str] = None
+    original_image: Optional[Path] = None
 
     @property
     def agrees(self) -> Optional[bool]:

@@ -13,6 +13,7 @@ VERDICT_COLOURS = {"Clear": "#1E7B34", "Cloud": "#B3261E", "Unknown": "#8A6200",
 KEYS = (
     ("C", "Clear"), ("X", "Cloud"), ("U", "Unsure"), ("Delete", "clear my verdict"),
     ("↑ ↓", "previous / next"), ("N", "next not reviewed"), ("F", "change filter"), ("Click", "zoom"),
+    ("S", "working circle"),
 )
 
 

@@ -11,6 +11,7 @@ from openpyxl import load_workbook
 
 from .review_row import MY_VERDICTS, ReviewRow
 from .traceability import requirement
+from .working_circle import WorkingArea
 from .workbook_open_error import WorkbookOpenError
 
 WORKBOOK = "review.xlsx"
@@ -32,7 +33,7 @@ HEADINGS = {
 _LINK = re.compile(r'HYPERLINK\(\s*"([^"]+)"', re.IGNORECASE)
 
 
-@requirement("REQ-61", "REQ-62")
+@requirement("REQ-61", "REQ-62", "REQ-63")
 class ReviewWorkbook:
     """The review.xlsx written by the harness. Columns are found by their headings. Only the My verdict
     column is written, so the drop-down, the Agrees formulas and the Summary sheet stay as the harness
@@ -71,8 +72,41 @@ class ReviewWorkbook:
                 picked_because=str(self._value(r, "picked_because") or ""),
                 image=self._image(r),
                 my_verdict=my if my in MY_VERDICTS else None,
+                original_image=self._source_image(r),
             ))
         return rows
+
+    def settings_path(self) -> Optional[Path]:
+        if "Settings" not in self._book.sheetnames:
+            return None
+        sheet = self._book["Settings"]
+        for row in sheet.iter_rows(min_col=1, max_col=2, values_only=True):
+            if str(row[0]).strip().casefold() == "settings file" and row[1]:
+                path = Path(str(row[1])).expanduser()
+                return path if path.is_absolute() else (self.run_folder / path).resolve()
+        return None
+
+    def run_working_area(self) -> Optional[WorkingArea]:
+        if "Settings" in self._book.sheetnames:
+            values = {
+                str(row[0]).strip(): row[1]
+                for row in self._book["Settings"].iter_rows(min_col=1, max_col=2, values_only=True)
+                if row[0] is not None
+            }
+            labels = (
+                "Working area centre altitude (°)",
+                "Working area centre azimuth (°)",
+                "Working area radius (°)",
+            )
+            if all(label in values for label in labels):
+                area = WorkingArea(
+                    float(values[labels[0]]),
+                    float(values[labels[1]]),
+                    float(values[labels[2]]),
+                )
+                area.validate()
+                return area
+        return None
 
     def set_verdict(self, row: ReviewRow) -> None:
         """Puts the row's My verdict in the workbook (in memory until save)."""
@@ -125,6 +159,20 @@ class ReviewWorkbook:
         if link is None and cell.hyperlink is not None:
             link = cell.hyperlink.target
         return self.run_folder / link if link else None
+
+    def _source_image(self, row: int) -> Optional[Path]:
+        source_column = next(
+            (cell.column for cell in self._sheet[1]
+             if cell.value is not None and str(cell.value).strip().casefold() == "source image"),
+            None,
+        )
+        if source_column is None:
+            return None
+        value = self._sheet.cell(row=row, column=source_column).value
+        if not value:
+            return None
+        path = Path(str(value)).expanduser()
+        return path if path.is_absolute() else (self.run_folder / path).resolve()
 
 
 def _text(value, fmt: str) -> str:

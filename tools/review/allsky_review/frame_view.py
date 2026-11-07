@@ -39,6 +39,12 @@ class FrameView(tk.Canvas):
                 self._message = f"Can't open {image.name}: {e.strerror or e}"
         self._render()
 
+    def show_image(self, image: Image.Image) -> None:
+        self._centre = None
+        self._image = image.convert("RGB")
+        self._message = ""
+        self._render()
+
     def zoom_at(self, x: int, y: int) -> None:
         if self._image is None:
             return
