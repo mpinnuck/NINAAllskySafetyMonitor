@@ -61,7 +61,10 @@ public sealed class StarTestTests
     [Theory]
     [InlineData(11, 9, false, false)]
     [InlineData(11, 7, false, true)]
-    [InlineData(7, 0, true, false)]
+    [InlineData(7, 5, false, false)]
+    [InlineData(7, 4, false, true)]
+    [InlineData(3, 2, true, false)]
+    [InlineData(2, 0, true, false)]
     [InlineData(0, 0, true, false)]
     public void FractionTest(int expected, int matched, bool inconclusive, bool cloud)
     {
@@ -70,4 +73,34 @@ public sealed class StarTestTests
         Assert.Equal(cloud, r.Cloud);
         Assert.Equal(expected == 0 ? null : (double)matched / expected, r.Fraction);
     }
+
+    [Fact]
+    public void LowCountFractionClearTakesPrecedenceOverProbability()
+    {
+        var settings = new CloudDetectionSettings { MinExpectedStars = 8, MinStarFraction = 0.1 };
+
+        StarTestResult result = new StarFractionTest(() => settings).Evaluate(5, 1);
+
+        Assert.False(result.Inconclusive);
+        Assert.False(result.Cloud);
+    }
+
+    [Fact]
+    public void ZeroMinimumFractionMakesEveryCountAboveFloorClear()
+    {
+        var settings = new CloudDetectionSettings { MinExpectedStars = 8, MinStarFraction = 0 };
+
+        StarTestResult result = new StarFractionTest(() => settings).Evaluate(5, 0);
+
+        Assert.False(result.Inconclusive);
+        Assert.False(result.Cloud);
+    }
+
+    [Theory]
+    [InlineData(-1, 0)]
+    [InlineData(2, -1)]
+    [InlineData(2, 3)]
+    public void InvalidStarCountsAreRejected(int expected, int matched) =>
+        Assert.Throws<ArgumentOutOfRangeException>(() =>
+            new StarFractionTest(() => new CloudDetectionSettings()).Evaluate(expected, matched));
 }

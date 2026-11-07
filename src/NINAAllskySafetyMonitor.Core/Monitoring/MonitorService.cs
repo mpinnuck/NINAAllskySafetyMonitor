@@ -35,6 +35,7 @@ public sealed class MonitorService
     private bool cycleInProgress;
     private bool livenessFailureLogged;
     private bool hasStarted;
+    private bool hasStopped;
     private bool stopRequested;
 
     public MonitorService(
@@ -70,6 +71,7 @@ public sealed class MonitorService
             SafetyStatus s;
             bool running;
             bool started;
+            bool stopped;
             bool stopping;
             long startedAt;
             bool inProgress;
@@ -78,6 +80,7 @@ public sealed class MonitorService
                 s = decidedStatus;
                 running = loop is { IsCompleted: false };
                 started = hasStarted;
+                stopped = hasStopped;
                 stopping = stopRequested;
                 startedAt = cycleStartedTimestamp;
                 inProgress = cycleInProgress;
@@ -120,7 +123,7 @@ public sealed class MonitorService
                 }
             }
 
-            return manualOverride?.Apply(s) ?? s;
+            return stopped ? s : manualOverride?.Apply(s) ?? s;
         }
     }
 
@@ -140,6 +143,7 @@ public sealed class MonitorService
             cts = new CancellationTokenSource();
             CancellationToken token = cts.Token;
             hasStarted = true;
+            hasStopped = false;
             stopRequested = false;
             decidedStatus = SafetyStatus.Starting(clock.UtcNow);
             cycleStartedTimestamp = 0;
@@ -201,6 +205,7 @@ public sealed class MonitorService
             cycleInProgress = false;
             cycleStartedTimestamp = 0;
             hasStarted = false;
+            hasStopped = true;
             stopRequested = false;
             decidedStatus = SafetyStatus.Starting(clock.UtcNow);
         }
@@ -217,6 +222,7 @@ public sealed class MonitorService
             cycleInProgress = false;
             cycleStartedTimestamp = 0;
             hasStarted = false;
+            hasStopped = true;
             stopRequested = false;
             decidedStatus = SafetyStatus.Starting(clock.UtcNow);
         }
@@ -243,9 +249,6 @@ public sealed class MonitorService
                 {
                     previous = decidedStatus;
                     decidedStatus = decided;
-                    cycleInProgress = false;
-                    cycleStartedTimestamp = 0;
-                    livenessFailureLogged = false;
                 }
 
                 // Log changes of state or of the kind of reason. Numbers (image age, Sun altitude, countdown)
@@ -257,6 +260,13 @@ public sealed class MonitorService
 
                 SafetyStatus reported = manualOverride?.Apply(decided) ?? decided;
                 Publish(snapshot with { Status = reported });
+                lock (sync)
+                {
+                    cycleInProgress = false;
+                    cycleStartedTimestamp = 0;
+                    livenessFailureLogged = false;
+                }
+
                 await wake.WaitAsync(interval(), token).ConfigureAwait(false);
             }
         }

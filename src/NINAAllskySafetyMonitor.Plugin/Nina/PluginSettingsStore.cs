@@ -36,6 +36,9 @@ public sealed class PluginSettingsStore
     /// <summary>Load error shown in the options page; the original file is left intact for recovery.</summary>
     public string? LoadError => loadError;
 
+    /// <summary>Invalid settings preserved by the most recent recovery save, if any.</summary>
+    public string? CorruptSettingsBackupPath => store.LastCorruptBackupPath;
+
     /// <summary>The saved settings in use by the monitor. Treat as read-only; edit a clone and call <see cref="Save"/>.</summary>
     public MonitorSettings Current
     {
@@ -90,7 +93,9 @@ public sealed class PluginSettingsStore
             File.WriteAllText(store.Path + ".bak", SettingsStore.ToJson(previous));
         }
 
-        loadError = null;
+        loadError = store.LastCorruptBackupPath is { } backup
+            ? $"The invalid settings file was replaced; its original contents were preserved at {backup}."
+            : null;
     }
 
     private MonitorSettings LoadOrDefaults()

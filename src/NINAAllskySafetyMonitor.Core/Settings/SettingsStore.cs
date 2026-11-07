@@ -38,6 +38,9 @@ public sealed class SettingsStore
     /// <summary>Full path of the settings file.</summary>
     public string Path { get; }
 
+    /// <summary>Path of the preserved invalid settings file after a successful recovery save.</summary>
+    public string? LastCorruptBackupPath { get; private set; }
+
     /// <summary>Loads the settings, or returns defaults when the file does not exist.</summary>
     /// <exception cref="InvalidDataException">The file exists but is not valid settings JSON.</exception>
     public MonitorSettings Load()
@@ -61,6 +64,7 @@ public sealed class SettingsStore
 
         lock (sync)
         {
+            LastCorruptBackupPath = null;
             string? folder = System.IO.Path.GetDirectoryName(Path);
             if (!string.IsNullOrEmpty(folder)) Directory.CreateDirectory(folder);
 
@@ -72,8 +76,30 @@ public sealed class SettingsStore
                 File.WriteAllText(temp, ToJson(safe));
                 if (File.Exists(Path))
                 {
-                    string backup = SafeBackupJson(File.ReadAllText(Path));
-                    File.WriteAllText(Path + ".bak", backup);
+                    string existing = File.ReadAllText(Path);
+                    try
+                    {
+                        string backup = SafeBackupJson(existing);
+                        File.WriteAllText(Path + ".bak", backup);
+                    }
+                    catch (InvalidDataException)
+                    {
+                        string recovery = Path + ".corrupt." + DateTime.UtcNow.ToString("yyyyMMddTHHmmssfffZ", System.Globalization.CultureInfo.InvariantCulture)
+                            + "." + Guid.NewGuid().ToString("N");
+                        File.Copy(Path, recovery);
+                        try
+                        {
+                            File.Move(temp, Path, overwrite: true);
+                        }
+                        catch
+                        {
+                            File.Delete(recovery);
+                            throw;
+                        }
+
+                        LastCorruptBackupPath = recovery;
+                        return;
+                    }
                 }
 
                 File.Move(temp, Path, overwrite: true);

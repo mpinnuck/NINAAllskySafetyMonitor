@@ -81,7 +81,7 @@ Defaults shown in *[brackets]* are configurable. How configurable values are sto
 
   A star-test result is not the final cloud decision. The overall cloud result is cloud if REQ-29 says cloud **or** REQ-30 says cloud; if REQ-29 is inconclusive and REQ-30 is skipped or unavailable, cloud is undetermined (REQ-50). A REQ-29 "clear" result does not prevent REQ-30 from finding cloud.
 
-  **Snapshot status (2026-11-08):** rows 4–6 are not implemented in the checked-in code; currently every `n < N_min` is inconclusive. This is the low-count probability rule lost with the damaged M2 and remains pending recovery and verification. Remove this status note when the rule is implemented and tested.
+  The table order gives clear-by-fraction precedence over the low-count probability test. `F_min = 0` is allowed; it makes every count at or above `N_floor` clear by fraction, so the low-count probability rule is disabled.
 - **REQ-30** Secondary test, comparing the ROI with a clear-sky reference: a map of sky brightness and non-uniformity over the working area, captured automatically on the first tuned clear night. Cloud lit by city glow appears brighter and blotchier than clear sky. The map uses 32 px blocks with at least half the pixels in the working area; non-uniformity is `(84th percentile − 16th percentile) / 2 / median` per block (median is floored at 1). Percentiles provide robustness to stars and hot pixels without removing them. Because the Allsky camera adjusts its exposure to keep overall image brightness steady, the test does not depend on exposure:
   - brightness of the ROI relative to the rest of the working area, both compared with the reference, above *[1.3×]* → cloud;
   - non-uniformity `(P84 − P16) / 2 / median` above *[1.5×]* the reference → cloud.
@@ -133,13 +133,13 @@ Defaults shown in *[brackets]* are configurable. How configurable values are sto
 
 ## 13.1 Platform
 
-- **REQ-48** Runs on the Windows AstroPC within NINA 3.3.0.1057 or later. Release builds must target the exact NINA.Plugin package and corresponding .NET runtime installed on the AstroPC, and the release candidate must be installed and smoke-tested in NINA before release.
+- **REQ-48** Runs on the Windows AstroPC within NINA 3.2.0 or later. The stable compile-time API baseline is `NINA.Plugin` 3.2.0.9001 with `net8.0-windows`. The AstroPC currently runs a 3.3.x nightly; compatibility with that host must be verified, and the release candidate must be installed and smoke-tested in the target NINA runtime before release.
 
 ## 13.2 Reliability
 
 - **REQ-49** A failure in the safety monitor (crash, hang, network fault) must not disrupt NINA or a running sequence.
 - **REQ-50** Fail-safe: failures and states that cannot be determined result in **unsafe**, unless the imager enables the option to assume genuinely undetermined conditions safe. Known failures are never undetermined: stale images, a fetch outage past its unsafe limit, stale weather, and an invalid/non-sky image are always **unsafe**. Detected rain or wind is always **unsafe**, and so is detected cloud when it decides safety (REQ-28). A monitor error or a missed liveness deadline is always **unsafe**.
-- **REQ-64** If the monitoring loop faults or a cycle remains in progress longer than the configured cycle timeout after it starts, the monitor reports **unsafe** until monitoring resumes and a subsequent cycle completes. The normal wait between scheduled cycles is not a missed liveness deadline.
+- **REQ-64** If the monitoring loop faults or a cycle remains in progress longer than the configured cycle timeout after it starts, the monitor reports **unsafe** until monitoring resumes and a subsequent cycle completes. A cycle remains in progress through its state logging and snapshot publication; the normal wait between scheduled cycles is not a missed liveness deadline.
 - **REQ-51** Every network operation (image fetch, weather poll) has a timeout, so a stalled connection can't hang the monitor.
 
 ## 13.3 Security

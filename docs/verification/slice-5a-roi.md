@@ -40,4 +40,4 @@ Unit tests behind this slice: `CoordinateConverterTests` (checked against astrop
 
 | Date | NINA version | Result | Notes |
 |---|---|---|---|
-| | 3.3.0.1069 | | |
+| | 3.3.x nightly (record exact build) | | |

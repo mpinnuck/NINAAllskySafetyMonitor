@@ -28,7 +28,7 @@ Unsafe conditions include rain, excessive wind, an invalid/non-sky image, stale 
 
 Cloud is advisory by default. The current cloud result is shown beside the overall state, but it affects safety only when **Cloud decides safety** is enabled. Cloud detection uses expected catalogue stars and, when available, a clear-sky brightness reference. The default ROI radius is 15 degrees; it follows the mount position and is constrained by the configured working area.
 
-Until the minimum expected star count is reached, the star test is inconclusive. The checked-in snapshot does not contain the newer small-count probability rule described by requirement REQ-29; do not rely on that rule until the lost changes have been recovered and verified.
+With fewer than three expected stars the star test is inconclusive. Between three and the configured minimum, a fraction at or above the configured limit is clear; below it, a binomial probability test distinguishes cloud from inconclusive results. Clear-by-fraction takes precedence, so setting the minimum fraction to zero disables the low-count probability rule.
 
 The image is fetched periodically; it is not a live video feed. An image that is not a sky frame, including an Allsky notice image, is unsafe regardless of whether cloud detection is advisory.
 
@@ -59,13 +59,13 @@ Calibration uses the time encoded in the frame filename as local time. If the co
 - **No image / stale image:** verify the selected source, host or URL, remote path, SSH key, host-key fingerprint, and Pi connectivity. A timeout is reported as a fetch error; repeated failures become unsafe.
 - **Weather unavailable:** check the station ID, API key, Weather.com account access, and internet connection. The key must be the account API key, not the station upload key.
 - **Cloud assessment unavailable:** calibrate the lens and confirm the image dimensions match the calibration. Check whether cloud detection is advisory or deciding safety.
-- **The settings page reports a load error:** the original settings file is left intact and a backup is created on the next successful save. Preserve both files before attempting manual recovery.
+- **The settings page reports a load error:** saving replaces the invalid file and preserves its original contents in a uniquely named `.corrupt.*` file. Keep that file for recovery if needed.
 - **A monitor loop error or timeout:** the state becomes unsafe. Disconnect and reconnect only after the underlying operation has stopped.
 
 The offline replay harness can re-analyse saved Allsky frames and create a review workbook. Open it with `python3 tools/review/review.py <run-folder>`. In the review tool, press **S** to edit the working-circle centre and radius. In the editor, **↑/↓** move the centre altitude and **←/→** move its azimuth by 1°; hold **Shift** for 5° steps. The circle preview updates as you move it. **Apply** previews typed edits; navigating to another frame keeps the preview active. **Save** updates only the working-circle values in the settings file used for the replay and creates a backup (`.bak`, or timestamped if that backup already exists). Re-run the harness with the saved settings to check the analysis before copying the values into NINA.
 
 ## Compatibility note
 
-The plugin manifest declares NINA 3.3.0.1057 as its minimum. This repository snapshot still pins an older `NINA.Plugin` package and .NET 8 target. Confirm the AstroPC's installed NINA version and align the build target before producing a release; compatibility has not been verified in a real NINA runtime.
+The plugin manifest declares NINA 3.2.0 as its minimum and builds against stable `NINA.Plugin` 3.2.0.9001 on .NET 8. The AstroPC currently runs a 3.3.x nightly; compatibility and the release candidate still require a smoke test in that target runtime. Post-build deployment copies to the NINA 3.3.0 plugin folder.
 
 See the [requirements](./requirements/requirements.md) and [design documents](./design/) for additional details.

@@ -42,12 +42,12 @@ package "NINAAllskySafetyMonitor.Core.Analysis" {
   class StarFractionTest {
     -settings : Func<CloudDetectionSettings>
     +Evaluate(expectedCount, matchedCount) : StarTestResult
-    +ChanceInClearSky(found, expected) : double
-    ≥ MinExpectedStars: cloud below MinStarFraction.
-    MinSmallCountStars … MinExpectedStars−1: cloud when
-    P(≤ found | expected, ClearSkyDetectionRate) <
-    SmallCountChance (binomial); clear at ≥ MinStarFraction;
-    otherwise inconclusive. Fewer: inconclusive.
+    -ProbabilityOfAtMostMatched(expected, matched) : double
+    ≥ max(MinExpectedStars, 3): fraction decides.
+    3 … MinExpectedStars−1: clear at ≥ MinStarFraction;
+    otherwise cloud when binomial P(X ≤ matched) < 0.01,
+    else inconclusive. Fraction clear takes precedence.
+    PDetect = 0.95; Fmin = 0 disables low-count probability.
     .. REQ-29 ..
   }
   class BlockStatistics <<record>> {

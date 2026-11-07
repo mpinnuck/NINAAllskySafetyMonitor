@@ -8,22 +8,39 @@ namespace NINAAllskySafetyMonitor.Plugin.Nina;
 public sealed class NinaLogSink : ILogSink
 {
     private const string Prefix = "[AllskySafetyMonitor] ";
-    private readonly SecretRedactor redactor = new(() =>
+    private static string?[]? cachedSecrets;
+    private static readonly SecretRedactor Redactor = new(() =>
     {
-        var credentials = new WindowsCredentialStore();
-        return new[]
-        {
-            credentials.GetSecret(CredentialKeys.SftpPassword),
-            credentials.GetSecret(CredentialKeys.WeatherApiKey),
-        };
+        return Volatile.Read(ref cachedSecrets)
+            ?? throw new InvalidOperationException("Credential secrets are unavailable for log redaction.");
     });
+
+    static NinaLogSink() => RefreshSecrets();
+
+    /// <summary>Refreshes the redaction cache after credentials change.</summary>
+    public static void RefreshSecrets()
+    {
+        try
+        {
+            var credentials = new WindowsCredentialStore();
+            Volatile.Write(ref cachedSecrets, new[]
+            {
+                credentials.GetSecret(CredentialKeys.SftpPassword),
+                credentials.GetSecret(CredentialKeys.WeatherApiKey),
+            });
+        }
+        catch
+        {
+            Volatile.Write(ref cachedSecrets, null);
+        }
+    }
 
     /// <inheritdoc />
     public void Write(LogLevel level, string message)
     {
         try
         {
-            message = redactor.Redact(message);
+            message = Redactor.Redact(message);
             switch (level)
             {
                 case LogLevel.Error:

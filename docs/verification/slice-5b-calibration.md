@@ -37,4 +37,4 @@ Unit tests behind this slice: `StarCatalogueTests`, `StarDetectorTests` (hot pix
 
 | Date | NINA version | Result | Notes |
 |---|---|---|---|
-| | 3.3.0.1069 | | |
+| | 3.3.x nightly (record exact build) | | |

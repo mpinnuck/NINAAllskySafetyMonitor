@@ -30,9 +30,9 @@ Folders inside Core and Tests match the design packages (CL-01): one folder per 
 
 ## Before the first build
 
-- Confirm the AstroPC's installed NINA version, then align `NinaPluginVersion`, the Plugin and Astrometry target frameworks, and the plugin output folder. This snapshot declares a minimum of NINA 3.3.0.1057 but still pins `NINA.Plugin` 3.0.0.2017-beta and targets .NET 8; it is not release-verified.
+- The compile-time baseline is stable `NINA.Plugin` 3.2.0.9001 with `net8.0-windows`; the plugin manifest supports NINA 3.2.0 and later. The AstroPC currently runs a 3.3.x nightly; post-build copies target its `3.3.0` plugin folder. Verify newer-host compatibility and smoke-test the release candidate on that runtime, recording its exact nightly build.
 - Confirm the licence and repository URL in `src/NINAAllskySafetyMonitor.Plugin/Properties/AssemblyInfo.cs`.
 
 ## Traceability
 
-The traceability scanner collects `[Requirement("REQ-xx")]` tags from C# and Python, including combined C# attributes. Unknown IDs and unexpected implementation/test coverage gaps fail the test suite. Explicit exceptions document the unrecovered REQ-29 low-count rule and UI/platform requirements that need manual NINA verification.
+The traceability scanner collects `[Requirement("REQ-xx")]` tags from C# and Python, including combined C# attributes. Unknown IDs and unexpected implementation/test coverage gaps fail the test suite. Explicit exceptions document UI/platform requirements that need manual NINA verification.

@@ -19,8 +19,8 @@ using System.Runtime.Versioning;
 [assembly: AssemblyProduct("NINAAllskySafetyMonitor")]
 [assembly: AssemblyCopyright("Copyright © 2026 Mark Pinnuck")]
 
-// Minimum NINA version this plugin is built and tested against.
-[assembly: AssemblyMetadata("MinimumApplicationVersion", "3.3.0.1057")]
+// Minimum supported NINA line; compile-time API baseline is NINA.Plugin 3.2.0.9001.
+[assembly: AssemblyMetadata("MinimumApplicationVersion", "3.2.0.0")]
 
 // TODO: confirm licence and repository URL before first release.
 [assembly: AssemblyMetadata("License", "MPL-2.0")]

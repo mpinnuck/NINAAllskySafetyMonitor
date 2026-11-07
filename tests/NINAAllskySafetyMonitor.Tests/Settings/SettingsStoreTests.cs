@@ -199,6 +199,21 @@ public sealed class SettingsStoreTests : IDisposable
     }
 
     [Fact]
+    public void SavingReplacesInvalidSettingsAndPreservesTheOriginalForRecovery()
+    {
+        Directory.CreateDirectory(folder);
+        const string corrupt = "{ not json";
+        File.WriteAllText(SettingsPath, corrupt);
+        var store = new SettingsStore(SettingsPath);
+
+        store.Save(new MonitorSettings { SchemaVersion = 3 });
+
+        Assert.Equal(3, store.Load().SchemaVersion);
+        Assert.NotNull(store.LastCorruptBackupPath);
+        Assert.Equal(corrupt, File.ReadAllText(store.LastCorruptBackupPath));
+    }
+
+    [Fact]
     public void NullNestedSettingsSectionsAreNormalizedToDefaults()
     {
         Directory.CreateDirectory(folder);

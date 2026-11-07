@@ -44,4 +44,4 @@ Incomplete JPEGs (REQ-17) can't be produced on demand; they are covered by the u
 
 | Date | NINA version | Result | Notes |
 |---|---|---|---|
-| | 3.3.0.1057 | | |
+| | 3.3.x nightly (record exact build) | | |

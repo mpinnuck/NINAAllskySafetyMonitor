@@ -15,15 +15,10 @@
     <!-- Plugin release version. Keep in step with Properties/AssemblyInfo.cs in the Plugin project. -->
     <VersionPrefix>1.0.0</VersionPrefix>
 
-    <!--
-      NINA.Plugin NuGet package version.
-      Placeholder from the official NINA plugin template. Set this to the version used by
-      RATrendCompensatorNINA (proven against NINA 3.3.0.1057 nightly), or update it with the
-      NuGet package manager in Visual Studio on the AstroPC.
-    -->
-    <NinaPluginVersion>3.0.0.2017-beta</NinaPluginVersion>
+    <!-- Stable compile-time API baseline for NINA 3.2 and later. -->
+    <NinaPluginVersion>3.2.0.9001</NinaPluginVersion>
 
-    <!-- NINA's per-version plugin folder used by the Plugin project's post-build copy. -->
-    <NinaPluginFolder>3.0.0</NinaPluginFolder>
+    <!-- AstroPC's installed NINA 3.3 nightly folder; independent of the stable 3.2 compile-time API baseline. -->
+    <NinaPluginFolder>3.3.0</NinaPluginFolder>
   </PropertyGroup>
 </Project>

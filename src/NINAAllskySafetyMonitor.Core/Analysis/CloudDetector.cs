@@ -154,8 +154,9 @@ public sealed class CloudDetector
 
         if (stars.Inconclusive && brightness.Skipped)
         {
+            int minimum = Math.Max(s.MinExpectedStars, 3);
             return string.Create(CultureInfo.InvariantCulture,
-                $"Cloud unknown: only {stars.Expected} stars expected in the ROI (need {s.MinExpectedStars}) and no clear-sky reference yet");
+                $"Cloud unknown: only {stars.Expected} stars expected in the ROI (need {minimum}) and no clear-sky reference yet");
         }
 
         if (!cloud)

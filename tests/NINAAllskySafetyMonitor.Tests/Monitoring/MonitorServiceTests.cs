@@ -1,3 +1,4 @@
+using NINAAllskySafetyMonitor.Core.Abstractions;
 using NINAAllskySafetyMonitor.Core.Decision;
 using NINAAllskySafetyMonitor.Core.Domain;
 using NINAAllskySafetyMonitor.Core.Monitoring;
@@ -133,6 +134,62 @@ public sealed class MonitorServiceTests
     }
 
     [Fact]
+    public async Task BlockingSnapshotSubscriberIsReportedUnsafeAfterLivenessDeadline()
+    {
+        var entered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var release = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var service = new MonitorService(
+            new DelegateCycle(_ => Task.FromResult(DelegateCycle.Snapshot(SafetyState.Safe, true, "clear"))),
+            new FailSafeGuard(clock, log, () => TimeSpan.FromMilliseconds(50)),
+            () => TimeSpan.FromHours(1),
+            clock,
+            log);
+        int published = 0;
+        service.SnapshotAvailable += (_, _) =>
+        {
+            if (Interlocked.Increment(ref published) == 2)
+            {
+                entered.TrySetResult();
+                release.Task.GetAwaiter().GetResult();
+            }
+        };
+
+        service.Start();
+        Assert.True(await WaitFor(() => service.CurrentStatus.IsSafe));
+        service.RequestEvaluation();
+        await entered.Task.WaitAsync(TimeSpan.FromSeconds(2));
+        await Task.Delay(100);
+
+        Assert.False(service.CurrentStatus.IsSafe);
+        Assert.Contains("No monitoring cycle completed", service.CurrentStatus.Reason);
+
+        release.TrySetResult();
+        await service.StopAsync();
+    }
+
+    [Fact]
+    public async Task BlockingLogSinkIsReportedUnsafeAfterLivenessDeadline()
+    {
+        var blockingLog = new BlockingLogSink();
+        var service = new MonitorService(
+            new DelegateCycle(_ => Task.FromResult(DelegateCycle.Snapshot(SafetyState.Safe, true, "clear"))),
+            new FailSafeGuard(clock, blockingLog, () => TimeSpan.FromMilliseconds(50)),
+            () => TimeSpan.FromHours(1),
+            clock,
+            blockingLog);
+
+        service.Start();
+        await blockingLog.Entered.Task.WaitAsync(TimeSpan.FromSeconds(2));
+        await Task.Delay(100);
+
+        Assert.False(service.CurrentStatus.IsSafe);
+        Assert.Contains("No monitoring cycle completed", service.CurrentStatus.Reason);
+
+        blockingLog.Release.TrySetResult();
+        await service.StopAsync();
+    }
+
+    [Fact]
     public async Task RestartResetsPreviousSafeStatusUntilANewCycleCompletes()
     {
         var restartedCycle = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -199,10 +256,49 @@ public sealed class MonitorServiceTests
         Assert.False(service.CurrentStatus.IsSafe);
     }
 
+    [Fact]
+    public async Task ForceSafeDoesNotApplyAfterMonitoringStops()
+    {
+        var manual = new ManualOverride(log) { Mode = OverrideMode.ForceSafe };
+        var service = new MonitorService(
+            new DelegateCycle(_ => Task.FromResult(DelegateCycle.Snapshot(SafetyState.Safe, true, "clear"))),
+            new FailSafeGuard(clock, log, () => TimeSpan.FromSeconds(5)),
+            () => TimeSpan.FromHours(1),
+            clock,
+            log,
+            manualOverride: manual);
+
+        Assert.True(service.CurrentStatus.IsSafe);
+        service.Start();
+        Assert.True(await WaitFor(() => service.CurrentStatus.IsSafe));
+        await service.StopAsync();
+
+        Assert.Equal(SafetyState.Starting, service.CurrentStatus.State);
+        Assert.False(service.CurrentStatus.IsSafe);
+    }
+
     private static MonitorSnapshot AllClear() =>
         new(null, null, null, null,
             new SafetyConditions(new[] { new ConditionCheck(SafetyCondition.ActiveWindow, true, "ok"), new ConditionCheck(SafetyCondition.NoCloud, true, "ok") }),
             new SafetyStatus(SafetyState.Unsafe, false, string.Empty, null, OverrideMode.Auto, false, DateTime.UtcNow));
+
+    private sealed class BlockingLogSink : ILogSink
+    {
+        private int blocked;
+
+        public TaskCompletionSource Entered { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        public TaskCompletionSource Release { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        public void Write(LogLevel level, string message)
+        {
+            if (level != LogLevel.Info || !message.StartsWith("State Safe", StringComparison.Ordinal)
+                || Interlocked.Exchange(ref blocked, 1) != 0)
+                return;
+
+            Entered.TrySetResult();
+            Release.Task.GetAwaiter().GetResult();
+        }
+    }
 
     [Fact]
     public async Task StopWithoutStartIsHarmless() =>

@@ -1,10 +1,10 @@
 # Slice 6 verification: cloud detection, sky-frame check, tuning mode
 
-Requirements: REQ-28, REQ-29, REQ-30, REQ-31, REQ-41, REQ-43, REQ-45, REQ-50, REQ-60 (also REQ-37, REQ-44, REQ-57). Requirements v5.4.
+Requirements: REQ-28, REQ-29, REQ-30, REQ-31, REQ-41, REQ-43, REQ-45, REQ-50, REQ-60 (also REQ-37, REQ-44, REQ-57). Requirements v5.10.
 
 The monitor now judges cloud in the ROI, so it can report **SAFE**.
 - **Sky-frame check (REQ-60):** each image is decoded (darkest colour channel) and checked to be a sky frame. A flat, drawn image, such as Allsky's notice image, is unsafe with "Not a sky frame".
-- **Star test (REQ-29):** catalogue stars to magnitude 4.4 that should be visible in the ROI are looked for in the image. They must be inside the working area and its outline, and more than 15° from the Moon. Finding fewer than 70% of them means cloud. With fewer than 8 expected stars the star test is skipped.
+- **Star test (REQ-29):** catalogue stars to magnitude 4.4 that should be visible in the ROI are looked for in the image. They must be inside the working area and its outline, and more than 15° from the Moon. Finding fewer than 70% of them means cloud when at least 8 are expected; with 3–7 expected stars, a low fraction is checked against the fixed binomial probability threshold. Fewer than 3 expected stars is inconclusive.
 - **Brightness test (REQ-30):** compares the ROI with a clear-sky map, independent of exposure. It covers brightness relative to the rest of the working area, and non-uniformity. The map is captured automatically on the first clear, moonless frame after **Thresholds tuned** is ticked.
 - **The Moon (REQ-31):** its position and phase come from Core and raise the brightness limits.
 - **Tuning mode (REQ-41):** when on, saves every frame and a CSV row of metrics per cycle. Nights older than 30 days are deleted.
@@ -27,7 +27,7 @@ Build and test on the Mac (all pass, two skipped), commit and push. Then pull, r
 | 4 | Look at the panel image, then click it | Small circles on stars inside the ROI: green found, red missing; red ones are few on a clear night. Viewer: **Expected stars** checkbox shows and hides them | 29, 45, 59 |
 | 5 | Leave it running for an hour | **Tonight** graph: star fraction near 1, safe line high | 45 |
 | 6 | Slew to a target low near the trees, or into cloud if there is any | Unsafe with "Cloud: k of m stars (y%)" when fewer than 70% are found; the graph shows the drop | 28, 29 |
-| 7 | Set **Minimum expected stars** to 500, Save; then back to 8, Save | Unsafe: "Cloud unknown: only m stars expected in the ROI (need 500) and no clear-sky reference yet"; safe again 4 min after restoring | 29, 50 |
+| 7 | Set **Minimum expected stars** to 500, Save; then back to 8, Save | At 3–7 expected stars, clear-by-fraction or the low-count probability test decides; with fewer than 3, cloud is unknown if the reference is absent. Restore 8 and verify normal operation | 29, 50 |
 | 8 | Night with the Moon up | Moon line "Moon up a°, p% lit…"; a target near the Moon expects fewer stars than the same target with the Moon down | 31 |
 | 9 | Tick **Thresholds tuned**, Save, on a clear moonless night | UNTUNED banner gone. Within a cycle or two the NINA log has "Clear-sky reference captured"; Options shows "Clear-sky reference: yyyy-mm-dd hh:mm"; the panel shows "Brightness 1.0x× clear sky (limit 1.30×) · non-uniformity …" | 30, 43, 57 |
 | 10 | Restart NINA; Options | Same reference date (stored in settings.json); settings file still small and readable | 57 |
@@ -50,4 +50,4 @@ Unit tests behind this slice:
 
 | Date | NINA version | Result | Notes |
 |---|---|---|---|
-| | 3.3.0.1069 | | |
+| | 3.3.x nightly (record exact build) | | |

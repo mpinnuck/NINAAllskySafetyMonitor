@@ -55,6 +55,7 @@ public sealed class SettingsViewModel : INotifyPropertyChanged
             try
             {
                 credentials.SetSecret(CredentialKeys.WeatherApiKey, edit.Weather.ApiKey);
+                NinaLogSink.RefreshSecrets();
                 edit.Weather.ApiKey = string.Empty;
                 store.Save(edit);
             }
@@ -70,7 +71,11 @@ public sealed class SettingsViewModel : INotifyPropertyChanged
         CalibrateFromFrameCommand = new DelegateCommand(CalibrateFromFrame);
         CalibrateFromCurrentImageCommand = new DelegateCommand(CalibrateFromCurrentImage);
         ClearReferenceCommand = new DelegateCommand(ClearReference);
-        store.Saved += (_, _) => OnPropertyChanged(nameof(ReferenceStatusText));
+        store.Saved += (_, _) =>
+        {
+            OnPropertyChanged(nameof(ReferenceStatusText));
+            OnPropertyChanged(nameof(SettingsLoadWarning));
+        };
     }
 
     public event PropertyChangedEventHandler? PropertyChanged;
@@ -718,12 +723,14 @@ public sealed class SettingsViewModel : INotifyPropertyChanged
             if (!string.IsNullOrEmpty(newPassword))
             {
                 credentials.SetSecret(CredentialKeys.SftpPassword, newPassword);
+                NinaLogSink.RefreshSecrets();
                 newPassword = null;
                 OnPropertyChanged(nameof(SftpPassword));
                 OnPropertyChanged(nameof(PasswordStatus));
             }
 
             credentials.SetSecret(CredentialKeys.WeatherApiKey, edit.Weather.ApiKey);
+            NinaLogSink.RefreshSecrets();
             edit.Weather.ApiKey = string.Empty;
             newWeatherApiKey = null;
             OnPropertyChanged(nameof(WeatherApiKey));
@@ -732,7 +739,10 @@ public sealed class SettingsViewModel : INotifyPropertyChanged
             // The reference is captured by the monitor while this page may be open: keep the saved one.
             edit.Calibration.ClearSkyReference = store.Current.Calibration.ClearSkyReference;
             store.Save(edit);
-            Message = $"Saved {DateTime.Now:HH:mm:ss}. The monitor uses the new settings from its next cycle.";
+            string recovery = store.CorruptSettingsBackupPath is { } path
+                ? $" The unreadable previous file was preserved at {path}."
+                : string.Empty;
+            Message = $"Saved {DateTime.Now:HH:mm:ss}. The monitor uses the new settings from its next cycle.{recovery}";
         }
         catch (Exception e)
         {

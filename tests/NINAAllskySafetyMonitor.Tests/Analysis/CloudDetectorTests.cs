@@ -75,6 +75,7 @@ public sealed class CloudDetectorTests
     public void TooFewStarsAndNoReferenceIsUnsafe()
     {
         settings.MinExpectedStars = 500;
+        settings.MinStarFraction = 0.95;
         CloudAssessment a = Assess(Clear, SyntheticCloudSky.Roi(SyntheticCloudSky.SouthHigh)).Assessment;
 
         Assert.True(a.StarTestInconclusive);
@@ -140,10 +141,12 @@ public sealed class CloudDetectorTests
     {
         ClearSkyReference r = Reference();
         settings.MinExpectedStars = 500;
+        settings.MinStarFraction = 0.95;
         RegionOfInterest roi = SyntheticCloudSky.Roi(SyntheticCloudSky.SouthHigh);
 
         Assert.False(Assess(Clear, roi, r).Assessment.CloudPresent);
-        CloudAssessment cloudy = Assess(SyntheticCloudSky.Frame(cloudCentre: SyntheticCloudSky.SouthHigh), roi, r).Assessment;
+        GrayFrame thinCloud = SyntheticCloudSky.Frame(cloudCentre: SyntheticCloudSky.SouthHigh, thick: false, cloudBrightness: 1.6, texture: 0.02);
+        CloudAssessment cloudy = Assess(thinCloud, roi, r).Assessment;
         Assert.True(cloudy.StarTestInconclusive);
         Assert.True(cloudy.CloudPresent);
     }

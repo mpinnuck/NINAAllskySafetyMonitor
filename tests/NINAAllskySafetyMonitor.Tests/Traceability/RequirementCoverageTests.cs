@@ -10,10 +10,7 @@ namespace NINAAllskySafetyMonitor.Tests.Traceability;
 public sealed class RequirementCoverageTests
 {
     private static readonly IReadOnlyDictionary<string, string> ImplementationGaps =
-        new Dictionary<string, string>
-        {
-            ["REQ-29"] = "The low-count probability rule is pending recovery; existing star-test code only covers the standard fraction rule.",
-        };
+        new Dictionary<string, string>();
 
     private static readonly IReadOnlyDictionary<string, string> ManualVerification =
         new Dictionary<string, string>

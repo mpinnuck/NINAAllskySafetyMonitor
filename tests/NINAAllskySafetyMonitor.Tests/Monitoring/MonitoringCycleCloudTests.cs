@@ -117,6 +117,7 @@ public sealed class MonitoringCycleCloudTests
     public async Task CloudUnknownIsUndetermined()
     {
         settings.Cloud.MinExpectedStars = 500;
+        settings.Cloud.MinStarFraction = 0.95;
         NewImage();
         MonitorSnapshot s = await Cycle().RunOnceAsync(CancellationToken.None);
 

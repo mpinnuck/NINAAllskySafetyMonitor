@@ -45,4 +45,4 @@ Record the results in the Verified column of `docs/design/traceability.xlsx` (to
 
 | Date | NINA version | Result | Notes |
 |---|---|---|---|
-| | 3.3.0.1057 | | |
+| | 3.3.x nightly (record exact build) | | |

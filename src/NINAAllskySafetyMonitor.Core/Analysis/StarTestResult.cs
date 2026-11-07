@@ -6,7 +6,7 @@ namespace NINAAllskySafetyMonitor.Core.Analysis;
 /// <param name="Expected">Stars expected.</param>
 /// <param name="Matched">Expected stars found.</param>
 /// <param name="Fraction">Matched ÷ Expected, or null when no star was expected.</param>
-/// <param name="Inconclusive">True when fewer stars were expected than the test needs.</param>
-/// <param name="Cloud">True when the fraction is below the limit (never when inconclusive).</param>
+/// <param name="Inconclusive">True when too few expected stars are available for a decisive test.</param>
+/// <param name="Cloud">True when the fraction or low-count probability test identifies cloud.</param>
 [Requirement("REQ-29")]
 public sealed record StarTestResult(int Expected, int Matched, double? Fraction, bool Inconclusive, bool Cloud);

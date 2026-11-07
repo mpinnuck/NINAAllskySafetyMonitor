@@ -36,4 +36,4 @@ The safe path itself (REQ-38, REQ-39): `SafetyHysteresisTests`, `SafetyDecisionE
 
 | Date | NINA version | Result | Notes |
 |---|---|---|---|
-| | 3.3.0.1069 | | |
+| | 3.3.x nightly (record exact build) | | |
