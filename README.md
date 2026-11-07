@@ -30,7 +30,7 @@ Folders inside Core and Tests match the design packages (CL-01): one folder per 
 
 ## Before the first build
 
-- The compile-time baseline is stable `NINA.Plugin` 3.2.0.9001 with `net8.0-windows`; the plugin manifest supports NINA 3.2.0 and later. The AstroPC currently runs a 3.3.x nightly; post-build copies target its `3.3.0` plugin folder. Verify newer-host compatibility and smoke-test the release candidate on that runtime, recording its exact nightly build.
+- The compile-time baseline is stable `NINA.Plugin` 3.2.0.9001 with `net8.0-windows`; the plugin manifest supports NINA 3.2.0 and later. The AstroPC currently runs a 3.3.x nightly; post-build copies target its `3.0.0` plugin folder. Verify newer-host compatibility and smoke-test the release candidate on that runtime, recording its exact nightly build.
 - Confirm the licence and repository URL in `src/NINAAllskySafetyMonitor.Plugin/Properties/AssemblyInfo.cs`.
 
 ## Traceability

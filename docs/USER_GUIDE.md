@@ -66,6 +66,6 @@ The offline replay harness can re-analyse saved Allsky frames and create a revie
 
 ## Compatibility note
 
-The plugin manifest declares NINA 3.2.0 as its minimum and builds against stable `NINA.Plugin` 3.2.0.9001 on .NET 8. The AstroPC currently runs a 3.3.x nightly; compatibility and the release candidate still require a smoke test in that target runtime. Post-build deployment copies to the NINA 3.3.0 plugin folder.
+The plugin manifest declares NINA 3.2.0 as its minimum and builds against stable `NINA.Plugin` 3.2.0.9001 on .NET 8. The AstroPC currently runs a 3.3.x nightly; compatibility and the release candidate still require a smoke test in that target runtime. Post-build deployment copies to the AstroPC's NINA `3.0.0` plugin folder.
 
 See the [requirements](./requirements/requirements.md) and [design documents](./design/) for additional details.
