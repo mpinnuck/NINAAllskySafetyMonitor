@@ -90,6 +90,28 @@ public sealed class StatusViewModel : DockableVM
 
     public bool UntunedVisible => host.IsRunning && host.CurrentStatus.Untuned;
 
+    /// <summary>
+    /// Cloud advisory shown when cloud detection does not decide safety (REQ-28, REQ-45).
+    /// Shown alongside the safe/unsafe indicator as guidance only.
+    /// </summary>
+    public string CloudAdvisoryText
+    {
+        get
+        {
+            if (!host.IsRunning) return string.Empty;
+            CloudAssessment? cloud = host.LatestSnapshot?.Conditions.Cloud;
+            if (cloud is null) return string.Empty;
+            
+            // Only show as advisory if cloud does not decide safety
+            MonitorSettings settings = PluginSettingsStore.Instance.Current;
+            if (settings.Cloud.DecidesSafety) return string.Empty;
+            
+            return $"Cloud: {cloud.Summary}";
+        }
+    }
+
+    public bool CloudAdvisoryVisible => !string.IsNullOrEmpty(CloudAdvisoryText);
+
     // ---- Manual override (REQ-40) ----
 
     public IReadOnlyList<OverrideMode> OverrideModes { get; } = new[] { OverrideMode.Auto, OverrideMode.ForceSafe, OverrideMode.ForceUnsafe };
@@ -249,6 +271,8 @@ public sealed class StatusViewModel : DockableVM
         RaisePropertyChanged(nameof(ReasonText));
         RaisePropertyChanged(nameof(LastUpdateText));
         RaisePropertyChanged(nameof(UntunedVisible));
+        RaisePropertyChanged(nameof(CloudAdvisoryText));
+        RaisePropertyChanged(nameof(CloudAdvisoryVisible));
         RaisePropertyChanged(nameof(ImageInfoText));
         RaisePropertyChanged(nameof(WeatherInfoText));
         RaisePropertyChanged(nameof(OverrideMode));

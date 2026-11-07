@@ -56,4 +56,9 @@ Svc -> Eng : Decide(Idle snapshot, or error snapshot with no conditions)
 note right : An error snapshot has no checks, so it is never\nassumed safe: nothing was checked, not even\nthat it is night.
 Eng -> Hys : Reset()
 Eng --> Svc : Idle / Unsafe  (countdown starts again afterwards)
+note over Svc, Eng
+  Decide works on snapshot.Conditions.Deciding(cloudDecidesSafety): with cloud
+  advisory (the default) a stale image or detected cloud does not reset the countdown
+  or make the status unsafe; the cloud result is shown as advice (REQ-28, REQ-45).
+end note
 @enduml

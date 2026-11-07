@@ -42,6 +42,12 @@ package "NINAAllskySafetyMonitor.Core.Analysis" {
   class StarFractionTest {
     -settings : Func<CloudDetectionSettings>
     +Evaluate(expectedCount, matchedCount) : StarTestResult
+    +ChanceInClearSky(found, expected) : double
+    ≥ MinExpectedStars: cloud below MinStarFraction.
+    MinSmallCountStars … MinExpectedStars−1: cloud when
+    P(≤ found | expected, ClearSkyDetectionRate) <
+    SmallCountChance (binomial); clear at ≥ MinStarFraction;
+    otherwise inconclusive. Fewer: inconclusive.
     .. REQ-29 ..
   }
   class BlockStatistics <<record>> {

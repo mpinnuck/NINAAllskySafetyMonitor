@@ -53,6 +53,7 @@ public sealed class MonitoringCycleTests
     [Fact]
     public async Task GoodImageAndWeatherLeaveOnlyCloudDetectionMissing()
     {
+        settings.Cloud.DecidesSafety = true; // This test verifies cloud detection affects safety
         astro.SunAltitude = -30;
         direct.Then(FreshImage());
         weather.Then(Now.AddMinutes(-2), 0, 8);
@@ -80,6 +81,7 @@ public sealed class MonitoringCycleTests
     [Fact]
     public async Task EveryFailedConditionIsInTheReason()
     {
+        settings.Cloud.DecidesSafety = true; // This test verifies cloud detection affects safety
         astro.SunAltitude = -30;
         direct.Then(FetchResult.Failed("Could not connect to allsky.local"));
         weather.Then(Now.AddMinutes(-1), 0, 55);
@@ -93,6 +95,7 @@ public sealed class MonitoringCycleTests
     [Fact]
     public async Task NoWeatherDataIsReportedOnce()
     {
+        settings.Cloud.DecidesSafety = true; // This test verifies cloud detection affects safety
         astro.SunAltitude = -30;
         direct.Then(FreshImage());
         weather.Then(WeatherFetchResult.Failed("Weather API key was rejected (HTTP 401)"));
@@ -105,6 +108,7 @@ public sealed class MonitoringCycleTests
     [Fact]
     public async Task WeatherCheckingOffIsNotPolledAndNotShown()
     {
+        settings.Cloud.DecidesSafety = true; // This test verifies cloud detection affects safety
         astro.SunAltitude = -30;
         settings.Weather.Enabled = false;
         direct.Then(FreshImage());
@@ -158,6 +162,7 @@ public sealed class MonitoringCycleTests
     [Fact]
     public async Task NoMountIsNotAnError()
     {
+        settings.Cloud.DecidesSafety = true; // This test verifies cloud detection affects safety
         astro.SunAltitude = -30;
         direct.Then(FreshImage());
         weather.Then(Now.AddMinutes(-2), 0, 8);

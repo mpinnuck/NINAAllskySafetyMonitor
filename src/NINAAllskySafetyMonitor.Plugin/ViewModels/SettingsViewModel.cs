@@ -412,7 +412,14 @@ public sealed class SettingsViewModel : INotifyPropertyChanged
         return LensProjection.FromHorizonRadius(1500, 1000, 1000, 0, false) with { CalibratedUtc = DateTime.UtcNow };
     }
 
-    // ---- Cloud detection (REQ-29 to REQ-31, REQ-43) ----
+    // ---- Cloud detection (REQ-28, REQ-29 to REQ-31, REQ-43) ----
+
+    /// <summary>When true, detected cloud in the ROI makes the status unsafe (REQ-28).</summary>
+    public bool CloudDecidesSafety
+    {
+        get => edit.Cloud.DecidesSafety;
+        set { edit.Cloud.DecidesSafety = value; OnPropertyChanged(); }
+    }
 
     public double LimitingMagnitude
     {

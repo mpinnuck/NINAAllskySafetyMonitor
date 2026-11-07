@@ -115,7 +115,9 @@ package "NINAAllskySafetyMonitor.Core.Domain" {
     +AllPassed : bool
     +Failures : IEnumerable<ConditionCheck>
     +OnlyUndeterminedFailures : bool
-    .. REQ-37 REQ-50 ..
+    +Deciding(cloudDecidesSafety) : SafetyConditions
+      without FreshImage and NoCloud when false
+    .. REQ-28 REQ-37 REQ-50 ..
   }
   class SafetyStatus <<record>> {
     +State : SafetyState

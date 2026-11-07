@@ -1,6 +1,6 @@
 # NINAAllskySafetyMonitor — Requirements
 
-Version 5.7 · 2026-11-05
+Version 5.8 · 2026-11-06
 
 A safety monitor for NINA on the AstroPC. It analyses images from an Allsky camera, combines them with rain and wind data from a weather station, and reports a safe/unsafe status to NINA.
 
@@ -61,8 +61,8 @@ Defaults shown in *[brackets]* are configurable. How configurable values are sto
 
 ## 7. Cloud detection
 
-- **REQ-28** **Any cloud in the ROI means unsafe.**
-- **REQ-29** Primary test: predict which catalogue stars should be visible in the ROI (down to a limiting magnitude *[4.4]*), detect stars in the image, and compute the detected fraction. If the fraction falls below *[0.70]*, there is cloud. If fewer than *[8]* stars are expected in the ROI, this test is inconclusive and only REQ-30 applies.
+- **REQ-28** Cloud detected in the ROI is always shown to the imager. It makes the status unsafe only when the imager chooses that cloud decides safety *[off]*.
+- **REQ-29** Primary test: predict which catalogue stars should be visible in the ROI (down to a limiting magnitude *[4.4]*), detect stars in the image, and compute the detected fraction. If the fraction falls below *[0.70]*, there is cloud. If fewer than *[8]* stars are expected, the test still decides when the count leaves little doubt: cloud when so few are found that it would be unlikely in clear sky *[less than 1 in 100, taking 95% of expected stars as found]*; clear when the fraction reaches the limit above. Otherwise, or when fewer than *[3]* stars are expected, the test is inconclusive and only REQ-30 applies.
 - **REQ-30** Secondary test, comparing the ROI with a clear-sky reference: a map of sky brightness and non-uniformity over the working area, captured automatically on the first tuned clear night. Cloud lit by city glow appears brighter and blotchier than clear sky. Because the Allsky camera adjusts its exposure to keep overall image brightness steady, the test does not depend on exposure:
   - brightness of the ROI relative to the rest of the working area, both compared with the reference, above *[1.3×]* → cloud;
   - non-uniformity (standard deviation ÷ median, after removing stars) above *[1.5×]* the reference → cloud.
@@ -79,10 +79,10 @@ Defaults shown in *[brackets]* are configurable. How configurable values are sto
 
 ## 9. Safety decision
 
-- **REQ-37** The overall status is safe only when all of these are true: active window, fresh image, no cloud in the ROI, no rain, wind below the limit, and weather data current.
+- **REQ-37** The overall status is safe only when all of these are true: active window, no rain, wind below the limit, and weather data current; and, when cloud decides safety (REQ-28), a fresh image and no cloud in the ROI.
 - **REQ-38** Transition to **unsafe** is immediate when any condition fails.
 - **REQ-39** Transition to **safe** happens only after all conditions have held continuously for *[4 min]*.
-- **REQ-40** A manual override (Force Safe / Force Unsafe / Auto) is provided for testing, shown prominently and recorded in the log. It reverts to Auto when NINA restarts.
+- **REQ-40** A manual override (Force Safe / Force Unsafe / Auto) is provided, shown prominently and recorded in the log. It reverts to Auto when NINA restarts.
 
 ## 10. Tuning and offline analysis
 
@@ -101,7 +101,7 @@ Defaults shown in *[brackets]* are configurable. How configurable values are sto
 
 - **REQ-45** A status view shows:
   - the latest Allsky image with the ROI circle, working area, and detected vs expected stars overlaid;
-  - a large SAFE / UNSAFE / IDLE indicator showing the reason for the current state, with a safe state that was assumed (REQ-50) shown distinctly;
+  - a large SAFE / UNSAFE / IDLE indicator showing the reason for the current state, with a safe state that was assumed (REQ-50) shown distinctly, and the cloud result shown alongside as advice when it does not decide safety;
   - current metrics: star fraction, brightness, rain, wind gust, image age, weather data age, and the countdown to safe;
   - a history graph of the metrics and the safe state for the night.
 - **REQ-46** A settings view edits every configurable value.
@@ -119,7 +119,7 @@ Defaults shown in *[brackets]* are configurable. How configurable values are sto
 ## 13.2 Reliability
 
 - **REQ-49** A failure in the safety monitor (crash, hang, network fault) must not disrupt NINA or a running sequence.
-- **REQ-50** Fail-safe: any failure, or any state that can't be determined, results in **unsafe**, or in safe when the imager chooses *[unsafe]*. Detected cloud, rain or wind is always **unsafe**.
+- **REQ-50** Fail-safe: any failure, or any state that can't be determined, results in **unsafe**, or in safe when the imager chooses *[unsafe]*. Detected rain or wind is always **unsafe**, and so is detected cloud when it decides safety (REQ-28).
 - **REQ-51** Every network operation (image fetch, weather poll) has a timeout, so a stalled connection can't hang the monitor.
 
 ## 13.3 Security

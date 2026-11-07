@@ -3,7 +3,7 @@ using NINAAllskySafetyMonitor.Core.Traceability;
 namespace NINAAllskySafetyMonitor.Core.Settings;
 
 /// <summary>Cloud detection thresholds. Defaults are conservative until tuned (REQ-43).</summary>
-[Requirement("REQ-29", "REQ-30", "REQ-31", "REQ-43")]
+[Requirement("REQ-28", "REQ-29", "REQ-30", "REQ-31", "REQ-43")]
 public sealed class CloudDetectionSettings
 {
     public double LimitingMagnitude { get; set; } = 4.4;
@@ -15,4 +15,7 @@ public sealed class CloudDetectionSettings
 
     /// <summary>Set to true once thresholds have been tuned from real nights.</summary>
     public bool Tuned { get; set; }
+
+    /// <summary>When true, detected cloud in the ROI makes the status unsafe (REQ-28). When false, cloud is advisory only.</summary>
+    public bool DecidesSafety { get; set; } = false;
 }

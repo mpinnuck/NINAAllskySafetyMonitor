@@ -76,6 +76,9 @@ package "NINAAllskySafetyMonitor.Core.Settings" {
     +MaxBrightnessRatio = 1.3
     +MaxUniformityRatio = 1.5
     +MoonExclusionDeg = 15
+    +ClearSkyDetectionRate = 0.95
+    +SmallCountChance = 0.01
+    +MinSmallCountStars = 3
     +Tuned = false
     .. REQ-29 REQ-30 REQ-31 REQ-43 ..
   }
@@ -91,7 +94,8 @@ package "NINAAllskySafetyMonitor.Core.Settings" {
   class DecisionSettings {
     +SafeAfterMin = 4
     +UndeterminedIsSafe = false
-    .. REQ-39 REQ-50 ..
+    +CloudDecidesSafety = false
+    .. REQ-28 REQ-39 REQ-50 ..
   }
   class TuningSettings {
     +Enabled = false

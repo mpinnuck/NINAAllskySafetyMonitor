@@ -12,6 +12,9 @@ package "NINAAllskySafetyMonitor.Plugin.ViewModels" {
     +AllskyImage : BitmapSource
     +IsConnected, IsSafe : bool
     +IsAssumed : bool  (amber "SAFE (ASSUMED)")
+    +CloudAdviceText, CloudAdviceVisible
+      e.g. "Cloud likely in ROI · 2 of 9 stars";
+      shown when cloud does not decide safety
     +StateText, ReasonText, LastUpdateText
     +ImageInfoText, WeatherInfoText
     +RoiInfoText, MountInfoText
@@ -120,6 +123,8 @@ package "NINAAllskySafetyMonitor.Plugin.Views" {
   }
   class OptionsTemplates <<XAML ResourceDictionary>> {
     "Allsky Safety Monitor_Options"
+    + "Cloud decides safety" switch and the
+      small-count settings (Cloud detection)
   }
   class ImageViewerWindow <<WPF Window>> {
     owned by NINA's main window, ~90% of it

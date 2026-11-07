@@ -4,8 +4,9 @@ namespace NINAAllskySafetyMonitor.Core.Domain;
 
 /// <summary>All condition checks for one monitoring cycle.</summary>
 /// <param name="Checks">One check per condition.</param>
-[Requirement("REQ-37", "REQ-50")]
-public sealed record SafetyConditions(IReadOnlyList<ConditionCheck> Checks)
+/// <param name="Cloud">Cloud assessment result, shown as advisory when it doesn't decide safety (REQ-28).</param>
+[Requirement("REQ-28", "REQ-37", "REQ-50")]
+public sealed record SafetyConditions(IReadOnlyList<ConditionCheck> Checks, CloudAssessment? Cloud = null)
 {
     /// <summary>True only when there is at least one check and every check passed.</summary>
     public bool AllPassed => Checks.Count > 0 && Checks.All(c => c.Passed);

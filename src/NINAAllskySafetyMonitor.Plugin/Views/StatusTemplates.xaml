@@ -52,6 +52,13 @@
                     TextWrapping="Wrap" />
                 <TextBlock
                     Margin="0,4,0,0"
+                    Opacity="0.8"
+                    Foreground="#E0E000"
+                    Text="{Binding CloudAdvisoryText}"
+                    TextWrapping="Wrap"
+                    Visibility="{Binding CloudAdvisoryVisible, Converter={StaticResource AllskySafety_BoolToVisibility}}" />
+                <TextBlock
+                    Margin="0,4,0,0"
                     FontWeight="Bold"
                     Text="{Binding CountdownText}" />
                 <TextBlock

@@ -110,13 +110,18 @@ public sealed class MonitoringCycle : IMonitoringCycle
         // Decoding and analysis take a second or two: keep them off the caller's thread.
         SkyImage? image = acquirer.LatestImage;
         (ConditionCheck cloudCheck, CloudAssessment? cloud, bool notSky) = await Task.Run(() => AssessCloud(s, image, roi, site, now), ct).ConfigureAwait(false);
-        checks.Add(cloudCheck);
+        
+        // Add cloud check to conditions only if it decides safety (REQ-28).
+        if (s.Cloud.DecidesSafety)
+        {
+            checks.Add(cloudCheck);
+        }
 
         // Distinct: with no weather data, rain, wind and data age all fail for the same reason.
         string reason = string.Join(" · ", checks.Where(c => !c.Passed).Select(c => c.Reason).Distinct());
         var status = new SafetyStatus(SafetyState.Unsafe, false, reason, null, OverrideMode.Auto, untuned, now);
         WeatherObservation? obs = s.Weather.Enabled ? weather.Latest : null;
-        return new MonitorSnapshot(image, roi, cloud, obs, new SafetyConditions(checks), status, mountState) { NotASkyFrame = notSky };
+        return new MonitorSnapshot(image, roi, cloud, obs, new SafetyConditions(checks, cloud), status, mountState) { NotASkyFrame = notSky };
     }
 
     /// <summary>Decodes the image, checks it is a sky frame and judges cloud in the ROI.</summary>

@@ -1,11 +1,11 @@
-# Design v1.11 (2026-11-05)
+# Design v1.12 (2026-11-06)
 
-Traced to `../requirements/requirements.md` v5.7 (REQ-01 … REQ-63). Version 1.11 adds the working-circle editor to the review tool (REQ-63); §1.5 of the PDF lists the changes from v1.10.
+Traced to `../requirements/requirements.md` v5.8 (REQ-01 … REQ-63). Version 1.12 makes cloud advisory by default and adds the small-count star rule; §1.5 of the PDF lists the changes from v1.11.
 
 | File | Contents |
 |---|---|
 | `uml/*.puml` | PlantUML sources in Rational Rose style (`uml/_style.iuml`). These are the editable masters. |
-| `review/NINAAllskySafetyMonitor-Design-v1.11.pdf` | Software Design Document for review, generated from the sources. Earlier versions are in `review/superseded/`. |
+| `review/NINAAllskySafetyMonitor-Design-v1.12.pdf` | Software Design Document for review, generated from the sources. Earlier versions are in `review/superseded/`. |
 | `review/traceability.xlsx` | REQ → use case → design class → scenario, generated from the sources. Do not edit by hand. |
 
 Diagram index:

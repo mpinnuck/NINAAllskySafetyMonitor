@@ -25,9 +25,13 @@ package "NINAAllskySafetyMonitor.Core.Decision" {
     -safeAfter : Func<TimeSpan>
     -slewHold : SlewHoldPolicy
     -undeterminedIsSafe : Func<bool>
+    -cloudDecidesSafety : Func<bool>
     -lastDecided : SafetyStatus?
     +Decide(snapshot : MonitorSnapshot) : SafetyStatus
-    .. REQ-03 REQ-27 REQ-37 REQ-38 REQ-39 REQ-50 ..
+    decides on Conditions.Deciding(cloudDecidesSafety);
+    when that leaves no checks (weather off, cloud
+    advisory) the window alone decides
+    .. REQ-03 REQ-27 REQ-28 REQ-37 REQ-38 REQ-39 REQ-50 ..
   }
 }
 

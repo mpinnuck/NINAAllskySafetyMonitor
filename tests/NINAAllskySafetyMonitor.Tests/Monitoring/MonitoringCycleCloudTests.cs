@@ -28,6 +28,7 @@ public sealed class MonitoringCycleCloudTests
     public MonitoringCycleCloudTests()
     {
         settings.Calibration.Lens = SyntheticCloudSky.Lens;
+        settings.Cloud.DecidesSafety = true; // These tests verify cloud detection affects safety
         astro.SunAltitude = -30;
         astro.FixedHorizontal = SyntheticCloudSky.SouthHigh;
         mount.Current = FakeMountStateSource.Tracking(5, -40);
