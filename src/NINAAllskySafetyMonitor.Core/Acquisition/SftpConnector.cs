@@ -25,7 +25,7 @@ public sealed class SftpConnector : IRemoteFileConnector
     }
 
     /// <inheritdoc />
-    public IRemoteFileSession Connect(DirectSourceSettings settings, TimeSpan connectTimeout)
+    public async Task<IRemoteFileSession> ConnectAsync(DirectSourceSettings settings, TimeSpan connectTimeout, CancellationToken ct)
     {
         ArgumentNullException.ThrowIfNull(settings);
 
@@ -36,31 +36,42 @@ public sealed class SftpConnector : IRemoteFileConnector
             hosts.Add(fallback);
         }
 
-        AuthenticationMethod auth = CreateAuthentication(settings);
+        AuthenticationMethod auth = CreateAuthentication(settings, out PrivateKeyFile? privateKeyFile);
         var verifier = new HostKeyVerifier(settings.HostKeyFingerprint);
         Exception? last = null;
+        bool transferred = false;
 
-        foreach (string host in hosts)
+        try
         {
-            try
+            foreach (string host in hosts)
             {
-                return ConnectTo(host, settings, auth, verifier, connectTimeout);
-            }
-            catch (Exception e) when (IsUnreachable(e))
-            {
-                last = e;
-                if (host != hosts[^1])
+                try
                 {
-                    log.Write(LogLevel.Info, $"Could not reach {host} ({e.Message}); trying {hosts[^1]}");
+                    IRemoteFileSession session = await ConnectToAsync(host, settings, auth, verifier, privateKeyFile, connectTimeout, ct).ConfigureAwait(false);
+                    transferred = true;
+                    return session;
+                }
+                catch (Exception e) when (IsUnreachable(e))
+                {
+                    last = e;
+                    if (host != hosts[^1])
+                    {
+                        log.Write(LogLevel.Info, $"Could not reach {host} ({e.Message}); trying {hosts[^1]}");
+                    }
                 }
             }
-        }
 
-        throw new IOException($"Could not connect to {string.Join(" or ", hosts)}: {last?.Message}", last);
+            throw new IOException($"Could not connect to {string.Join(" or ", hosts)}: {last?.Message}", last);
+        }
+        finally
+        {
+            if (!transferred) privateKeyFile?.Dispose();
+        }
     }
 
-    private AuthenticationMethod CreateAuthentication(DirectSourceSettings s)
+    private AuthenticationMethod CreateAuthentication(DirectSourceSettings s, out PrivateKeyFile? privateKeyFile)
     {
+        privateKeyFile = null;
         if (s.UsePassword)
         {
             string password = credentials.GetSecret(CredentialKeys.SftpPassword)
@@ -73,10 +84,12 @@ public sealed class SftpConnector : IRemoteFileConnector
             throw new FileNotFoundException($"SSH key file not found: {s.KeyFile}");
         }
 
-        return new PrivateKeyAuthenticationMethod(s.User, new PrivateKeyFile(s.KeyFile));
+        privateKeyFile = new PrivateKeyFile(s.KeyFile);
+        return new PrivateKeyAuthenticationMethod(s.User, privateKeyFile);
     }
 
-    private static IRemoteFileSession ConnectTo(string host, DirectSourceSettings s, AuthenticationMethod auth, HostKeyVerifier verifier, TimeSpan timeout)
+    private static async Task<IRemoteFileSession> ConnectToAsync(string host, DirectSourceSettings s, AuthenticationMethod auth, HostKeyVerifier verifier,
+        PrivateKeyFile? privateKeyFile, TimeSpan timeout, CancellationToken ct)
     {
         var info = new ConnectionInfo(host, s.Port, s.User, auth) { Timeout = timeout };
         RestrictHostKeyAlgorithm(info, s.HostKeyAlgorithm);
@@ -93,8 +106,8 @@ public sealed class SftpConnector : IRemoteFileConnector
 
         try
         {
-            client.Connect();
-            return new SftpFileSession(client);
+            await client.ConnectAsync(ct).ConfigureAwait(false);
+            return new SftpFileSession(client, privateKeyFile);
         }
         catch (Exception) when (mismatch)
         {

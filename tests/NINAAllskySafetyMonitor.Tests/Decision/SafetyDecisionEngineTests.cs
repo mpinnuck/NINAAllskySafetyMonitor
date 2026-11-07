@@ -17,13 +17,13 @@ public sealed class SafetyDecisionEngineTests
 
     private static MonitorSnapshot StaleImage(ConditionCheck? extra = null) => Snapshot(SafetyState.Unsafe, new[]
     {
-        Pass(SafetyCondition.ActiveWindow), ConditionCheck.Unknown(SafetyCondition.FreshImage, "Image is 12.0 min old (limit 10 min)"),
+        Pass(SafetyCondition.ActiveWindow), new ConditionCheck(SafetyCondition.FreshImage, false, "Image is 12.0 min old (limit 10 min)"),
         ConditionCheck.Unknown(SafetyCondition.NoCloud, "No image to judge cloud"),
         Pass(SafetyCondition.NoRain), Pass(SafetyCondition.WindBelowLimit), Pass(SafetyCondition.WeatherCurrent),
     }.Select(c => extra is not null && c.Condition == extra.Condition ? extra : c).ToArray());
 
     [Fact]
-    public void UndeterminedIsUnsafeByDefault()
+    public void StaleImageIsUnsafeByDefault()
     {
         SafetyStatus s = Engine().Decide(StaleImage());
         Assert.False(s.IsSafe);
@@ -32,21 +32,19 @@ public sealed class SafetyDecisionEngineTests
     }
 
     [Fact]
-    public void UndeterminedCanBeAssumedSafeAfterTheClearPeriod()
+    public void StaleImageCannotBeAssumedSafe()
     {
         undeterminedIsSafe = true;
         SafetyDecisionEngine e = Engine();
         SafetyStatus first = e.Decide(StaleImage());
         Assert.False(first.IsSafe);
-        Assert.True(first.Assumed);
-        Assert.Equal("Assumed safe: Image is 12.0 min old (limit 10 min) · No image to judge cloud: safe in 4:00", first.Reason);
+        Assert.False(first.Assumed);
+        Assert.Contains("Image is 12.0 min old (limit 10 min)", first.Reason);
 
         clock.UtcNow = T0.AddMinutes(4);
         SafetyStatus safe = e.Decide(StaleImage());
-        Assert.True(safe.IsSafe);
-        Assert.True(safe.Assumed);
-        Assert.Equal(SafetyState.Safe, safe.State);
-        Assert.StartsWith("Assumed safe: ", safe.Reason);
+        Assert.False(safe.IsSafe);
+        Assert.False(safe.Assumed);
     }
 
     [Fact]
@@ -63,7 +61,13 @@ public sealed class SafetyDecisionEngineTests
     public void MissingWeatherCanBeAssumedSafe()
     {
         undeterminedIsSafe = true;
-        SafetyStatus s = Engine().Decide(StaleImage(ConditionCheck.Unknown(SafetyCondition.WeatherCurrent, "No weather data: timeout")));
+        SafetyStatus s = Engine().Decide(Snapshot(SafetyState.Unsafe,
+            Pass(SafetyCondition.ActiveWindow),
+            ConditionCheck.Unknown(SafetyCondition.FreshImage, "No image yet"),
+            ConditionCheck.Unknown(SafetyCondition.NoCloud, "No image to judge cloud"),
+            ConditionCheck.Unknown(SafetyCondition.NoRain, "No weather data: timeout"),
+            ConditionCheck.Unknown(SafetyCondition.WindBelowLimit, "No weather data: timeout"),
+            ConditionCheck.Unknown(SafetyCondition.WeatherCurrent, "No weather data: timeout")));
         Assert.True(s.Assumed);
         Assert.Equal(240, s.SecondsToSafe);
     }

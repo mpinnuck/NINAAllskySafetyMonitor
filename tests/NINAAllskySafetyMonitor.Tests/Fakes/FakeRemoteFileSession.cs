@@ -9,16 +9,18 @@ public sealed class FakeRemoteFileSession : IRemoteFileSession
 
     public FakeRemoteFileSession(FakeRemoteFileConnector owner) => this.owner = owner;
 
-    public DateTime GetLastWriteTimeUtc(string path)
+    public Task<DateTime> GetLastWriteTimeUtcAsync(string path, CancellationToken ct)
     {
+        ct.ThrowIfCancellationRequested();
         owner.LastPath = path;
-        return owner.ModifiedUtc;
+        return Task.FromResult(owner.ModifiedUtc);
     }
 
-    public byte[] ReadAllBytes(string path)
+    public Task<byte[]> ReadAllBytesAsync(string path, CancellationToken ct)
     {
+        ct.ThrowIfCancellationRequested();
         owner.Downloads++;
-        return owner.Content;
+        return Task.FromResult(owner.Content);
     }
 
     public void Dispose() => owner.Disposed++;

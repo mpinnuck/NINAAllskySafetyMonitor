@@ -50,7 +50,13 @@ public sealed class MonitoringCycleCloudTests
         decoder,
         new CloudDetector(() => settings.Cloud, StarCatalogue.LoadEmbedded()),
         astro,
-        saved.Add);
+        SaveReference);
+
+    private void SaveReference(ClearSkyReference reference)
+    {
+        saved.Add(reference);
+        settings.Calibration.ClearSkyReference = reference;
+    }
 
     private void NewImage() => direct.Then(FetchResult.New(new SkyImage(FakeImageSource.CompleteJpeg(), Now.AddMinutes(-1), ImageSourceKind.Direct)));
 
@@ -88,7 +94,22 @@ public sealed class MonitoringCycleCloudTests
 
         Assert.Equal("Not a sky frame (Allsky notice image?)", s.Status.Reason);
         Assert.Null(s.Cloud);
-        Assert.True(s.Conditions.Checks.Single(c => c.Condition == SafetyCondition.NoCloud).Undetermined);
+        Assert.False(s.Conditions.Checks.Single(c => c.Condition == SafetyCondition.NoCloud).Undetermined);
+        Assert.True(s.NotASkyFrame);
+    }
+
+    [Fact]
+    public async Task NoticeImageFailsWhenCloudDetectionIsAdvisory()
+    {
+        settings.Cloud.DecidesSafety = false;
+        decoder.Frame = SyntheticCloudSky.NoticeImage();
+        NewImage();
+
+        MonitorSnapshot s = await Cycle().RunOnceAsync(CancellationToken.None);
+
+        ConditionCheck noCloud = s.Conditions.Checks.Single(c => c.Condition == SafetyCondition.NoCloud);
+        Assert.False(noCloud.Passed);
+        Assert.False(noCloud.Undetermined);
         Assert.True(s.NotASkyFrame);
     }
 
@@ -146,5 +167,26 @@ public sealed class MonitoringCycleCloudTests
         MonitorSnapshot second = await cycle.RunOnceAsync(CancellationToken.None);
         Assert.Single(saved);
         Assert.False(second.Cloud!.BrightnessTestSkipped);
+    }
+
+    [Fact]
+    public async Task ClearingSavedReferenceStopsUsingTheCapturedReference()
+    {
+        settings.Cloud.Tuned = true;
+        NewImage();
+        MonitoringCycle cycle = Cycle();
+        MonitorSnapshot first = await cycle.RunOnceAsync(CancellationToken.None);
+        Assert.True(first.Cloud!.BrightnessTestSkipped);
+
+        clock.UtcNow = Now.AddSeconds(5);
+        MonitorSnapshot second = await cycle.RunOnceAsync(CancellationToken.None);
+        Assert.False(second.Cloud!.BrightnessTestSkipped);
+
+        settings.Calibration.ClearSkyReference = null;
+        clock.UtcNow = Now.AddSeconds(10);
+        MonitorSnapshot afterClear = await cycle.RunOnceAsync(CancellationToken.None);
+
+        Assert.True(afterClear.Cloud!.BrightnessTestSkipped);
+        Assert.Equal(2, saved.Count);
     }
 }

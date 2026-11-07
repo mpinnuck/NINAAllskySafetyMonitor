@@ -7,12 +7,13 @@ namespace NINAAllskySafetyMonitor.Core.Settings;
 
 /// <summary>
 /// Loads and saves <see cref="MonitorSettings"/> as a JSON file. A missing file yields defaults.
-/// Saving writes a temporary file first and then replaces the original, so a failed write
-/// never leaves a half-written settings file.
+/// Saving writes a unique temporary file first, preserves the previous file as a backup, and
+/// then replaces the original so concurrent saves cannot share a partial file.
 /// </summary>
 [Requirement("REQ-55", "REQ-56", "REQ-57")]
 public sealed class SettingsStore
 {
+    private readonly object sync = new();
     private static readonly JsonSerializerOptions Options = new()
     {
         WriteIndented = true,
@@ -56,12 +57,16 @@ public sealed class SettingsStore
     {
         ArgumentNullException.ThrowIfNull(settings);
 
-        string? folder = System.IO.Path.GetDirectoryName(Path);
-        if (!string.IsNullOrEmpty(folder)) Directory.CreateDirectory(folder);
+        lock (sync)
+        {
+            string? folder = System.IO.Path.GetDirectoryName(Path);
+            if (!string.IsNullOrEmpty(folder)) Directory.CreateDirectory(folder);
 
-        string temp = Path + ".tmp";
-        File.WriteAllText(temp, ToJson(settings));
-        File.Move(temp, Path, overwrite: true);
+            string temp = Path + "." + Guid.NewGuid().ToString("N") + ".tmp";
+            File.WriteAllText(temp, ToJson(settings));
+            if (File.Exists(Path)) File.Copy(Path, Path + ".bak", overwrite: true);
+            File.Move(temp, Path, overwrite: true);
+        }
     }
 
     /// <summary>Serialises the settings exactly as <see cref="Save"/> writes them.</summary>

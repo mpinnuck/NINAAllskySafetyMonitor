@@ -37,6 +37,8 @@ public sealed class SettingsViewModel : INotifyPropertyChanged
     private readonly IFrameDecoder decoder;
     private MonitorSettings edit;
     private string? newPassword;
+    private string? newWeatherApiKey;
+    private string? credentialWarning;
     private string message = string.Empty;
     private bool testing;
 
@@ -48,6 +50,19 @@ public sealed class SettingsViewModel : INotifyPropertyChanged
         this.decoder = decoder ?? throw new ArgumentNullException(nameof(decoder));
         tester = new ImageFetchTester(credentials, new NinaLogSink(), new SystemClock());
         edit = SettingsStore.Clone(store.Current);
+        if (!string.IsNullOrEmpty(edit.Weather.ApiKey))
+        {
+            try
+            {
+                credentials.SetSecret(CredentialKeys.WeatherApiKey, edit.Weather.ApiKey);
+                edit.Weather.ApiKey = string.Empty;
+                store.Save(edit);
+            }
+            catch (Exception e)
+            {
+                credentialWarning = $"Could not move the saved Weather.com API key into Credential Manager: {e.Message}";
+            }
+        }
         SaveCommand = new DelegateCommand(Save);
         RevertCommand = new DelegateCommand(Revert);
         TestImageCommand = new DelegateCommand(TestImage);
@@ -79,6 +94,8 @@ public sealed class SettingsViewModel : INotifyPropertyChanged
 
     /// <summary>Where the settings are stored.</summary>
     public string SettingsFilePath => store.FilePath;
+
+    public string? SettingsLoadWarning => store.LoadError;
 
     /// <summary>Result of the last Save or test, or the validation errors.</summary>
     public string Message
@@ -318,7 +335,7 @@ public sealed class SettingsViewModel : INotifyPropertyChanged
             LensCalibration? lens = edit.Calibration.Lens;
             int outline = edit.Calibration.WorkingArea.Outline.Count;
             string area = outline >= 3 ? $" Working-area outline: {outline} points." : " No working-area outline drawn.";
-            if (lens is null) return "Not calibrated: positions on the image are estimated from the image size." + area;
+            if (lens is null) return "Not calibrated: cloud assessment is unavailable until a lens is calibrated." + area;
             if (lens.Manual) return "Lens model entered by hand." + area;
             return string.Create(CultureInfo.CurrentCulture,
                 $"Calibrated from {lens.StarsMatched} stars in a frame taken {lens.CalibratedUtc.ToLocalTime():yyyy-MM-dd HH:mm}, error {lens.RmsErrorPx:0.0} px ({lens.RmsErrorDeg:0.00}°).") + area;
@@ -337,17 +354,35 @@ public sealed class SettingsViewModel : INotifyPropertyChanged
         set { edit.LensFit.MaxFitErrorDeg = value; OnPropertyChanged(); }
     }
 
-    /// <summary>On: use the values below (replaces a calibrated model). Off: calibrated model, or an estimate from the image size.</summary>
+    public double CatalogueLimitMagnitude
+    {
+        get => edit.LensFit.CatalogueLimitMagnitude;
+        set { edit.LensFit.CatalogueLimitMagnitude = value; OnPropertyChanged(); }
+    }
+
+    /// <summary>On: use the values below (replaces a calibrated model). Off: restore the previously calibrated model.</summary>
     public bool ManualLensEnabled
     {
         get => edit.Calibration.Lens is { Manual: true };
         set
         {
             if (value == ManualLensEnabled) return;
-            edit.Calibration.Lens = value ? StartingLens() : null;
+            if (value)
+            {
+                fittedLens = edit.Calibration.Lens;
+                edit.Calibration.Lens = StartingLens();
+            }
+            else
+            {
+                edit.Calibration.Lens = fittedLens;
+                fittedLens = null;
+            }
+
             OnPropertyChanged(string.Empty);
         }
     }
+
+    private LensCalibration? fittedLens;
 
     public double LensCentreX
     {
@@ -524,8 +559,40 @@ public sealed class SettingsViewModel : INotifyPropertyChanged
 
     public string WeatherApiKey
     {
-        get => edit.Weather.ApiKey;
-        set { edit.Weather.ApiKey = value; OnPropertyChanged(); }
+        get
+        {
+            if (newWeatherApiKey is not null) return newWeatherApiKey;
+            try
+            {
+                return credentials.GetSecret(CredentialKeys.WeatherApiKey) ?? edit.Weather.ApiKey;
+            }
+            catch
+            {
+                return edit.Weather.ApiKey;
+            }
+        }
+        set
+        {
+            newWeatherApiKey = value;
+            OnPropertyChanged();
+            OnPropertyChanged(nameof(WeatherApiKeyStatus));
+        }
+    }
+
+    public string WeatherApiKeyStatus
+    {
+        get
+        {
+            try
+            {
+                bool stored = !string.IsNullOrEmpty(credentials.GetSecret(CredentialKeys.WeatherApiKey));
+                return credentialWarning ?? (stored ? "Stored in Windows Credential Manager." : "No API key stored.");
+            }
+            catch (Exception e)
+            {
+                return $"Credential Manager unavailable: {e.Message}";
+            }
+        }
     }
 
     public int WeatherPollIntervalS
@@ -632,6 +699,7 @@ public sealed class SettingsViewModel : INotifyPropertyChanged
 
     private void Save()
     {
+        edit.Weather.ApiKey = WeatherApiKey;
         var errors = new List<string>(validator.Validate(edit));
         if (edit.ImageSource.Kind == ImageSourceKind.Direct && edit.ImageSource.Direct.UsePassword
             && string.IsNullOrEmpty(newPassword) && PasswordStatus.StartsWith("No password", StringComparison.Ordinal))
@@ -654,6 +722,12 @@ public sealed class SettingsViewModel : INotifyPropertyChanged
                 OnPropertyChanged(nameof(SftpPassword));
                 OnPropertyChanged(nameof(PasswordStatus));
             }
+
+            credentials.SetSecret(CredentialKeys.WeatherApiKey, edit.Weather.ApiKey);
+            edit.Weather.ApiKey = string.Empty;
+            newWeatherApiKey = null;
+            OnPropertyChanged(nameof(WeatherApiKey));
+            OnPropertyChanged(nameof(WeatherApiKeyStatus));
 
             // The reference is captured by the monitor while this page may be open: keep the saved one.
             edit.Calibration.ClearSkyReference = store.Current.Calibration.ClearSkyReference;
@@ -686,6 +760,8 @@ public sealed class SettingsViewModel : INotifyPropertyChanged
     {
         edit = SettingsStore.Clone(store.Current);
         newPassword = null;
+        newWeatherApiKey = null;
+        fittedLens = null;
         Message = "Unsaved changes discarded.";
         OnPropertyChanged(string.Empty);
     }
@@ -721,6 +797,7 @@ public sealed class SettingsViewModel : INotifyPropertyChanged
         if (testing) return;
         testing = true;
         WeatherSettings snapshot = SettingsStore.Clone(edit).Weather;
+        snapshot.ApiKey = WeatherApiKey;
         Message = $"Testing weather station {snapshot.StationId}…";
         try
         {

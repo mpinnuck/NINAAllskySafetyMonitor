@@ -127,6 +127,17 @@ public sealed class DecisionLoggerTests : IDisposable
     }
 
     [Fact]
+    public void FreeTextFieldsCannotBecomeSpreadsheetFormulas()
+    {
+        var roi = new RegionOfInterest(new HorizontalCoordinate(34, 180), 15, false, 1, "  @SUM(1,1)");
+        Logger().Write(Snapshot(SafetyState.Unsafe, "=1+1") with { Roi = roi });
+
+        string row = File.ReadAllLines(TodayFile())[1];
+        Assert.Contains(",'=1+1,", row);
+        Assert.Contains("\"'  @SUM(1,1)\"", row);
+    }
+
+    [Fact]
     public void FilesOlderThanRetentionAreDeleted()
     {
         Directory.CreateDirectory(folder);

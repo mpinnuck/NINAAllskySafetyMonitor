@@ -1,3 +1,4 @@
+using NINAAllskySafetyMonitor.Core.Analysis;
 using NINAAllskySafetyMonitor.Core.Settings;
 using NINAAllskySafetyMonitor.Core.Traceability;
 
@@ -12,6 +13,7 @@ namespace NINAAllskySafetyMonitor.Harness;
 public sealed class ReviewSelector
 {
     private readonly double nearLimit;
+    private readonly MoonBrightnessAdjuster moonAdjuster = new();
     private readonly Dictionary<string, (DateOnly Night, Verdict Verdict)> previous = new(StringComparer.Ordinal);
 
     public ReviewSelector(double nearLimit)
@@ -34,8 +36,11 @@ public sealed class ReviewSelector
 
             previous[t.Target.Id] = (frame.Frame.Night, t.Verdict);
             if (!t.Cloud.StarTestInconclusive && Near(t.Cloud.StarFraction, limits.MinStarFraction)) why.Add("star fraction near limit");
-            if (Near(t.Cloud.RelativeBrightness, limits.MaxBrightnessRatio)) why.Add("brightness near limit");
-            if (Near(t.Cloud.UniformityRatio, limits.MaxUniformityRatio)) why.Add("non-uniformity near limit");
+            double moonFactor = t.Cloud.Moon is { } moon
+                ? moonAdjuster.Factor(moon.Position.AltDeg, moon.Illumination)
+                : 1;
+            if (Near(t.Cloud.RelativeBrightness, limits.MaxBrightnessRatio * moonFactor)) why.Add("brightness near limit");
+            if (Near(t.Cloud.UniformityRatio, limits.MaxUniformityRatio * moonFactor)) why.Add("non-uniformity near limit");
             if (why.Count > 0) picked.Add((t, string.Join("; ", why)));
         }
 

@@ -26,8 +26,7 @@ public sealed class SecretRedactor
         }
         catch (Exception)
         {
-            // If the secrets can't be read, nothing is known to redact; never fail the log write.
-            return text;
+            return "[redaction unavailable; message suppressed]";
         }
 
         foreach (string? secret in current)

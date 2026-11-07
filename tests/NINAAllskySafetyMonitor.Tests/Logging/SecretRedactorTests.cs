@@ -36,7 +36,7 @@ public sealed class SecretRedactorTests
     public void UnreadableSecretsNeverBreakLogging()
     {
         var r = new SecretRedactor(() => throw new InvalidOperationException("Credential Manager unavailable"));
-        Assert.Equal("message", r.Redact("message"));
+        Assert.Equal("[redaction unavailable; message suppressed]", r.Redact("message"));
     }
 
     [Fact]

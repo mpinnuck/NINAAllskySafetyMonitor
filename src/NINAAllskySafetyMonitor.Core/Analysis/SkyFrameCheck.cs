@@ -68,7 +68,7 @@ public sealed class SkyFrameCheck
             : new ConditionCheck(SafetyCondition.NoCloud, true, "Sky frame");
     }
 
-    private static ConditionCheck Fail(string reason) => ConditionCheck.Unknown(SafetyCondition.NoCloud, reason);
+    private static ConditionCheck Fail(string reason) => new(SafetyCondition.NoCloud, false, reason);
 
     /// <summary>1.4826 × the median absolute deviation: the standard deviation, unaffected by stars.</summary>
     internal static double RobustSigma(List<float> values)

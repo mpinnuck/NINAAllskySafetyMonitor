@@ -9,5 +9,5 @@ public interface IRemoteFileConnector
     /// Connects and authenticates. Throws <see cref="HostKeyMismatchException"/> if the Pi's host key
     /// does not match the pinned fingerprint, and other exceptions for connection or login failures.
     /// </summary>
-    IRemoteFileSession Connect(DirectSourceSettings settings, TimeSpan connectTimeout);
+    Task<IRemoteFileSession> ConnectAsync(DirectSourceSettings settings, TimeSpan connectTimeout, CancellationToken ct);
 }

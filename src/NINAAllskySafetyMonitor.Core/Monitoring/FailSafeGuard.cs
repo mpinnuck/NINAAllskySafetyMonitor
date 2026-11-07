@@ -24,6 +24,9 @@ public sealed class FailSafeGuard
         this.timeout = timeout ?? throw new ArgumentNullException(nameof(timeout));
     }
 
+    /// <summary>Maximum duration allowed for a monitoring cycle.</summary>
+    public TimeSpan Timeout => timeout();
+
     /// <summary>Runs the cycle; returns its snapshot, or an Unsafe snapshot on failure.</summary>
     /// <exception cref="OperationCanceledException">Only when <paramref name="ct"/> itself is cancelled.</exception>
     public async Task<MonitorSnapshot> RunAsync(IMonitoringCycle cycle, CancellationToken ct)
@@ -31,7 +34,7 @@ public sealed class FailSafeGuard
         ArgumentNullException.ThrowIfNull(cycle);
 
         using var limit = CancellationTokenSource.CreateLinkedTokenSource(ct);
-        limit.CancelAfter(timeout());
+        limit.CancelAfter(Timeout);
 
         try
         {
@@ -43,7 +46,7 @@ public sealed class FailSafeGuard
         }
         catch (OperationCanceledException)
         {
-            log.Write(LogLevel.Warning, $"Monitoring cycle timed out after {timeout().TotalSeconds:0} s");
+            log.Write(LogLevel.Warning, $"Monitoring cycle timed out after {Timeout.TotalSeconds:0} s");
             return Unsafe("Monitoring cycle timed out");
         }
         catch (Exception e)

@@ -10,8 +10,8 @@ namespace NINAAllskySafetyMonitor.Core.Domain;
 public sealed record ConditionCheck(SafetyCondition Condition, bool Passed, string Reason)
 {
     /// <summary>
-    /// True when the condition failed because it could not be determined (no usable image, cloud unknown, no current weather data),
-    /// rather than because something unsafe was detected. Such a failure may be treated as safe (REQ-50).
+    /// True when the condition failed because it cannot yet be determined, rather than because a known
+    /// unsafe state was detected. Known stale data and invalid images must not use this flag (REQ-50).
     /// </summary>
     public bool Undetermined { get; init; }
 

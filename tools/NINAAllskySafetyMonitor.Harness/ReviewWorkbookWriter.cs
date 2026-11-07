@@ -54,6 +54,7 @@ public sealed class ReviewWorkbookWriter
         ArgumentNullException.ThrowIfNull(settings);
         ArgumentNullException.ThrowIfNull(options);
         using var wb = new XLWorkbook();
+        string workbookFolder = Path.GetDirectoryName(Path.GetFullPath(path))!;
         wb.Style.Font.FontName = "Arial";
         wb.Style.Font.FontSize = 10;
         IXLWorksheet review = wb.AddWorksheet("Review");
@@ -78,7 +79,10 @@ public sealed class ReviewWorkbookWriter
             SetNumber(review.Cell(row, 8), (double?)v[7]);
             SetNumber(review.Cell(row, 9), (double?)v[8]);
             review.Cell(row, 10).Value = (string)v[9]!;
-            review.Cell(row, 11).FormulaA1 = $"HYPERLINK(\"{v[10]}\",\"open\")";
+            string imagePath = (string)v[10]!;
+            if (!Path.IsPathRooted(imagePath)) imagePath = Path.GetFullPath(Path.Combine(workbookFolder, imagePath));
+            imagePath = imagePath.Replace("\"", "\"\"", StringComparison.Ordinal);
+            review.Cell(row, 11).FormulaA1 = $"HYPERLINK(\"{imagePath}\",\"open\")";
             review.Cell(row, 13).FormulaA1 = $"IF(L{row}=\"\",\"\",IF(L{row}=\"Unsure\",\"\",IF(L{row}=D{row},\"Yes\",\"No\")))";
         }
 

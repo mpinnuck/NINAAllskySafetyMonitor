@@ -141,8 +141,13 @@ public partial class ImageViewerWindow : Window
     {
         if (Picture.ActualWidth <= 0 || Picture.ActualHeight <= 0 || vm.OriginalWidth <= 0) return null;
         Point u = e.GetPosition(Picture);
-        if (u.X < 0 || u.Y < 0 || u.X > Picture.ActualWidth || u.Y > Picture.ActualHeight) return null;
-        return new PixelPoint(u.X * vm.OriginalWidth / Picture.ActualWidth, u.Y * vm.OriginalHeight / Picture.ActualHeight);
+        double scale = Math.Min(Picture.ActualWidth / vm.OriginalWidth, Picture.ActualHeight / vm.OriginalHeight);
+        double width = vm.OriginalWidth * scale;
+        double height = vm.OriginalHeight * scale;
+        double left = (Picture.ActualWidth - width) / 2;
+        double top = (Picture.ActualHeight - height) / 2;
+        if (u.X < left || u.Y < top || u.X > left + width || u.Y > top + height) return null;
+        return new PixelPoint((u.X - left) / scale, (u.Y - top) / scale);
     }
 
     private static void Guard(Action action)

@@ -1,6 +1,6 @@
 # Design v1.12 (2026-11-06)
 
-Traced to `../requirements/requirements.md` v5.8 (REQ-01 … REQ-63). Version 1.12 makes cloud advisory by default and adds the small-count star rule; §1.5 of the PDF lists the changes from v1.11.
+Traced to `../requirements/requirements.md` v5.9 (REQ-01 … REQ-64). Version 1.12 makes cloud advisory by default and specifies the small-count star rule; §1.5 of the PDF lists the changes from v1.11. The small-count rule is not present in the checked-in implementation and remains unverified pending recovery of the missing work.
 
 | File | Contents |
 |---|---|

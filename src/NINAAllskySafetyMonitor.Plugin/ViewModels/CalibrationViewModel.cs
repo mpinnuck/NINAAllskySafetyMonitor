@@ -211,7 +211,7 @@ public sealed class CalibrationViewModel : INotifyPropertyChanged
             CalibrationOutcome outcome = await Task.Run(() => fromPicks
                 ? session.CalibrateFromIdentified(frame, site, chosen)
                 : session.Calibrate(frame, site));
-            result = outcome.Result ?? result;
+            result = outcome.Result;
             Status = outcome.Message;
             Warnings = string.Join(Environment.NewLine, outcome.Warnings);
             if (outcome.NeedsIdentification) Picking = true;

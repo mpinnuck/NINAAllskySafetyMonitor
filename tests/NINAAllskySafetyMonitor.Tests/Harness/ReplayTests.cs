@@ -53,9 +53,10 @@ public sealed class ReplayTests : IDisposable
         Assert.True(rows > 0);
         Assert.Contains("Clear → Cloud", review.Column(10).CellsUsed().Select(c => c.GetString()));
         string link = review.Cell(2, 11).FormulaA1;
-        Assert.StartsWith("HYPERLINK(\"review/", link);
+        Assert.StartsWith($"HYPERLINK(\"{Path.GetFullPath(Path.Combine(fx.Out, "review"))}", link);
         string image = link.Split('"')[1];
-        Assert.True(File.Exists(Path.Combine(fx.Out, image)), image);
+        Assert.True(Path.IsPathRooted(image));
+        Assert.True(File.Exists(image), image);
         Assert.Equal("Agree", wb.Worksheet("Summary").Cell(4, 1).GetString());
         Assert.Equal(Directory.GetFiles(Path.Combine(fx.Out, "review"), "*.jpg", SearchOption.AllDirectories).Length, rows);
     }

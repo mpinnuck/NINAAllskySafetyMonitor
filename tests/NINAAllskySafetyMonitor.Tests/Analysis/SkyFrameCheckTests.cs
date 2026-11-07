@@ -29,6 +29,7 @@ public sealed class SkyFrameCheckTests
     {
         ConditionCheck c = new SkyFrameCheck().Evaluate(SyntheticCloudSky.NoticeImage(), Area, SyntheticCloudSky.Lens);
         Assert.False(c.Passed);
+        Assert.False(c.Undetermined);
         Assert.Equal("Not a sky frame (Allsky notice image?)", c.Reason);
     }
 
@@ -38,6 +39,7 @@ public sealed class SkyFrameCheckTests
         LensCalibration lens = SyntheticCloudSky.Lens with { ImageWidth = 1000, ImageHeight = 1000 };
         ConditionCheck c = new SkyFrameCheck().Evaluate(SyntheticCloudSky.NoticeImage(800, 600), Area, lens);
         Assert.False(c.Passed);
+        Assert.False(c.Undetermined);
         Assert.Equal("Not a sky frame: image is 800 × 600, the lens was calibrated on 1000 × 1000", c.Reason);
     }
 

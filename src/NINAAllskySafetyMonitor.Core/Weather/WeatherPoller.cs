@@ -30,6 +30,9 @@ public sealed class WeatherPoller
     /// <summary>Latest observation received, or null.</summary>
     public WeatherObservation? Latest { get; private set; }
 
+    /// <summary>When weather polling first started, used to fail closed after an initial outage.</summary>
+    public DateTime? FirstPollUtc { get; private set; }
+
     /// <summary>Reason the last poll failed, or null if it succeeded.</summary>
     public string? LastError { get; private set; }
 
@@ -41,6 +44,7 @@ public sealed class WeatherPoller
 
         DateTime now = clock.UtcNow;
         if (lastPollUtc is DateTime last && now - last < TimeSpan.FromSeconds(s.PollIntervalS)) return;
+        FirstPollUtc ??= now;
         lastPollUtc = now;
 
         WeatherFetchResult result = await provider.GetLatestAsync(ct).ConfigureAwait(false);

@@ -22,10 +22,10 @@ public sealed class FakeRemoteFileConnector : IRemoteFileConnector
 
     public string? LastPath { get; set; }
 
-    public IRemoteFileSession Connect(DirectSourceSettings settings, TimeSpan connectTimeout)
+    public async Task<IRemoteFileSession> ConnectAsync(DirectSourceSettings settings, TimeSpan connectTimeout, CancellationToken ct)
     {
         Connects++;
-        if (Hang > TimeSpan.Zero) Thread.Sleep(Hang);
+        if (Hang > TimeSpan.Zero) await Task.Delay(Hang, ct);
         if (ConnectError is not null) throw ConnectError;
         return new FakeRemoteFileSession(this);
     }

@@ -7,7 +7,7 @@ using Xunit;
 
 namespace NINAAllskySafetyMonitor.Tests.Monitoring;
 
-[Requirement("REQ-02", "REQ-38", "REQ-40", "REQ-49")]
+[Requirement("REQ-02", "REQ-38", "REQ-40", "REQ-49", "REQ-64")]
 public sealed class MonitorServiceTests
 {
     private readonly ListLogSink log = new();
@@ -86,11 +86,65 @@ public sealed class MonitorServiceTests
 
         service.Start();
         Assert.True(await WaitFor(() => published is not null));
+        SafetyStatus status = service.CurrentStatus;
         await service.StopAsync();
 
-        Assert.False(service.CurrentStatus.IsSafe);
-        Assert.Equal(240, service.CurrentStatus.SecondsToSafe);
+        Assert.False(status.IsSafe);
+        Assert.Equal(240, status.SecondsToSafe);
         Assert.Equal(240, published!.Status.SecondsToSafe);
+    }
+
+    [Fact]
+    public async Task HungCycleIsReportedUnsafeAfterLivenessDeadline()
+    {
+        var started = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var release = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var cycle = new DelegateCycle(async _ =>
+        {
+            started.TrySetResult();
+            await release.Task;
+            return DelegateCycle.Snapshot(SafetyState.Safe, true, "previously safe");
+        });
+        var service = new MonitorService(
+            cycle,
+            new FailSafeGuard(clock, log, () => TimeSpan.FromMilliseconds(50)),
+            () => TimeSpan.Zero,
+            clock,
+            log);
+
+        service.Start();
+        await started.Task.WaitAsync(TimeSpan.FromSeconds(2));
+        await Task.Delay(100);
+
+        Assert.False(service.CurrentStatus.IsSafe);
+        Assert.Contains("No monitoring cycle completed", service.CurrentStatus.Reason);
+
+        Task stopping = service.StopAsync();
+        Assert.False(service.CurrentStatus.IsSafe);
+        Assert.Equal("Monitoring is stopping", service.CurrentStatus.Reason);
+        release.TrySetResult();
+        await stopping;
+    }
+
+    [Fact]
+    public async Task LoopFaultAfterSafeCycleChangesStatusToUnsafe()
+    {
+        var cycle = new DelegateCycle(_ =>
+            Task.FromResult(DelegateCycle.Snapshot(SafetyState.Safe, true, "safe")));
+        var service = new MonitorService(
+            cycle,
+            new FailSafeGuard(clock, log, () => TimeSpan.FromSeconds(5)),
+            () => throw new InvalidOperationException("invalid interval"),
+            clock,
+            log);
+
+        service.Start();
+        Assert.True(await WaitFor(() => cycle.Runs == 1 && !service.IsRunning));
+
+        Assert.False(service.CurrentStatus.IsSafe);
+        Assert.Contains("Monitoring loop is not running", service.CurrentStatus.Reason);
+        Assert.Contains(log.Entries, entry => entry.Message.Contains("Monitoring loop failed"));
+        await service.StopAsync();
     }
 
     [Fact]

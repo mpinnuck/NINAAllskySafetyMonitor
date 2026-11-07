@@ -1,6 +1,7 @@
 using System.Globalization;
 using NINAAllskySafetyMonitor.Core.Abstractions;
 using NINAAllskySafetyMonitor.Core.Domain;
+using NINAAllskySafetyMonitor.Core.Logging;
 using NINAAllskySafetyMonitor.Core.Settings;
 using NINAAllskySafetyMonitor.Core.Traceability;
 
@@ -9,8 +10,9 @@ namespace NINAAllskySafetyMonitor.Core.Tuning;
 /// <summary>
 /// Tuning mode: saves every frame, and one CSV row of metrics per cycle, so the cloud thresholds can be
 /// tuned from real nights. Files go in a folder per night (named by the local date the night starts, so a
-/// night is not split at midnight): &lt;folder&gt;\yyyy-MM-dd\allsky-yyyyMMddHHmmss.jpg (capture time, UTC)
-/// and tuning-yyyy-MM-dd.csv. A frame reused by a second cycle is saved once. Night folders older than
+/// night is not split at midnight): &lt;folder&gt;\yyyy-MM-dd\allsky-yyyyMMddHHmmss.jpg (capture time, UTC;
+/// a numeric suffix distinguishes different frames with the same timestamp) and tuning-yyyy-MM-dd.csv.
+/// A frame reused by a second cycle is saved once. Night folders older than
 /// the retention period are deleted. Never throws: tuning must not affect the monitor.
 /// </summary>
 [Requirement("REQ-41")]
@@ -20,15 +22,17 @@ public sealed class TuningRecorder
     private readonly IClock clock;
     private readonly ILogSink log;
     private readonly MetricsCsvWriter csv = new();
+    private readonly SecretRedactor redactor;
     private readonly object sync = new();
     private DateTime? lastPurgeNight;
     private bool failureLogged;
 
-    public TuningRecorder(Func<TuningSettings> settings, IClock clock, ILogSink log)
+    public TuningRecorder(Func<TuningSettings> settings, IClock clock, ILogSink log, SecretRedactor redactor)
     {
         this.settings = settings ?? throw new ArgumentNullException(nameof(settings));
         this.clock = clock ?? throw new ArgumentNullException(nameof(clock));
         this.log = log ?? throw new ArgumentNullException(nameof(log));
+        this.redactor = redactor ?? throw new ArgumentNullException(nameof(redactor));
     }
 
     /// <summary>The night a local time belongs to: the date twelve hours earlier.</summary>
@@ -54,13 +58,11 @@ public sealed class TuningRecorder
                 string imageFile = string.Empty;
                 if (snapshot.Image is SkyImage image)
                 {
-                    imageFile = $"allsky-{image.CaptureTimeUtc.ToString("yyyyMMddHHmmss", CultureInfo.InvariantCulture)}.jpg";
-                    string imagePath = Path.Combine(folder, imageFile);
-                    if (!File.Exists(imagePath)) File.WriteAllBytes(imagePath, image.JpegBytes);
+                    imageFile = SaveImage(folder, image);
                 }
 
                 string csvPath = Path.Combine(folder, $"tuning-{night.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture)}.csv");
-                csv.Append(csvPath, snapshot, imageFile, utc);
+                csv.Append(csvPath, snapshot, imageFile, utc, redactor);
             }
 
             failureLogged = false;
@@ -71,6 +73,41 @@ public sealed class TuningRecorder
             {
                 log.Write(LogLevel.Warning, $"Tuning data could not be saved: {e.Message}");
                 failureLogged = true;
+            }
+        }
+    }
+
+    private static string SaveImage(string folder, SkyImage image)
+    {
+        string timestamp = image.CaptureTimeUtc.ToString("yyyyMMddHHmmss", CultureInfo.InvariantCulture);
+        for (int collision = 0; ; collision++)
+        {
+            string imageFile = collision == 0 ? $"allsky-{timestamp}.jpg" : $"allsky-{timestamp}-{collision}.jpg";
+            string imagePath = Path.Combine(folder, imageFile);
+            if (File.Exists(imagePath))
+            {
+                if (File.ReadAllBytes(imagePath).AsSpan().SequenceEqual(image.JpegBytes)) return imageFile;
+                continue;
+            }
+
+            string tempPath = Path.Combine(folder, $".{imageFile}.{Guid.NewGuid():N}.tmp");
+            try
+            {
+                File.WriteAllBytes(tempPath, image.JpegBytes);
+                try
+                {
+                    File.Move(tempPath, imagePath);
+                    return imageFile;
+                }
+                catch (IOException)
+                {
+                    if (!File.Exists(imagePath)) throw;
+                    if (File.ReadAllBytes(imagePath).AsSpan().SequenceEqual(image.JpegBytes)) return imageFile;
+                }
+            }
+            finally
+            {
+                if (File.Exists(tempPath)) File.Delete(tempPath);
             }
         }
     }

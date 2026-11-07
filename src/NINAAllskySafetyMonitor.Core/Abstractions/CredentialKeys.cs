@@ -8,4 +8,7 @@ public static class CredentialKeys
 {
     /// <summary>The Allsky Pi SFTP password, used only when password authentication is selected.</summary>
     public const string SftpPassword = "sftp-password";
+
+    /// <summary>The Weather.com API key used for current station observations.</summary>
+    public const string WeatherApiKey = "weather-api-key";
 }

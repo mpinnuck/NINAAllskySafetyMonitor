@@ -51,7 +51,7 @@ public sealed class WeatherEvaluatorTests
     {
         ConditionCheck c = Check(SafetyCondition.WeatherCurrent, Obs(minutesOld: 16));
         Assert.False(c.Passed);
-        Assert.True(c.Undetermined);
+        Assert.False(c.Undetermined);
         Assert.Contains("16.0 min old (limit 15 min)", c.Reason);
     }
 
@@ -62,6 +62,16 @@ public sealed class WeatherEvaluatorTests
         Assert.All(checks, c => Assert.False(c.Passed));
         Assert.All(checks, c => Assert.True(c.Undetermined));
         Assert.Contains(checks, c => c.Reason.Contains("API key was rejected"));
+    }
+
+    [Fact]
+    public void NoWeatherDataPastStaleLimitIsKnownUnsafe()
+    {
+        IReadOnlyList<ConditionCheck> checks = evaluator.Evaluate(null, "API unavailable", Now, settings, Now.AddMinutes(-16));
+
+        Assert.All(checks, c => Assert.False(c.Passed));
+        Assert.All(checks, c => Assert.False(c.Undetermined));
+        Assert.Contains(checks, c => c.Reason.Contains("No weather data for 16.0 min"));
     }
 
     [Fact]

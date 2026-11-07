@@ -40,7 +40,6 @@ public sealed class MonitoringCycle : IMonitoringCycle
     private DateTime? lastImageFetchUtc;
     private SkyImage? decodedImage;
     private GrayFrame? decodedFrame;
-    private ClearSkyReference? sessionReference;
 
     public MonitoringCycle(
         Func<MonitorSettings> settings,
@@ -103,16 +102,16 @@ public sealed class MonitoringCycle : IMonitoringCycle
         var checks = new List<ConditionCheck>
         {
             windowCheck,
-            freshness.Evaluate(acquirer.LatestImage, acquirer.LastSuccessUtc, acquirer.LastError, now, s.ImageSource),
+            freshness.Evaluate(acquirer.LatestImage, acquirer.LastSuccessUtc, acquirer.LastError, now, s.ImageSource, acquirer.FirstAttemptUtc),
         };
-        checks.AddRange(weatherEvaluator.Evaluate(weather.Latest, weather.LastError, now, s.Weather));
+        checks.AddRange(weatherEvaluator.Evaluate(weather.Latest, weather.LastError, now, s.Weather, weather.FirstPollUtc));
 
         // Decoding and analysis take a second or two: keep them off the caller's thread.
         SkyImage? image = acquirer.LatestImage;
         (ConditionCheck cloudCheck, CloudAssessment? cloud, bool notSky) = await Task.Run(() => AssessCloud(s, image, roi, site, now), ct).ConfigureAwait(false);
         
-        // Add cloud check to conditions only if it decides safety (REQ-28).
-        if (s.Cloud.DecidesSafety)
+        // An invalid frame is unsafe even when cloud detection is advisory (REQ-60).
+        if (s.Cloud.DecidesSafety || notSky)
         {
             checks.Add(cloudCheck);
         }
@@ -141,7 +140,7 @@ public sealed class MonitoringCycle : IMonitoringCycle
         }
         catch (Exception e)
         {
-            return (Unknown($"Image could not be decoded: {e.Message}"), null, true);
+            return (Failed($"Image could not be decoded: {e.Message}"), null, true);
         }
 
         var area = new WorkingArea(s.Calibration.WorkingArea, new LensProjection(lens));
@@ -149,11 +148,10 @@ public sealed class MonitoringCycle : IMonitoringCycle
         if (!skyFrame.Passed) return (skyFrame, null, true);
 
         MoonState? moon = astro is null ? null : new MoonState(astro.MoonPosition(site, now), astro.MoonIllumination(now));
-        ClearSkyReference? reference = s.Calibration.ClearSkyReference ?? sessionReference;
+        ClearSkyReference? reference = s.Calibration.ClearSkyReference;
         CloudDetection result = cloudDetector.Assess(frame, roi, s.Calibration.WorkingArea, lens, site, now, moon, reference);
         if (result.CapturedReference is ClearSkyReference captured)
         {
-            sessionReference = captured;
             referenceCaptured?.Invoke(captured);
         }
 
@@ -176,6 +174,8 @@ public sealed class MonitoringCycle : IMonitoringCycle
 
     /// <summary>Cloud can't be judged: undetermined, not detected (REQ-50).</summary>
     private static ConditionCheck Unknown(string reason) => ConditionCheck.Unknown(SafetyCondition.NoCloud, reason);
+
+    private static ConditionCheck Failed(string reason) => new(SafetyCondition.NoCloud, false, reason);
 
     /// <summary>Fetches a new image once the image interval has passed (1 s tolerance for loop timing).</summary>
     private Task AcquireImageIfDueAsync(MonitorSettings s, CancellationToken ct)

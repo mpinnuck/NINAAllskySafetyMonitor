@@ -8,9 +8,9 @@ namespace NINAAllskySafetyMonitor.Core.Decision;
 /// Turns a cycle's conditions into the decision: Idle outside the operating window; while the mount is
 /// slewing, the last decision is held (Unsafe if there is none yet); Unsafe at once when any condition
 /// fails (or none could be evaluated); Safe only after all conditions have held for the safe-after
-/// period, counting down meanwhile. When the imager chooses, conditions that could not be determined
-/// (no usable image, cloud unknown, no current weather data) count as clear, and the result is marked
-/// Assumed; detected cloud, rain or wind stays unsafe (REQ-50).
+/// period, counting down meanwhile. When enabled, genuinely undetermined conditions may be assumed
+/// clear; known failures such as stale data or an invalid image, detected cloud, rain, wind, and a
+/// monitor error stay unsafe (REQ-50).
 /// </summary>
 [Requirement("REQ-03", "REQ-27", "REQ-37", "REQ-38", "REQ-39", "REQ-50")]
 public sealed class SafetyDecisionEngine

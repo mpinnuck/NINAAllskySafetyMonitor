@@ -49,4 +49,18 @@ public sealed class ReviewSelectorTests
 
     [Fact]
     public void ClearlyClearIsNotPicked() => Assert.Empty(new ReviewSelector(0.1).Select(Frame(new DateOnly(2026, 10, 19), 0.95, 1.0), Limits));
+
+    [Fact]
+    public void BrightnessNearMoonAdjustedLimitIsComparedToAdjustedThreshold()
+    {
+        var target = new TargetResult(Target, new RegionOfInterest(new HorizontalCoordinate(70, 180), 15, false, 1, string.Empty),
+            new CloudAssessment(20, 20, 1, 1.25, 1.0, false, false, false, "x")
+            {
+                Moon = new MoonState(new HorizontalCoordinate(90, 180), 1),
+            });
+        var frame = new FrameResult(new SavedFrame("f.jpg", new DateOnly(2026, 10, 19), DateTime.UnixEpoch),
+            -30, true, null, new[] { target }, false);
+
+        Assert.Empty(new ReviewSelector(0.1).Select(frame, Limits));
+    }
 }

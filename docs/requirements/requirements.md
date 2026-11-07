@@ -1,6 +1,8 @@
 # NINAAllskySafetyMonitor — Requirements
 
-Version 5.8 · 2026-11-06
+Version 5.9 · 2026-11-07
+
+Requirement IDs are permanent. New requirements are appended; gaps in the sequence are intentional.
 
 A safety monitor for NINA on the AstroPC. It analyses images from an Allsky camera, combines them with rain and wind data from a weather station, and reports a safe/unsafe status to NINA.
 
@@ -63,11 +65,11 @@ Defaults shown in *[brackets]* are configurable. How configurable values are sto
 
 - **REQ-28** Cloud detected in the ROI is always shown to the imager. It makes the status unsafe only when the imager chooses that cloud decides safety *[off]*.
 - **REQ-29** Primary test: predict which catalogue stars should be visible in the ROI (down to a limiting magnitude *[4.4]*), detect stars in the image, and compute the detected fraction. If the fraction falls below *[0.70]*, there is cloud. If fewer than *[8]* stars are expected, the test still decides when the count leaves little doubt: cloud when so few are found that it would be unlikely in clear sky *[less than 1 in 100, taking 95% of expected stars as found]*; clear when the fraction reaches the limit above. Otherwise, or when fewer than *[3]* stars are expected, the test is inconclusive and only REQ-30 applies.
-- **REQ-30** Secondary test, comparing the ROI with a clear-sky reference: a map of sky brightness and non-uniformity over the working area, captured automatically on the first tuned clear night. Cloud lit by city glow appears brighter and blotchier than clear sky. Because the Allsky camera adjusts its exposure to keep overall image brightness steady, the test does not depend on exposure:
+- **REQ-30** Secondary test, comparing the ROI with a clear-sky reference: a map of sky brightness and non-uniformity over the working area, captured automatically on the first tuned clear night. Cloud lit by city glow appears brighter and blotchier than clear sky. The map uses 32 px blocks with at least half the pixels in the working area; non-uniformity is `(84th percentile − 16th percentile) / 2 / median` per block (median is floored at 1). Percentiles provide robustness to stars and hot pixels without removing them. Because the Allsky camera adjusts its exposure to keep overall image brightness steady, the test does not depend on exposure:
   - brightness of the ROI relative to the rest of the working area, both compared with the reference, above *[1.3×]* → cloud;
   - non-uniformity (standard deviation ÷ median, after removing stars) above *[1.5×]* the reference → cloud.
   Until a reference exists, this test is skipped and REQ-29 alone decides.
-- **REQ-31** Stars within *[15°]* of the Moon are excluded from the expected list, and brightness thresholds are adjusted for lunar phase and altitude, to avoid false unsafes from moonlight.
+- **REQ-31** Stars within *[15°]* of the Moon are excluded from the expected list. Brightness and non-uniformity limits are multiplied by `1 + 0.5 × illumination × max(0, sin(Moon altitude))` (altitude in degrees); below-horizon or new Moon leaves the limits unchanged.
 
 ## 8. Weather (WunderStation ISYDNEY478)
 
@@ -79,7 +81,7 @@ Defaults shown in *[brackets]* are configurable. How configurable values are sto
 
 ## 9. Safety decision
 
-- **REQ-37** The overall status is safe only when all of these are true: active window, no rain, wind below the limit, and weather data current; and, when cloud decides safety (REQ-28), a fresh image and no cloud in the ROI.
+- **REQ-37** The overall status is safe only when all of these are true: active window, a fresh image, no rain, wind below the limit, and current weather data; and, when cloud decides safety (REQ-28), no cloud in the ROI. Image freshness is required even when cloud is advisory.
 - **REQ-38** Transition to **unsafe** is immediate when any condition fails.
 - **REQ-39** Transition to **safe** happens only after all conditions have held continuously for *[4 min]*.
 - **REQ-40** A manual override (Force Safe / Force Unsafe / Auto) is provided, shown prominently and recorded in the log. It reverts to Auto when NINA restarts.
@@ -114,18 +116,19 @@ Defaults shown in *[brackets]* are configurable. How configurable values are sto
 
 ## 13.1 Platform
 
-- **REQ-48** Runs on the Windows AstroPC within NINA 3.x (currently the 3.3 nightly).
+- **REQ-48** Runs on the Windows AstroPC within NINA 3.3.0.1057 or later. Release builds must target the installed NINA.Plugin package and corresponding .NET runtime.
 
 ## 13.2 Reliability
 
 - **REQ-49** A failure in the safety monitor (crash, hang, network fault) must not disrupt NINA or a running sequence.
-- **REQ-50** Fail-safe: any failure, or any state that can't be determined, results in **unsafe**, or in safe when the imager chooses *[unsafe]*. Detected rain or wind is always **unsafe**, and so is detected cloud when it decides safety (REQ-28).
+- **REQ-50** Fail-safe: failures and states that cannot be determined result in **unsafe**, unless the imager enables the option to assume genuinely undetermined conditions safe. Known failures are never undetermined: stale images, a fetch outage past its unsafe limit, stale weather, and an invalid/non-sky image are always **unsafe**. Detected rain or wind is always **unsafe**, and so is detected cloud when it decides safety (REQ-28). A monitor error or a missed liveness deadline is always **unsafe**.
+- **REQ-64** If the monitoring loop faults or no cycle completes within one configured image interval plus the cycle timeout, the monitor reports **unsafe** until monitoring resumes and completes a cycle.
 - **REQ-51** Every network operation (image fetch, weather poll) has a timeout, so a stalled connection can't hang the monitor.
 
 ## 13.3 Security
 
 - **REQ-52** The Pi's host key is verified against a pinned fingerprint *[SHA256:xdCrpFUWOI55OZOikaDiy7ON48u/4+pcu7EpiK0Jrqg]*; a mismatch is reported and the image treated as unavailable.
-- **REQ-53** An SFTP password, if used, is stored using Windows' credential storage, never in the settings file.
+- **REQ-53** The Weather.com API key and an SFTP password, if used, are stored using Windows' credential storage, never in the settings file. A legacy plaintext API key is migrated on opening the settings page.
 - **REQ-54** Passwords and API keys are never written to the log.
 
 ## 13.4 Settings

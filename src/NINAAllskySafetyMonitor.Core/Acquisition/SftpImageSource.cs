@@ -34,9 +34,11 @@ public sealed class SftpImageSource : IImageSource
         // Leave room for the fallback address within the overall timeout.
         TimeSpan connectTimeout = TimeSpan.FromSeconds(Math.Max(2, s.TimeoutS / 2.0));
 
+        using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+        timeoutCts.CancelAfter(timeout);
         try
         {
-            return await Task.Run(() => Fetch(direct, force, connectTimeout), ct).WaitAsync(timeout, ct).ConfigureAwait(false);
+            return await FetchAsync(direct, force, connectTimeout, timeoutCts.Token).ConfigureAwait(false);
         }
         catch (HostKeyMismatchException e)
         {
@@ -50,6 +52,10 @@ public sealed class SftpImageSource : IImageSource
         {
             throw;
         }
+        catch (OperationCanceledException)
+        {
+            return FetchResult.Failed($"Timed out after {s.TimeoutS} s fetching the image from {direct.Host}");
+        }
         catch (Exception e)
         {
             return FetchResult.Failed(e.Message);
@@ -62,17 +68,17 @@ public sealed class SftpImageSource : IImageSource
         lock (sync) lastModifiedUtc = null;
     }
 
-    private FetchResult Fetch(DirectSourceSettings direct, bool force, TimeSpan connectTimeout)
+    private async Task<FetchResult> FetchAsync(DirectSourceSettings direct, bool force, TimeSpan connectTimeout, CancellationToken ct)
     {
-        using IRemoteFileSession session = connector.Connect(direct, connectTimeout);
-        DateTime modified = DateTime.SpecifyKind(session.GetLastWriteTimeUtc(direct.RemotePath), DateTimeKind.Utc);
+        using IRemoteFileSession session = await connector.ConnectAsync(direct, connectTimeout, ct).ConfigureAwait(false);
+        DateTime modified = DateTime.SpecifyKind(await session.GetLastWriteTimeUtcAsync(direct.RemotePath, ct).ConfigureAwait(false), DateTimeKind.Utc);
 
         lock (sync)
         {
             if (!force && lastModifiedUtc == modified) return FetchResult.Unchanged();
         }
 
-        byte[] bytes = session.ReadAllBytes(direct.RemotePath);
+        byte[] bytes = await session.ReadAllBytesAsync(direct.RemotePath, ct).ConfigureAwait(false);
         lock (sync) lastModifiedUtc = modified;
         return FetchResult.New(new SkyImage(bytes, modified, ImageSourceKind.Direct));
     }

@@ -23,7 +23,7 @@ internal static class Program
             [--nights yyyyMMdd-yyyyMMdd] [--step 60] [--dec -45:45:10] [--ra-step 1] [--near 0.1]
             [--use-settings-reference] [--delay 0] [--zone Australia/Sydney]
 
-          --frames    Allsky images folder (night folders yyyyMMdd), or one night folder
+          --frames    Allsky images folder (night folders yyyyMMdd containing *yyyyMMddHHmmss.jpg), or one night folder
           --settings  the plugin's settings.json (lens, working area, thresholds); copy it and edit the
                       thresholds to try other values
           --out       output folder: results.csv, review.xlsx, review/
@@ -112,6 +112,11 @@ internal static class Program
         Directory.CreateDirectory(o.OutputFolder);
 
         IReadOnlyList<SavedFrame> frames = new FrameCatalog().List(o);
+        if (frames.Count == 0)
+        {
+            throw new InvalidDataException($"No Allsky frames found under '{o.FramesFolder}'. Expected yyyyMMdd night folders and JPEG filenames containing a yyyyMMddHHmmss timestamp.");
+        }
+
         var grid = new TargetGrid(o);
         var analyser = new FrameAnalyser(settings, o, new SkiaFrameDecoder(), grid);
         var selector = new ReviewSelector(o.NearLimit);

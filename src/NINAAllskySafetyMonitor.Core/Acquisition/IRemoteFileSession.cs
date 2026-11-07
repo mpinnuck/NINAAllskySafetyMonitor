@@ -4,8 +4,8 @@ namespace NINAAllskySafetyMonitor.Core.Acquisition;
 public interface IRemoteFileSession : IDisposable
 {
     /// <summary>Modification time of a remote file, in UTC.</summary>
-    DateTime GetLastWriteTimeUtc(string path);
+    Task<DateTime> GetLastWriteTimeUtcAsync(string path, CancellationToken ct);
 
     /// <summary>Downloads a remote file.</summary>
-    byte[] ReadAllBytes(string path);
+    Task<byte[]> ReadAllBytesAsync(string path, CancellationToken ct);
 }

@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using NINAAllskySafetyMonitor.Core.Abstractions;
 using NINAAllskySafetyMonitor.Core.Decision;
 using NINAAllskySafetyMonitor.Core.Domain;
@@ -13,7 +14,7 @@ namespace NINAAllskySafetyMonitor.Core.Monitoring;
 /// A change of mount state, or <see cref="RequestEvaluation"/>, runs the next cycle at once instead of
 /// waiting for the interval.
 /// </summary>
-[Requirement("REQ-02", "REQ-27", "REQ-38", "REQ-40", "REQ-49")]
+[Requirement("REQ-02", "REQ-27", "REQ-38", "REQ-40", "REQ-49", "REQ-64")]
 public sealed class MonitorService
 {
     private readonly IMonitoringCycle cycle;
@@ -25,9 +26,13 @@ public sealed class MonitorService
     private readonly MountWatcher? mountWatcher;
     private readonly SemaphoreSlim wake = new(0, 1);
     private readonly object sync = new();
+    private readonly IClock clock;
     private CancellationTokenSource? cts;
     private Task? loop;
     private SafetyStatus decidedStatus;
+    private long lastCycleCompletedTimestamp;
+    private bool hasStarted;
+    private bool stopRequested;
 
     public MonitorService(
         IMonitoringCycle cycle,
@@ -46,8 +51,8 @@ public sealed class MonitorService
         this.engine = engine;
         this.manualOverride = manualOverride;
         this.mountWatcher = mountWatcher;
+        this.clock = clock ?? throw new ArgumentNullException(nameof(clock));
         if (mountWatcher is not null) mountWatcher.Changed += OnMountChanged;
-        ArgumentNullException.ThrowIfNull(clock);
         decidedStatus = SafetyStatus.Starting(clock.UtcNow);
     }
 
@@ -60,7 +65,47 @@ public sealed class MonitorService
         get
         {
             SafetyStatus s;
-            lock (sync) s = decidedStatus;
+            bool running;
+            bool started;
+            bool stopping;
+            long completed;
+            lock (sync)
+            {
+                s = decidedStatus;
+                running = loop is { IsCompleted: false };
+                started = hasStarted;
+                stopping = stopRequested;
+                completed = lastCycleCompletedTimestamp;
+            }
+
+            if (started && stopping) return UnsafeStatus("Monitoring is stopping");
+
+            if (started && !running)
+            {
+                string reason = s.State == SafetyState.Unsafe && !string.IsNullOrWhiteSpace(s.Reason)
+                    ? $"Monitoring loop is not running: {s.Reason}"
+                    : "Monitoring loop is not running";
+                return UnsafeStatus(reason);
+            }
+
+            if (running && completed != 0)
+            {
+                try
+                {
+                    TimeSpan deadline = interval() + guard.Timeout;
+                    if (deadline < TimeSpan.Zero) deadline = TimeSpan.Zero;
+                    if (Stopwatch.GetElapsedTime(completed) > deadline)
+                    {
+                        return UnsafeStatus($"No monitoring cycle completed within {deadline.TotalSeconds:0} s");
+                    }
+                }
+                catch (Exception e)
+                {
+                    log.Write(LogLevel.Error, $"Could not check monitoring liveness: {e}");
+                    return UnsafeStatus("Monitoring liveness could not be checked");
+                }
+            }
+
             return manualOverride?.Apply(s) ?? s;
         }
     }
@@ -79,6 +124,9 @@ public sealed class MonitorService
             if (loop is { IsCompleted: false }) return;
             cts = new CancellationTokenSource();
             CancellationToken token = cts.Token;
+            hasStarted = true;
+            stopRequested = false;
+            lastCycleCompletedTimestamp = Stopwatch.GetTimestamp();
             loop = Task.Run(() => RunLoopAsync(token), token);
         }
 
@@ -101,25 +149,30 @@ public sealed class MonitorService
     /// <summary>Stops the loop and waits for the current cycle to finish.</summary>
     public async Task StopAsync()
     {
-        if (mountWatcher is not null) await mountWatcher.StopAsync().ConfigureAwait(false);
-
         Task? running;
         lock (sync)
         {
+            stopRequested = true;
             running = loop;
             cts?.Cancel();
         }
 
-        if (running is not null)
+        Task watcherStop = mountWatcher?.StopAsync() ?? Task.CompletedTask;
+        Task loopStop = running ?? Task.CompletedTask;
+        try
         {
-            try
-            {
-                await running.ConfigureAwait(false);
-            }
-            catch (OperationCanceledException)
-            {
-                // Expected on stop.
-            }
+            await Task.WhenAll(watcherStop, loopStop).WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+        }
+        catch (TimeoutException)
+        {
+            log.Write(LogLevel.Warning, "Monitoring did not stop within 5 s; it remains unsafe and cannot be restarted until the current operation finishes");
+            if (running is not null) _ = running.ContinueWith(_ => CleanupStoppedLoop(running), CancellationToken.None,
+                TaskContinuationOptions.ExecuteSynchronously, TaskScheduler.Default);
+            return;
+        }
+        catch (OperationCanceledException)
+        {
+            // Expected on stop.
         }
 
         lock (sync)
@@ -130,32 +183,66 @@ public sealed class MonitorService
         }
     }
 
-    private async Task RunLoopAsync(CancellationToken token)
+    private void CleanupStoppedLoop(Task stopped)
     {
-        while (!token.IsCancellationRequested)
+        lock (sync)
         {
-            MonitorSnapshot snapshot = await guard.RunAsync(cycle, token).ConfigureAwait(false);
-            SafetyStatus decided = engine?.Decide(snapshot) ?? snapshot.Status;
-
-            SafetyStatus previous;
-            lock (sync)
-            {
-                previous = decidedStatus;
-                decidedStatus = decided;
-            }
-
-            // Log changes of state or of the kind of reason. Numbers (image age, Sun altitude, countdown)
-            // change every cycle, so they are ignored when comparing reasons.
-            if (previous.State != decided.State || ReasonKind(previous.Reason) != ReasonKind(decided.Reason))
-            {
-                log.Write(LogLevel.Info, $"State {decided.State} (safe: {decided.IsSafe}): {decided.Reason}");
-            }
-
-            SafetyStatus reported = manualOverride?.Apply(decided) ?? decided;
-            Publish(snapshot with { Status = reported });
-            await wake.WaitAsync(interval(), token).ConfigureAwait(false);
+            if (loop != stopped || cts?.IsCancellationRequested != true) return;
+            cts.Dispose();
+            cts = null;
+            loop = null;
         }
     }
+
+    private async Task RunLoopAsync(CancellationToken token)
+    {
+        try
+        {
+            while (!token.IsCancellationRequested)
+            {
+                MonitorSnapshot snapshot = await guard.RunAsync(cycle, token).ConfigureAwait(false);
+                SafetyStatus decided = engine?.Decide(snapshot) ?? snapshot.Status;
+
+                SafetyStatus previous;
+                lock (sync)
+                {
+                    previous = decidedStatus;
+                    decidedStatus = decided;
+                    lastCycleCompletedTimestamp = Stopwatch.GetTimestamp();
+                }
+
+                // Log changes of state or of the kind of reason. Numbers (image age, Sun altitude, countdown)
+                // change every cycle, so they are ignored when comparing reasons.
+                if (previous.State != decided.State || ReasonKind(previous.Reason) != ReasonKind(decided.Reason))
+                {
+                    log.Write(LogLevel.Info, $"State {decided.State} (safe: {decided.IsSafe}): {decided.Reason}");
+                }
+
+                SafetyStatus reported = manualOverride?.Apply(decided) ?? decided;
+                Publish(snapshot with { Status = reported });
+                await wake.WaitAsync(interval(), token).ConfigureAwait(false);
+            }
+        }
+        catch (OperationCanceledException) when (token.IsCancellationRequested)
+        {
+        }
+        catch (Exception e)
+        {
+            log.Write(LogLevel.Error, $"Monitoring loop failed: {e}");
+            SafetyStatus failed = UnsafeStatus($"Monitoring loop failed: {e.Message}");
+            lock (sync)
+            {
+                decidedStatus = failed;
+                lastCycleCompletedTimestamp = Stopwatch.GetTimestamp();
+            }
+
+            Publish(new MonitorSnapshot(null, null, null, null,
+                new SafetyConditions(Array.Empty<ConditionCheck>()), failed));
+        }
+    }
+
+    private SafetyStatus UnsafeStatus(string reason) =>
+        new(SafetyState.Unsafe, false, reason, null, OverrideMode.Auto, false, clock.UtcNow);
 
     private void OnMountChanged(object? sender, MountState? mount)
     {

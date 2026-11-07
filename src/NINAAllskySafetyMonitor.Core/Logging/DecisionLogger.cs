@@ -82,7 +82,7 @@ public sealed class DecisionLogger
         Append(row, st.IsSafe ? "TRUE" : "FALSE");
         Append(row, st.Override.ToString());
         Append(row, st.SecondsToSafe?.ToString(CultureInfo.InvariantCulture) ?? string.Empty);
-        Append(row, redactor.Redact(st.Reason));
+        Append(row, SafeText(redactor.Redact(st.Reason)));
 
         SkyImage? img = snapshot.Image;
         Append(row, img?.CaptureTimeUtc.ToString("yyyy-MM-dd HH:mm:ss", CultureInfo.InvariantCulture) ?? string.Empty);
@@ -106,7 +106,7 @@ public sealed class DecisionLogger
         Append(row, Signed(roi?.Centre?.AzDeg, "0.00"));
         Append(row, roi is null ? string.Empty : roi.UsesWholeWorkingArea ? "Whole working area" : "Circle");
         Append(row, roi?.Centre is null ? string.Empty : Number(roi.InsideFraction * 100, "0"));
-        Append(row, roi?.Note ?? string.Empty);
+        Append(row, SafeText(roi?.Note ?? string.Empty));
 
         CloudAssessment? c = snapshot.Cloud;
         Append(row, c?.ExpectedStars.ToString(CultureInfo.InvariantCulture) ?? string.Empty);
@@ -168,6 +168,13 @@ public sealed class DecisionLogger
     private static string Signed(double? v, string format) => v is double d && double.IsFinite(d) ? d.ToString(format, CultureInfo.InvariantCulture) : string.Empty;
 
     private static string Number(double v, string format) => Math.Max(0, v).ToString(format, CultureInfo.InvariantCulture);
+
+    private static string SafeText(string value)
+    {
+        int first = 0;
+        while (first < value.Length && char.IsWhiteSpace(value[first])) first++;
+        return first < value.Length && value[first] is '=' or '+' or '-' or '@' ? "'" + value : value;
+    }
 
     private static void Append(StringBuilder row, string value, bool last = false)
     {

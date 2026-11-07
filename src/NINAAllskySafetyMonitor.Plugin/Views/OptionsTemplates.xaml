@@ -7,6 +7,7 @@
     <!--  Key = plugin name (AssemblyTitle) + "_Options" (NINA convention). DataContext is AllskySafetyPlugin.  -->
     <DataTemplate x:Key="Allsky Safety Monitor_Options">
         <StackPanel Margin="5" DataContext="{Binding Settings}" Grid.IsSharedSizeScope="True">
+            <TextBlock Margin="0,0,0,6" Foreground="DarkOrange" Text="{Binding SettingsLoadWarning}" TextWrapping="Wrap" />
             <TextBlock Margin="0,0,0,4" FontWeight="Bold" Text="Operating window" />
             <Grid Margin="0,2">
                 <Grid.ColumnDefinitions>
@@ -57,7 +58,7 @@
                 </Grid.ColumnDefinitions>
                 <TextBlock Margin="0,0,12,0" VerticalAlignment="Center" Text="Safe when the monitor can't tell" />
                 <CheckBox Grid.Column="1" VerticalAlignment="Center" IsChecked="{Binding UndeterminedIsSafe}" />
-                <TextBlock Grid.Column="2" Margin="10,0,0,0" VerticalAlignment="Center" Opacity="0.65" Text="Off: no usable image, cloud unknown or no current weather data is unsafe. On: these show SAFE (ASSUMED) in amber and imaging continues. Detected cloud, rain or wind, and a monitor error, stay unsafe. Leave off if this monitor protects against rain" TextWrapping="Wrap" />
+                <TextBlock Grid.Column="2" Margin="10,0,0,0" VerticalAlignment="Center" Opacity="0.65" Text="Off: genuinely unknown data is unsafe. On: only genuinely unknown conditions may be assumed safe. Stale data, an invalid image, detected cloud, rain, wind, and monitor errors stay unsafe." TextWrapping="Wrap" />
             </Grid>
             <Grid Margin="0,2">
                 <Grid.ColumnDefinitions>
@@ -348,6 +349,16 @@
                 <TextBox Grid.Column="1" Text="{Binding MaxFitErrorDeg}" />
                 <TextBlock Grid.Column="2" Margin="10,0,0,0" VerticalAlignment="Center" Opacity="0.65" Text="RMS error on the sky; 0.2° is about 3.5 px on a 2500 px frame (0.01–5)" TextWrapping="Wrap" />
             </Grid>
+            <Grid Margin="0,2">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto" SharedSizeGroup="AllskyLabel" />
+                    <ColumnDefinition Width="300" />
+                    <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+                <TextBlock Margin="0,0,12,0" VerticalAlignment="Center" Text="Catalogue faint limit (mag)" />
+                <TextBox Grid.Column="1" Text="{Binding CatalogueLimitMagnitude}" />
+                <TextBlock Grid.Column="2" Margin="10,0,0,0" VerticalAlignment="Center" Opacity="0.65" Text="Faintest catalogue stars used when fitting the lens (1–4.5)" TextWrapping="Wrap" />
+            </Grid>
             <TextBlock Margin="0,14,0,4" FontWeight="Bold" Text="Lens model by hand (optional)" />
             <Grid Margin="0,2">
                 <Grid.ColumnDefinitions>
@@ -357,7 +368,7 @@
                 </Grid.ColumnDefinitions>
                 <TextBlock Margin="0,0,12,0" VerticalAlignment="Center" Text="Enter the lens model by hand" />
                 <CheckBox Grid.Column="1" VerticalAlignment="Center" IsChecked="{Binding ManualLensEnabled}" />
-                <TextBlock Grid.Column="2" Margin="10,0,0,0" VerticalAlignment="Center" Opacity="0.65" Text="Off: the calibrated model, or an estimate from the image size until calibrated. On: replaces the calibrated model with these values" TextWrapping="Wrap" />
+                <TextBlock Grid.Column="2" Margin="10,0,0,0" VerticalAlignment="Center" Opacity="0.65" Text="Off: the calibrated model. On: replaces it with these values. Cloud assessment requires a lens model." TextWrapping="Wrap" />
             </Grid>
             <Grid Margin="0,2">
                 <Grid.ColumnDefinitions>
@@ -584,9 +595,10 @@
                     <ColumnDefinition Width="*" />
                 </Grid.ColumnDefinitions>
                 <TextBlock Margin="0,0,12,0" VerticalAlignment="Center" Text="API key" />
-                <TextBox Grid.Column="1" Text="{Binding WeatherApiKey}" />
+                <PasswordBox Grid.Column="1" views:PasswordBoxAssistant.BoundPassword="{Binding WeatherApiKey, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
                 <TextBlock Grid.Column="2" Margin="10,0,0,0" VerticalAlignment="Center" Opacity="0.65" Text="The account API key, not the station upload key" TextWrapping="Wrap" />
             </Grid>
+            <TextBlock Margin="0,0,0,2" Opacity="0.65" Text="{Binding WeatherApiKeyStatus}" TextWrapping="Wrap" />
             <Grid Margin="0,2">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="Auto" SharedSizeGroup="AllskyLabel" />

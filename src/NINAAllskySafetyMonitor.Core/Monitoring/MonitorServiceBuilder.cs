@@ -65,7 +65,7 @@ public sealed class MonitorServiceBuilder
         var service = new MonitorService(cycle, guard, () => TimeSpan.FromSeconds(settings().ImageSource.IntervalS), ports.Clock, log, engine, manualOverride, watcher);
 
         var decisions = new DecisionLogger(() => settings().Logging, ports.Clock, redactor, log);
-        var tuning = new TuningRecorder(() => settings().Tuning, ports.Clock, log);
+        var tuning = new TuningRecorder(() => settings().Tuning, ports.Clock, log, redactor);
         service.SnapshotAvailable += (_, s) => decisions.Write(s);
         service.SnapshotAvailable += (_, s) => tuning.Record(s);
         return service;

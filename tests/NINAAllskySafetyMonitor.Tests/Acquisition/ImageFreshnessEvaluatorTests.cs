@@ -35,6 +35,16 @@ public sealed class ImageFreshnessEvaluatorTests
     }
 
     [Fact]
+    public void NoImageAfterFetchFailureLimitIsKnownUnsafe()
+    {
+        ConditionCheck c = evaluator.Evaluate(null, null, "Could not connect", Now, settings, Now.AddMinutes(-11));
+
+        Assert.False(c.Passed);
+        Assert.False(c.Undetermined);
+        Assert.Contains("No image fetched for 11.0 min", c.Reason);
+    }
+
+    [Fact]
     public void RecentImageIsFresh()
     {
         ConditionCheck c = evaluator.Evaluate(CapturedMinutesAgo(1), Now, null, Now, settings);
@@ -46,6 +56,7 @@ public sealed class ImageFreshnessEvaluatorTests
     {
         ConditionCheck c = evaluator.Evaluate(CapturedMinutesAgo(10.5), Now, null, Now, settings);
         Assert.False(c.Passed);
+        Assert.False(c.Undetermined);
         Assert.Contains("10.5 min old", c.Reason);
     }
 
@@ -63,6 +74,7 @@ public sealed class ImageFreshnessEvaluatorTests
         // Image captured recently by the Pi clock, but the PC hasn't reached the Pi for 11 minutes.
         ConditionCheck c = evaluator.Evaluate(CapturedMinutesAgo(1), Now.AddMinutes(-11), "Could not connect", Now, settings);
         Assert.False(c.Passed);
+        Assert.False(c.Undetermined);
         Assert.Contains("No image fetched for 11.0 min", c.Reason);
     }
 

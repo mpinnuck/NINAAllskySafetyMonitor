@@ -8,7 +8,7 @@ namespace NINAAllskySafetyMonitor.Core.Settings;
 [Requirement("REQ-57")]
 public sealed class CalibrationData
 {
-    /// <summary>Lens model, or null until set (a rough model from the image size is used meanwhile).</summary>
+    /// <summary>Lens model, or null until calibrated; cloud assessment requires a lens model.</summary>
     public LensCalibration? Lens { get; set; }
 
     /// <summary>The part of the sky the monitor assesses.</summary>

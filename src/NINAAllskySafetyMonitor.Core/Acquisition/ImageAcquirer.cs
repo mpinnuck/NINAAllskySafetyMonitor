@@ -44,12 +44,16 @@ public sealed class ImageAcquirer
     /// <summary>When the source was last reached successfully (new or unchanged image).</summary>
     public DateTime? LastSuccessUtc { get; private set; }
 
+    /// <summary>When image acquisition first started, used to fail closed after an initial outage.</summary>
+    public DateTime? FirstAttemptUtc { get; private set; }
+
     /// <summary>Reason the last fetch failed, or null if it succeeded.</summary>
     public string? LastError { get; private set; }
 
     /// <summary>Fetches from the selected source and updates the latest image.</summary>
     public async Task AcquireAsync(CancellationToken ct)
     {
+        FirstAttemptUtc ??= clock.UtcNow;
         ImageSourceSettings s = settings();
         IImageSource source = sources.For(s.Kind);
 

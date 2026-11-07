@@ -77,6 +77,29 @@ public sealed class SettingsStoreTests : IDisposable
     }
 
     [Fact]
+    public void SaveKeepsThePreviousFileAsBackup()
+    {
+        var store = new SettingsStore(SettingsPath);
+        store.Save(new MonitorSettings { SchemaVersion = 2 });
+        store.Save(new MonitorSettings { SchemaVersion = 3 });
+
+        MonitorSettings backup = SettingsStore.FromJson(File.ReadAllText(SettingsPath + ".bak"));
+        Assert.Equal(2, backup.SchemaVersion);
+        Assert.Equal(3, store.Load().SchemaVersion);
+    }
+
+    [Fact]
+    public void ConcurrentSavesDoNotCorruptSettingsOrShareTemporaryFiles()
+    {
+        var store = new SettingsStore(SettingsPath);
+        Parallel.For(0, 20, version => store.Save(new MonitorSettings { SchemaVersion = version }));
+
+        Assert.InRange(store.Load().SchemaVersion, 0, 19);
+        Assert.Empty(Directory.GetFiles(folder, "settings.json.*.tmp"));
+        Assert.True(File.Exists(SettingsPath + ".bak"));
+    }
+
+    [Fact]
     public void FileIsJsonWithReadableEnums()
     {
         var store = new SettingsStore(SettingsPath);

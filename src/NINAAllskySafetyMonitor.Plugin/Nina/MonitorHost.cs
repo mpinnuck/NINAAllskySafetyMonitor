@@ -5,6 +5,7 @@ using NINAAllskySafetyMonitor.Core.Abstractions;
 using NINAAllskySafetyMonitor.Core.Decision;
 using NINAAllskySafetyMonitor.Core.Domain;
 using NINAAllskySafetyMonitor.Core.Monitoring;
+using NINAAllskySafetyMonitor.Core.Settings;
 using NINAAllskySafetyMonitor.Core.Traceability;
 using NINAAllskySafetyMonitor.Plugin.Imaging;
 
@@ -21,6 +22,7 @@ public sealed class MonitorHost
     private readonly object sync = new();
     private MonitorService? service;
     private MonitorSnapshot? latest;
+    private bool stopTimedOut;
 
     private MonitorHost()
     {
@@ -44,7 +46,7 @@ public sealed class MonitorHost
     /// <summary>True while the monitor is running (device connected).</summary>
     public bool IsRunning
     {
-        get { lock (sync) return service is not null; }
+        get { lock (sync) return service is { IsRunning: true }; }
     }
 
     /// <summary>Latest snapshot, or null before the first cycle.</summary>
@@ -68,11 +70,35 @@ public sealed class MonitorHost
         await gate.WaitAsync().ConfigureAwait(false);
         try
         {
-            if (IsRunning) return;
+            lock (sync)
+            {
+                if (service is { IsRunning: true })
+                {
+                    if (stopTimedOut) throw new InvalidOperationException("The previous monitoring operation is still stopping; reconnect after it finishes.");
+                    return;
+                }
 
-            var ports = new MonitorPorts(new SystemClock(), new NinaSiteLocationSource(profileService), new NovasAstroCalculator(), new NinaLogSink(), new WindowsCredentialStore(),
+                if (service is not null)
+                {
+                    service.SnapshotAvailable -= OnSnapshot;
+                    service = null;
+                    latest = null;
+                }
+
+                stopTimedOut = false;
+            }
+
+            var credentials = new WindowsCredentialStore();
+            MonitorSettings Settings()
+            {
+                MonitorSettings current = SettingsStore.Clone(PluginSettingsStore.Instance.Current);
+                current.Weather.ApiKey = credentials.GetSecret(CredentialKeys.WeatherApiKey) ?? current.Weather.ApiKey;
+                return current;
+            }
+
+            var ports = new MonitorPorts(new SystemClock(), new NinaSiteLocationSource(profileService), new NovasAstroCalculator(), new NinaLogSink(), credentials,
                 new NinaMountStateSource(telescopeMediator), new WpfFrameDecoder(), PluginSettingsStore.Instance.SaveReference);
-            MonitorService built = new MonitorServiceBuilder().Build(() => PluginSettingsStore.Instance.Current, ports, Override);
+            MonitorService built = new MonitorServiceBuilder().Build(Settings, ports, Override);
             built.SnapshotAvailable += OnSnapshot;
 
             lock (sync) service = built;
@@ -97,14 +123,22 @@ public sealed class MonitorHost
             lock (sync)
             {
                 stopping = service;
-                service = null;
                 latest = null;
             }
 
             if (stopping is null) return;
             stopping.SnapshotAvailable -= OnSnapshot;
             await stopping.StopAsync().ConfigureAwait(false);
-            NINA.Core.Utility.Logger.Info("[AllskySafetyMonitor] Monitor stopped");
+            lock (sync)
+            {
+                stopTimedOut = stopping.IsRunning;
+                if (!stopTimedOut && service == stopping) service = null;
+            }
+
+            if (stopTimedOut)
+                NINA.Core.Utility.Logger.Warning("[AllskySafetyMonitor] Monitor remains unsafe while a blocked operation finishes; reconnect is disabled until it stops");
+            else
+                NINA.Core.Utility.Logger.Info("[AllskySafetyMonitor] Monitor stopped");
         }
         finally
         {

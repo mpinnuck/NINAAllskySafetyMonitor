@@ -16,18 +16,18 @@ public sealed class SftpConnectorTests
     private SftpConnector Connector() => new(credentials, new ListLogSink());
 
     [Fact]
-    public void MissingKeyFileIsReported()
+    public async Task MissingKeyFileIsReported()
     {
         var s = new DirectSourceSettings { KeyFile = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"), "id_ed25519") };
-        var e = Assert.Throws<FileNotFoundException>(() => Connector().Connect(s, TimeSpan.FromSeconds(1)));
+        var e = await Assert.ThrowsAsync<FileNotFoundException>(() => Connector().ConnectAsync(s, TimeSpan.FromSeconds(1), CancellationToken.None));
         Assert.Contains("SSH key file not found", e.Message);
     }
 
     [Fact]
-    public void PasswordLoginWithoutStoredPasswordIsReported()
+    public async Task PasswordLoginWithoutStoredPasswordIsReported()
     {
         var s = new DirectSourceSettings { UsePassword = true };
-        var e = Assert.Throws<InvalidOperationException>(() => Connector().Connect(s, TimeSpan.FromSeconds(1)));
+        var e = await Assert.ThrowsAsync<InvalidOperationException>(() => Connector().ConnectAsync(s, TimeSpan.FromSeconds(1), CancellationToken.None));
         Assert.Contains("no SFTP password is stored", e.Message);
     }
 

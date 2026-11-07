@@ -57,4 +57,10 @@ public sealed class FrameCatalogTests : IDisposable
     [Fact]
     public void MissingFolderIsReported() =>
         Assert.Throws<DirectoryNotFoundException>(() => new FrameCatalog().List(fx.Options() with { FramesFolder = Path.Combine(fx.Root, "none") }));
+
+    [Fact]
+    public void EmptyFolderHasNoFrames()
+    {
+        Assert.Empty(new FrameCatalog().List(fx.Options()));
+    }
 }

@@ -1,6 +1,7 @@
 using System.Globalization;
 using System.Text;
 using NINAAllskySafetyMonitor.Core.Domain;
+using NINAAllskySafetyMonitor.Core.Logging;
 using NINAAllskySafetyMonitor.Core.Traceability;
 
 namespace NINAAllskySafetyMonitor.Core.Tuning;
@@ -14,9 +15,10 @@ public sealed class MetricsCsvWriter
 {
     internal const string Header = "Local time,UTC time,State,Safe,Reason,Image file,Image captured (UTC),ROI Alt (°),ROI Az (°),ROI mode,Stars expected,Stars found,Star fraction,Star test inconclusive,Relative brightness,Non-uniformity ratio,Brightness test skipped,Cloud,Cloud summary,Moon alt (°),Moon illumination,Rain (mm/h),Gust (km/h)";
 
-    public void Append(string path, MonitorSnapshot s, string imageFile, DateTime utc)
+    public void Append(string path, MonitorSnapshot s, string imageFile, DateTime utc, SecretRedactor redactor)
     {
         ArgumentNullException.ThrowIfNull(s);
+        ArgumentNullException.ThrowIfNull(redactor);
         bool isNew = !File.Exists(path);
         var row = new List<string>
         {
@@ -24,7 +26,7 @@ public sealed class MetricsCsvWriter
             utc.ToString("yyyy-MM-dd HH:mm:ss", CultureInfo.InvariantCulture),
             s.Status.State.ToString(),
             s.Status.IsSafe ? "TRUE" : "FALSE",
-            s.Status.Reason,
+            SafeText(redactor.Redact(s.Status.Reason)),
             imageFile,
             s.Image?.CaptureTimeUtc.ToString("yyyy-MM-dd HH:mm:ss", CultureInfo.InvariantCulture) ?? string.Empty,
             Num(s.Roi?.Centre?.AltDeg, "0.00"),
@@ -41,7 +43,7 @@ public sealed class MetricsCsvWriter
         row.Add(Num(c?.UniformityRatio, "0.000"));
         row.Add(c is null ? string.Empty : c.BrightnessTestSkipped ? "TRUE" : "FALSE");
         row.Add(c is null ? string.Empty : c.CloudPresent ? "TRUE" : "FALSE");
-        row.Add(c?.Summary ?? string.Empty);
+        row.Add(SafeText(redactor.Redact(c?.Summary)));
         row.Add(Num(c?.Moon?.Position.AltDeg, "0.0"));
         row.Add(Num(c?.Moon?.Illumination, "0.00"));
         row.Add(Num(s.Weather?.PrecipRateMmH, "0.0"));
@@ -57,4 +59,11 @@ public sealed class MetricsCsvWriter
 
     private static string Quote(string v) =>
         v.IndexOfAny(new[] { ',', '"', '\n', '\r' }) >= 0 ? "\"" + v.Replace("\"", "\"\"", StringComparison.Ordinal) + "\"" : v;
+
+    private static string SafeText(string value)
+    {
+        int first = 0;
+        while (first < value.Length && char.IsWhiteSpace(value[first])) first++;
+        return first < value.Length && value[first] is '=' or '+' or '-' or '@' ? "'" + value : value;
+    }
 }

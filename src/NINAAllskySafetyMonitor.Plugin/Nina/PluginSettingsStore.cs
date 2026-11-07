@@ -1,3 +1,4 @@
+using System.IO;
 using NINA.Core.Utility;
 using NINAAllskySafetyMonitor.Core.Analysis;
 using NINAAllskySafetyMonitor.Core.Settings;
@@ -16,6 +17,7 @@ public sealed class PluginSettingsStore
     private readonly SettingsStore store;
     private readonly object sync = new();
     private MonitorSettings current;
+    private string? loadError;
 
     private PluginSettingsStore()
     {
@@ -30,6 +32,9 @@ public sealed class PluginSettingsStore
     /// <summary>Full path of the settings file.</summary>
     public string FilePath => store.Path;
 
+    /// <summary>Load error shown in the options page; the original file is left intact for recovery.</summary>
+    public string? LoadError => loadError;
+
     /// <summary>The saved settings in use by the monitor. Treat as read-only; edit a clone and call <see cref="Save"/>.</summary>
     public MonitorSettings Current
     {
@@ -43,9 +48,14 @@ public sealed class PluginSettingsStore
     public void Save(MonitorSettings settings)
     {
         ArgumentNullException.ThrowIfNull(settings);
-        MonitorSettings copy = SettingsStore.Clone(settings);
-        store.Save(copy);
-        lock (sync) current = copy;
+        lock (sync)
+        {
+            MonitorSettings copy = SettingsStore.Clone(settings);
+            copy.Weather.ApiKey = string.Empty;
+            SaveLocked(copy);
+            current = copy;
+        }
+
         Saved?.Invoke(this, EventArgs.Empty);
     }
 
@@ -59,21 +69,38 @@ public sealed class PluginSettingsStore
         {
             MonitorSettings s = SettingsStore.Clone(current);
             s.Calibration.ClearSkyReference = reference;
-            store.Save(s);
+            s.Weather.ApiKey = string.Empty;
+            SaveLocked(s);
             current = s;
         }
 
         Saved?.Invoke(this, EventArgs.Empty);
     }
 
+    private void SaveLocked(MonitorSettings next)
+    {
+        MonitorSettings? previous = string.IsNullOrEmpty(current.Weather.ApiKey)
+            ? null
+            : SettingsStore.Clone(current);
+        store.Save(next);
+        if (previous is not null)
+        {
+            previous.Weather.ApiKey = string.Empty;
+            File.WriteAllText(store.Path + ".bak", SettingsStore.ToJson(previous));
+        }
+    }
+
     private MonitorSettings LoadOrDefaults()
     {
         try
         {
-            return store.Load();
+            MonitorSettings loaded = store.Load();
+            loadError = null;
+            return loaded;
         }
         catch (Exception e)
         {
+            loadError = $"Settings could not be loaded; defaults are in use. The original file was not changed. {e.Message}";
             Logger.Error($"[AllskySafetyMonitor] Could not load settings, using defaults: {e.Message}");
             return new MonitorSettings();
         }

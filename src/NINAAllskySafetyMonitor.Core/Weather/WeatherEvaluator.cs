@@ -14,7 +14,8 @@ namespace NINAAllskySafetyMonitor.Core.Weather;
 [Requirement("REQ-34", "REQ-35", "REQ-36", "REQ-50")]
 public sealed class WeatherEvaluator
 {
-    public IReadOnlyList<ConditionCheck> Evaluate(WeatherObservation? obs, string? lastError, DateTime nowUtc, WeatherSettings s)
+    public IReadOnlyList<ConditionCheck> Evaluate(WeatherObservation? obs, string? lastError, DateTime nowUtc, WeatherSettings s,
+        DateTime? firstPollUtc = null)
     {
         ArgumentNullException.ThrowIfNull(s);
 
@@ -31,6 +32,17 @@ public sealed class WeatherEvaluator
         if (obs is null)
         {
             string why = lastError is null ? "No weather data yet" : $"No weather data: {lastError}";
+            if (firstPollUtc is DateTime first && nowUtc - first > TimeSpan.FromMinutes(s.StaleAfterMin))
+            {
+                why = $"No weather data for {(nowUtc - first).TotalMinutes:0.0} min (limit {s.StaleAfterMin} min): {why}";
+                return new[]
+                {
+                    new ConditionCheck(SafetyCondition.NoRain, false, why),
+                    new ConditionCheck(SafetyCondition.WindBelowLimit, false, why),
+                    new ConditionCheck(SafetyCondition.WeatherCurrent, false, why),
+                };
+            }
+
             return new[]
             {
                 ConditionCheck.Unknown(SafetyCondition.NoRain, why),
@@ -53,7 +65,7 @@ public sealed class WeatherEvaluator
                 : new ConditionCheck(SafetyCondition.WindBelowLimit, true, F($"Gust {obs.WindGustKmH:0} km/h")),
             current
                 ? new ConditionCheck(SafetyCondition.WeatherCurrent, true, F($"Weather {age:0.0} min old{failed}"))
-                : ConditionCheck.Unknown(SafetyCondition.WeatherCurrent, F($"Weather data is {age:0.0} min old (limit {s.StaleAfterMin} min){failed}")),
+                : new ConditionCheck(SafetyCondition.WeatherCurrent, false, F($"Weather data is {age:0.0} min old (limit {s.StaleAfterMin} min){failed}")),
         };
     }
 

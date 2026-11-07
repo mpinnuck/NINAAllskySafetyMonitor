@@ -1,4 +1,5 @@
 using NINAAllskySafetyMonitor.Core.Domain;
+using NINAAllskySafetyMonitor.Core.Logging;
 using NINAAllskySafetyMonitor.Core.Settings;
 using NINAAllskySafetyMonitor.Core.Traceability;
 using NINAAllskySafetyMonitor.Core.Tuning;
@@ -25,12 +26,13 @@ public sealed class TuningRecorderTests : IDisposable
         if (Directory.Exists(folder)) Directory.Delete(folder, recursive: true);
     }
 
-    private TuningRecorder Recorder() => new(() => settings, clock, sink);
+    private TuningRecorder Recorder(SecretRedactor? redactor = null) =>
+        new(() => settings, clock, sink, redactor ?? new SecretRedactor(() => Array.Empty<string?>()));
 
     private string NightFolder => Path.Combine(folder, TuningRecorder.NightOf(clock.UtcNow.ToLocalTime()).ToString("yyyy-MM-dd"));
 
-    private MonitorSnapshot Snapshot(DateTime captured, SafetyState state = SafetyState.Unsafe) => new(
-        new SkyImage(new byte[] { 0xFF, 0xD8, 7, 0xFF, 0xD9 }, captured, ImageSourceKind.Direct),
+    private MonitorSnapshot Snapshot(DateTime captured, SafetyState state = SafetyState.Unsafe, byte[]? jpegBytes = null) => new(
+        new SkyImage(jpegBytes ?? new byte[] { 0xFF, 0xD8, 7, 0xFF, 0xD9 }, captured, ImageSourceKind.Direct),
         new RegionOfInterest(new HorizontalCoordinate(70, 180), 15, false, 1, string.Empty),
         new CloudAssessment(11, 9, 9 / 11.0, 1.05, 1.1, false, false, false, "Clear: 9 of 11 stars (82%)"),
         new WeatherObservation(captured, 0, 9),
@@ -53,6 +55,47 @@ public sealed class TuningRecorderTests : IDisposable
         Assert.StartsWith("Local time,UTC time,State,", lines[0]);
         Assert.Contains($",allsky-{t1:yyyyMMddHHmmss}.jpg,", lines[1]);
         Assert.Contains(",11,9,0.818,FALSE,1.050,1.100,FALSE,FALSE,Clear: 9 of 11 stars (82%),", lines[1]);
+    }
+
+    [Fact]
+    public void SameTimestampFramesKeepDistinctAtomicImageFiles()
+    {
+        DateTime captured = clock.UtcNow.AddSeconds(-20);
+        TuningRecorder recorder = Recorder();
+        recorder.Record(Snapshot(captured, jpegBytes: new byte[] { 1, 2, 3 }));
+        recorder.Record(Snapshot(captured, jpegBytes: new byte[] { 4, 5, 6 }));
+        recorder.Record(Snapshot(captured, jpegBytes: new byte[] { 1, 2, 3 }));
+
+        string[] images = Directory.GetFiles(NightFolder, "allsky-*.jpg").Order().ToArray();
+        Assert.Equal(2, images.Length);
+        Assert.Equal(new byte[] { 1, 2, 3 }, File.ReadAllBytes(Path.Combine(NightFolder, $"allsky-{captured:yyyyMMddHHmmss}.jpg")));
+        Assert.Equal(new byte[] { 4, 5, 6 }, File.ReadAllBytes(images.Single(path => path.EndsWith("-1.jpg", StringComparison.Ordinal))));
+        Assert.Empty(Directory.GetFiles(NightFolder, "*.tmp"));
+
+        string[] rows = File.ReadAllLines(Directory.GetFiles(NightFolder, "tuning-*.csv").Single());
+        Assert.Equal(4, rows.Length);
+        Assert.Contains($",allsky-{captured:yyyyMMddHHmmss}.jpg,", rows[1]);
+        Assert.Contains($",allsky-{captured:yyyyMMddHHmmss}-1.jpg,", rows[2]);
+        Assert.Contains($",allsky-{captured:yyyyMMddHHmmss}.jpg,", rows[3]);
+    }
+
+    [Fact]
+    public void MetricsCsvRedactsSecretsAndPreventsFormulaInjection()
+    {
+        const string secret = "api-secret-123";
+        var redactor = new SecretRedactor(() => new[] { secret });
+        MonitorSnapshot snapshot = Snapshot(clock.UtcNow) with
+        {
+            Status = Snapshot(clock.UtcNow).Status with { Reason = "=" + secret },
+            Cloud = Snapshot(clock.UtcNow).Cloud! with { Summary = "@" + secret },
+        };
+
+        Recorder(redactor).Record(snapshot);
+
+        string line = File.ReadAllLines(Directory.GetFiles(NightFolder, "tuning-*.csv").Single())[1];
+        Assert.DoesNotContain(secret, line);
+        Assert.Contains("'=***", line);
+        Assert.Contains("'@***", line);
     }
 
     [Fact]
