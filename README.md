@@ -2,8 +2,11 @@
 
 A NINA safety-monitor plugin. It analyses the latest image from an Allsky camera for cloud in a circle around the mount's current RA/Dec, checks rain and wind gusts from a Weather.com personal weather station, and reports safe or unsafe to NINA through **Equipment → Safety Monitor**.
 
-- Requirements: [`docs/requirements/requirements.md`](docs/requirements/requirements.md) (v5, REQ-01 … REQ-58)
-- Design: [`docs/design/`](docs/design/) — PDF design document, PlantUML sources, traceability matrix
+## Quick Links
+
+- 📖 **[User Guide](docs/USER_GUIDE.md)** — For NINA imagers: how to set up and use the plugin
+- 📋 **Requirements:** [`docs/requirements/requirements.md`](docs/requirements/requirements.md) (v5, REQ-01 … REQ-58)
+- 🏗️ **Design:** [`docs/design/`](docs/design/) — PDF design document, PlantUML sources, traceability matrix
 
 ## Solution layout
 
