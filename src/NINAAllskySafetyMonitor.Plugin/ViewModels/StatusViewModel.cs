@@ -32,6 +32,8 @@ public sealed class StatusViewModel : DockableVM, IDisposable
     private readonly MonitorHost host = MonitorHost.Instance;
     private readonly System.Timers.Timer refreshTimer;
     private readonly object lifecycleSync = new();
+    private readonly object historySync = new();
+    private readonly Queue<MonitorSnapshot> pendingHistory = new();
     private SkyImage? shownImage;
     private BitmapSource? decoded;
     private int originalWidth;
@@ -46,6 +48,7 @@ public sealed class StatusViewModel : DockableVM, IDisposable
     public StatusViewModel(IProfileService profileService) : base(profileService)
     {
         Title = "Allsky Safety";
+        host.SnapshotAvailable += OnSnapshotAvailable;
         refreshTimer = new System.Timers.Timer(TimeSpan.FromSeconds(5).TotalMilliseconds);
         refreshTimer.Elapsed += OnRefreshTimer;
         refreshTimer.AutoReset = true;
@@ -61,6 +64,7 @@ public sealed class StatusViewModel : DockableVM, IDisposable
         }
 
         DetachView();
+        host.SnapshotAvailable -= OnSnapshotAvailable;
         refreshTimer.Elapsed -= OnRefreshTimer;
         refreshTimer.Dispose();
     }
@@ -73,7 +77,6 @@ public sealed class StatusViewModel : DockableVM, IDisposable
             attached = true;
         }
 
-        host.SnapshotAvailable += OnSnapshotAvailable;
         host.RunningChanged += OnHostChanged;
         host.Override.Changed += OnHostChanged;
         refreshTimer.Start();
@@ -89,7 +92,6 @@ public sealed class StatusViewModel : DockableVM, IDisposable
         }
 
         refreshTimer.Stop();
-        host.SnapshotAvailable -= OnSnapshotAvailable;
         host.RunningChanged -= OnHostChanged;
         host.Override.Changed -= OnHostChanged;
     }
@@ -307,6 +309,7 @@ public sealed class StatusViewModel : DockableVM, IDisposable
         try
         {
             Metrics.Update(snapshot, PluginSettingsStore.Instance.Current);
+            foreach (MonitorSnapshot pending in DrainPendingHistory()) History.Add(pending);
             History.Add(snapshot);
         }
         catch (Exception e)
@@ -337,7 +340,14 @@ public sealed class StatusViewModel : DockableVM, IDisposable
         RaisePropertyChanged(nameof(ShowOverlay));
     }
 
-    private void OnSnapshotAvailable(object? sender, MonitorSnapshot snapshot) => OnUiThread(Refresh);
+    private void OnSnapshotAvailable(object? sender, MonitorSnapshot snapshot)
+    {
+        lock (historySync) pendingHistory.Enqueue(snapshot);
+
+        bool refresh;
+        lock (lifecycleSync) refresh = attached && !disposed;
+        if (refresh) OnUiThread(Refresh);
+    }
 
     private void OnHostChanged(object? sender, EventArgs e) => OnUiThread(Refresh);
 
@@ -418,5 +428,16 @@ public sealed class StatusViewModel : DockableVM, IDisposable
         var dispatcher = Application.Current?.Dispatcher;
         if (dispatcher is null || dispatcher.CheckAccess()) action();
         else dispatcher.BeginInvoke(action);
+    }
+
+    private IReadOnlyList<MonitorSnapshot> DrainPendingHistory()
+    {
+        lock (historySync)
+        {
+            if (pendingHistory.Count == 0) return Array.Empty<MonitorSnapshot>();
+            var drained = new List<MonitorSnapshot>(pendingHistory.Count);
+            while (pendingHistory.Count > 0) drained.Add(pendingHistory.Dequeue());
+            return drained;
+        }
     }
 }
