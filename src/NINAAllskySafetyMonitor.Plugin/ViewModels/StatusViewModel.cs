@@ -30,8 +30,7 @@ public sealed class StatusViewModel : DockableVM, IDisposable
 {
     private static readonly NinaLogSink Log = new();
     private readonly MonitorHost host = MonitorHost.Instance;
-    private readonly DispatcherTimer refreshTimer;
-    private readonly Application? application;
+    private readonly System.Timers.Timer refreshTimer;
     private SkyImage? shownImage;
     private BitmapSource? decoded;
     private int originalWidth;
@@ -50,22 +49,20 @@ public sealed class StatusViewModel : DockableVM, IDisposable
 
         // Safety net: also refresh every few seconds, so the panel can never stay stale if an event is
         // missed, and so the image age keeps counting.
-        refreshTimer = new DispatcherTimer(DispatcherPriority.Background, Application.Current?.Dispatcher ?? Dispatcher.CurrentDispatcher) { Interval = TimeSpan.FromSeconds(5) };
-        refreshTimer.Tick += OnRefreshTimer;
+        refreshTimer = new System.Timers.Timer(TimeSpan.FromSeconds(5).TotalMilliseconds);
+        refreshTimer.Elapsed += OnRefreshTimer;
+        refreshTimer.AutoReset = true;
         refreshTimer.Start();
-        application = Application.Current;
-        if (application is not null) application.Exit += OnApplicationExit;
         OpenViewerCommand = new DelegateCommand(OpenViewer);
     }
 
     public void Dispose()
     {
         refreshTimer.Stop();
-        refreshTimer.Tick -= OnRefreshTimer;
+        refreshTimer.Elapsed -= OnRefreshTimer;
         host.SnapshotAvailable -= OnSnapshotAvailable;
         host.RunningChanged -= OnHostChanged;
         host.Override.Changed -= OnHostChanged;
-        if (application is not null) application.Exit -= OnApplicationExit;
     }
 
     /// <summary>Cloud metrics behind the latest decision.</summary>
@@ -104,6 +101,17 @@ public sealed class StatusViewModel : DockableVM, IDisposable
     }
 
     public bool UntunedVisible => host.IsRunning && host.CurrentStatus.Untuned;
+
+    public bool DaylightTestModeVisible => PluginSettingsStore.Instance.Current.Window.SunAltitudeLimitDeg > 0;
+
+    public string DaylightTestModeText
+    {
+        get
+        {
+            double limit = PluginSettingsStore.Instance.Current.Window.SunAltitudeLimitDeg;
+            return string.Create(CultureInfo.CurrentCulture, $"DAYLIGHT TEST MODE — Sun limit {limit:0.#}°");
+        }
+    }
 
     /// <summary>
     /// Cloud advisory shown when cloud detection does not decide safety (REQ-28, REQ-45).
@@ -284,6 +292,8 @@ public sealed class StatusViewModel : DockableVM, IDisposable
         RaisePropertyChanged(nameof(ReasonText));
         RaisePropertyChanged(nameof(LastUpdateText));
         RaisePropertyChanged(nameof(UntunedVisible));
+        RaisePropertyChanged(nameof(DaylightTestModeVisible));
+        RaisePropertyChanged(nameof(DaylightTestModeText));
         RaisePropertyChanged(nameof(CloudAdvisoryText));
         RaisePropertyChanged(nameof(CloudAdvisoryVisible));
         RaisePropertyChanged(nameof(ImageInfoText));
@@ -302,9 +312,7 @@ public sealed class StatusViewModel : DockableVM, IDisposable
 
     private void OnHostChanged(object? sender, EventArgs e) => OnUiThread(Refresh);
 
-    private void OnRefreshTimer(object? sender, EventArgs e) => Refresh();
-
-    private void OnApplicationExit(object sender, ExitEventArgs e) => Dispose();
+    private void OnRefreshTimer(object? sender, System.Timers.ElapsedEventArgs e) => OnUiThread(Refresh);
 
     /// <summary>The decoded image with the overlay, or without it when switched off or if drawing fails.</summary>
     private BitmapSource? Compose(MonitorSnapshot? snapshot)

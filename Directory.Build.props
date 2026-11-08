@@ -16,7 +16,7 @@
     <VersionPrefix>1.0.0</VersionPrefix>
 
     <!-- Stable compile-time API baseline for NINA 3.2 and later. -->
-    <NinaPluginVersion>3.2.0.9001</NinaPluginVersion>
+    <NinaPluginVersion>3.1.0.3001-rc</NinaPluginVersion>
 
     <!-- NINA's plugin folder on the AstroPC; independent of the host and compile-time API versions. -->
     <NinaPluginFolder>3.0.0</NinaPluginFolder>
