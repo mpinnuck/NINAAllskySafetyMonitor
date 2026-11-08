@@ -31,6 +31,7 @@ public sealed class StatusViewModel : DockableVM, IDisposable
     private static readonly NinaLogSink Log = new();
     private readonly MonitorHost host = MonitorHost.Instance;
     private readonly System.Timers.Timer refreshTimer;
+    private readonly object lifecycleSync = new();
     private SkyImage? shownImage;
     private BitmapSource? decoded;
     private int originalWidth;
@@ -38,28 +39,56 @@ public sealed class StatusViewModel : DockableVM, IDisposable
     private MonitorSnapshot? composedFor;
     private BitmapSource? image;
     private bool showOverlay = true;
+    private bool attached;
+    private bool disposed;
 
     [ImportingConstructor]
     public StatusViewModel(IProfileService profileService) : base(profileService)
     {
         Title = "Allsky Safety";
-        host.SnapshotAvailable += OnSnapshotAvailable;
-        host.RunningChanged += OnHostChanged;
-        host.Override.Changed += OnHostChanged;
-
-        // Safety net: also refresh every few seconds, so the panel can never stay stale if an event is
-        // missed, and so the image age keeps counting.
         refreshTimer = new System.Timers.Timer(TimeSpan.FromSeconds(5).TotalMilliseconds);
         refreshTimer.Elapsed += OnRefreshTimer;
         refreshTimer.AutoReset = true;
-        refreshTimer.Start();
         OpenViewerCommand = new DelegateCommand(OpenViewer);
     }
 
     public void Dispose()
     {
-        refreshTimer.Stop();
+        lock (lifecycleSync)
+        {
+            if (disposed) return;
+            disposed = true;
+        }
+
+        DetachView();
         refreshTimer.Elapsed -= OnRefreshTimer;
+        refreshTimer.Dispose();
+    }
+
+    public void AttachView()
+    {
+        lock (lifecycleSync)
+        {
+            if (disposed || attached) return;
+            attached = true;
+        }
+
+        host.SnapshotAvailable += OnSnapshotAvailable;
+        host.RunningChanged += OnHostChanged;
+        host.Override.Changed += OnHostChanged;
+        refreshTimer.Start();
+        OnUiThread(Refresh);
+    }
+
+    public void DetachView()
+    {
+        lock (lifecycleSync)
+        {
+            if (!attached) return;
+            attached = false;
+        }
+
+        refreshTimer.Stop();
         host.SnapshotAvailable -= OnSnapshotAvailable;
         host.RunningChanged -= OnHostChanged;
         host.Override.Changed -= OnHostChanged;

@@ -8,7 +8,11 @@
 
     <!--  Key = fully qualified view-model type name + "_Dockable" (NINA convention)  -->
     <DataTemplate x:Key="NINAAllskySafetyMonitor.Plugin.ViewModels.StatusViewModel_Dockable">
-        <ScrollViewer HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
+        <ScrollViewer
+            HorizontalScrollBarVisibility="Disabled"
+            VerticalScrollBarVisibility="Auto"
+            Loaded="OnStatusPanelLoaded"
+            Unloaded="OnStatusPanelUnloaded">
             <StackPanel Margin="8">
                 <Border Padding="10,6" CornerRadius="4">
                     <Border.Style>
