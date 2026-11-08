@@ -28,6 +28,35 @@ Folders inside Core and Tests match the design packages (CL-01): one folder per 
 2. **AstroPC (Windows 11):** in Visual Studio 2026, clone or pull from GitHub, open `NINAAllskySafetyMonitor.slnx`, build and test.
 3. A Debug or Release build of the Plugin project copies `NINAAllskySafetyMonitor*.dll` to the configured NINA plugin folder. Restart NINA to load it.
 
+## Offline replay and simulated mounts
+
+The harness can replay archived Allsky frames as if a mount were tracking a nominated target:
+
+```bash
+# One target through the night
+dotnet run --project tools/NINAAllskySafetyMonitor.Harness -- replay \
+  --frames "~/AllskyFrames" --settings "~/AllskyFrames/settings.json" \
+  --out "~/AllskyFrames/Replay/M42" --zone Australia/Sydney --step 300 \
+  --target "M42=05:35,-05:23" \
+  --save-settings "~/AllskyFrames/settings-tuned.json"
+
+# Several nominated targets (repeat --target)
+dotnet run --project tools/NINAAllskySafetyMonitor.Harness -- replay \
+  --frames "~/AllskyFrames" --settings "~/AllskyFrames/settings.json" \
+  --out "~/AllskyFrames/Replay/targets" --zone Australia/Sydney --step 300 \
+  --target "M42=05:35,-05:23" --target "M31=00:42,+41:16"
+
+# A grid of ROIs, Dec -50° to +50° every 10°, RA every hour
+dotnet run --project tools/NINAAllskySafetyMonitor.Harness -- replay \
+  --frames "~/AllskyFrames" --settings "~/AllskyFrames/settings.json" \
+  --out "~/AllskyFrames/Replay/dec50" --zone Australia/Sydney --step 300 \
+  --dec -50:50:10 --ra-step 1
+```
+
+`--target` takes `RA,Dec`; RA is decimal hours or `hh:mm[:ss]`, Dec is decimal degrees or `±dd:mm[:ss]`. A name is optional: `name=RA,Dec`. When any `--target` is supplied, the RA/Dec grid is not used. Targets below the horizon or outside the working area are skipped at that frame; their ROIs are rebuilt at every frame time exactly as the plugin builds them. `--nights` limits the nights, and the Sun-altitude operating window limits replayed frames to dusk–dawn. `--save-settings` writes a copy of the settings with the clear-sky reference captured during the replay, so the archived run can produce a ready-to-use settings file.
+
+See [`docs/ARCHIVED_TUNING.md`](docs/ARCHIVED_TUNING.md) for the archived-data tuning workflow.
+
 ## Before the first build
 
 - The compile-time baseline is stable `NINA.Plugin` 3.2.0.9001 with `net8.0-windows`; the plugin manifest supports NINA 3.2.0 and later. The AstroPC currently runs a 3.3.x nightly; post-build copies target its `3.0.0` plugin folder. Verify newer-host compatibility and smoke-test the release candidate on that runtime, recording its exact nightly build.

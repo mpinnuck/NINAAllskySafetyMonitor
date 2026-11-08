@@ -21,6 +21,27 @@ public sealed class TargetGridTests
     }
 
     [Fact]
+    public void ExplicitTargetReplacesTheGridAndIsFollowedThroughTheNight()
+    {
+        var settings = new MonitorSettings();
+        var area = new WorkingArea(settings.Calibration.WorkingArea, new LensProjection(SyntheticCloudSky.Lens));
+        ReplayTarget visible = new TargetGrid(new ReplayOptions())
+            .RoisAt(SyntheticSky.FrameUtc, SyntheticSky.Site, settings, area)
+            .First().Target;
+
+        var grid = new TargetGrid(new ReplayOptions { Targets = new[] { visible } });
+
+        Assert.Single(grid.Targets);
+        Assert.Equal(visible, grid.Targets[0]);
+
+        IReadOnlyList<(ReplayTarget Target, RegionOfInterest Roi)> rois =
+            grid.RoisAt(SyntheticSky.FrameUtc, SyntheticSky.Site, settings, area);
+        Assert.Single(rois);
+        Assert.Equal(visible, rois[0].Target);
+        Assert.NotNull(rois[0].Roi.Centre);
+    }
+
+    [Fact]
     public void OnlyTargetsMostlyInsideTheWorkingAreaAreJudged()
     {
         var settings = new MonitorSettings();

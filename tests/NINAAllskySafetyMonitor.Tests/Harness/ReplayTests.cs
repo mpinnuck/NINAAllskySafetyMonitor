@@ -1,5 +1,6 @@
 using ClosedXML.Excel;
 using NINAAllskySafetyMonitor.Core.Domain;
+using NINAAllskySafetyMonitor.Core.Settings;
 using NINAAllskySafetyMonitor.Core.Traceability;
 using NINAAllskySafetyMonitor.Harness;
 using NINAAllskySafetyMonitor.Tests.Fakes;
@@ -62,18 +63,48 @@ public sealed class ReplayTests : IDisposable
     }
 
     [Fact]
+    public void SaveSettingsWritesTheCapturedReference()
+    {
+        DateTime t = SyntheticSky.FrameUtc.AddHours(1);
+        fx.Save(SyntheticCloudSky.Frame(utc: t), t);
+        string saved = Path.Combine(fx.Root, "saved-settings.json");
+
+        Assert.Equal(0, NINAAllskySafetyMonitor.Harness.Program.Replay(fx.Options() with { SaveSettingsFile = saved }));
+
+        MonitorSettings loaded = new SettingsStore(saved).Load();
+        Assert.NotNull(loaded.Calibration.ClearSkyReference);
+    }
+
+    [Fact]
     public void OptionsAreParsed()
     {
         ReplayOptions o = NINAAllskySafetyMonitor.Harness.Program.Parse(new[]
         {
             "--frames", "/f", "--settings", "/s.json", "--out", "/o", "--nights", "20261019-20261101", "--step", "30",
-            "--dec", "-30:30:15", "--ra-step", "2", "--near", "0.2", "--use-settings-reference", "--zone", "Australia/Sydney",
+            "--dec", "-30:30:15", "--ra-step", "2", "--target", "05:35,-05:23",
+            "--target", "M42=05:35:00,-05:23:00", "--near", "0.2", "--use-settings-reference",
+            "--save-settings", "/saved.json", "--zone", "Australia/Sydney",
         });
 
         Assert.Equal(("/f", "/s.json", "/o", 30), (o.FramesFolder, o.SettingsFile, o.OutputFolder, o.StepS));
         Assert.Equal((new DateOnly(2026, 10, 19), new DateOnly(2026, 11, 1)), (o.FirstNight!.Value, o.LastNight!.Value));
         Assert.Equal((-30.0, 30.0, 15.0, 2.0, 0.2), (o.DecFromDeg, o.DecToDeg, o.DecStepDeg, o.RaStepH, o.NearLimit));
         Assert.True(o.UseSettingsReference);
+        Assert.Equal("/saved.json", o.SaveSettingsFile);
+        Assert.Equal(2, o.Targets.Count);
+        Assert.Equal(5.583333, o.Targets[0].RaHours, 3);
+        Assert.Equal(-5.383333, o.Targets[0].DecDeg, 3);
+        Assert.StartsWith("M42 ", o.Targets[1].Id);
+        Assert.Equal(5.583333, o.Targets[1].RaHours, 3);
+        Assert.Equal(-5.383333, o.Targets[1].DecDeg, 3);
         Assert.Throws<ArgumentException>(() => NINAAllskySafetyMonitor.Harness.Program.Parse(new[] { "--frames", "/f" }));
+        Assert.Throws<ArgumentException>(() => NINAAllskySafetyMonitor.Harness.Program.Parse(new[]
+        {
+            "--frames", "/f", "--settings", "/s.json", "--out", "/o", "--target", "25:00,0",
+        }));
+        Assert.Throws<ArgumentException>(() => NINAAllskySafetyMonitor.Harness.Program.Parse(new[]
+        {
+            "--frames", "/f", "--settings", "/s.json", "--out", "/o", "--target", "05:35,91",
+        }));
     }
 }

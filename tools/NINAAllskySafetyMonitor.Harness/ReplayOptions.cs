@@ -22,11 +22,21 @@ public sealed record ReplayOptions
     public double DecStepDeg { get; init; } = 10;
     public double RaStepH { get; init; } = 1;
 
+    /// <summary>
+    /// Explicit targets followed through the night (mount simulator). When non-empty these replace the
+    /// RA/Dec grid. Each target is a fixed J2000 position; its ROI is rebuilt at every frame time exactly
+    /// as the plugin builds it for the mount's target.
+    /// </summary>
+    public IReadOnlyList<ReplayTarget> Targets { get; init; } = Array.Empty<ReplayTarget>();
+
     /// <summary>A metric within this fraction of its limit is "near the limit" and kept for review.</summary>
     public double NearLimit { get; init; } = 0.10;
 
     /// <summary>Use the clear-sky reference in the settings file instead of capturing one.</summary>
     public bool UseSettingsReference { get; init; }
+
+    /// <summary>Write a copy of the settings with the captured clear-sky reference after replay.</summary>
+    public string? SaveSettingsFile { get; init; }
 
     /// <summary>Pause after each frame, in milliseconds, for watching it run.</summary>
     public int DelayMs { get; init; }

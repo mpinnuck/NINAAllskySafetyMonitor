@@ -10,7 +10,8 @@ namespace NINAAllskySafetyMonitor.Harness;
 /// <code>
 /// dotnet run --project tools/NINAAllskySafetyMonitor.Harness -- replay --frames ~/AllskyFrames
 ///     --settings settings.json --out ~/Replay/run1 [--nights 20261019-20261101] [--step 60]
-///     [--dec -45:45:10] [--ra-step 1] [--near 0.1] [--use-settings-reference] [--delay 0] [--zone Australia/Sydney]
+///     [--dec -45:45:10] [--ra-step 1] [--target "05:35,-05:23"] [--near 0.1]
+///     [--use-settings-reference] [--delay 0] [--zone Australia/Sydney]
 /// </code>
 /// Writes results.csv, review.xlsx and review/ (marked-up copies) to the output folder. Ctrl+C stops after
 /// the current frame and still writes the review workbook.
@@ -20,8 +21,9 @@ internal static class Program
 {
     private const string Usage = """
         NINAAllskySafetyMonitor.Harness replay --frames <folder> --settings <settings.json> --out <folder>
-            [--nights yyyyMMdd-yyyyMMdd] [--step 60] [--dec -45:45:10] [--ra-step 1] [--near 0.1]
-            [--use-settings-reference] [--delay 0] [--zone Australia/Sydney]
+            [--nights yyyyMMdd-yyyyMMdd] [--step 60] [--dec -45:45:10] [--ra-step 1]
+            [--target "RA,Dec"] [--target "name=RA,Dec"] [--near 0.1]
+            [--use-settings-reference] [--save-settings <file>] [--delay 0] [--zone Australia/Sydney]
 
           --frames    Allsky images folder (night folders yyyyMMdd containing *yyyyMMddHHmmss.jpg), or one night folder
           --settings  the plugin's settings.json (lens, working area, thresholds); copy it and edit the
@@ -31,8 +33,13 @@ internal static class Program
           --step      seconds between frames used (default 60, like the plugin's cycle)
           --dec       declinations from:to:step in degrees (default -45:45:10)
           --ra-step   hours between right ascensions (default 1)
+          --target    fixed target followed through the night, as RA,Dec (repeatable). RA is decimal
+                      hours or hh:mm[:ss]; Dec is decimal degrees or ±dd:mm[:ss]. A name may be
+                      supplied as name=RA,Dec. When any --target is given, the RA/Dec grid is not used.
+                      Examples: --target "05:35,-05:23" --target "M42=05:35,-05:23"
           --near      fraction of a limit counted as near it (default 0.1)
           --use-settings-reference  use the clear-sky reference in the settings file instead of capturing one
+          --save-settings  write a copy of the settings with the captured clear-sky reference after replay
           --delay     pause after each frame, ms (default 0)
           --zone      time zone of the times in the frame names (default: this computer's)
         """;
@@ -88,8 +95,10 @@ internal static class Program
                 "--step" => o with { StepS = int.Parse(Next(), CultureInfo.InvariantCulture) },
                 "--dec" => Dec(o, Next()),
                 "--ra-step" => o with { RaStepH = double.Parse(Next(), CultureInfo.InvariantCulture) },
+                "--target" => Target(o, Next()),
                 "--near" => o with { NearLimit = double.Parse(Next(), CultureInfo.InvariantCulture) },
                 "--use-settings-reference" => o with { UseSettingsReference = true },
+                "--save-settings" => o with { SaveSettingsFile = Expand(Next()) },
                 "--delay" => o with { DelayMs = int.Parse(Next(), CultureInfo.InvariantCulture) },
                 "--zone" => o with { Zone = TimeZoneInfo.FindSystemTimeZoneById(Next()) },
                 _ => throw new ArgumentException($"Unknown option {args[i]}."),
@@ -122,7 +131,7 @@ internal static class Program
         var selector = new ReviewSelector(o.NearLimit);
         var annotator = new AnnotatedFrameWriter(analyser.Lens, analyser.WorkingArea, o.OutputFolder, o.Zone);
         var workbook = new ReviewWorkbookWriter(o.Zone);
-        Console.WriteLine($"{frames.Count} frames in {frames.Select(f => f.Night).Distinct().Count()} nights; {grid.Targets.Count} grid targets. Output: {o.OutputFolder}");
+        Console.WriteLine($"{frames.Count} frames in {frames.Select(f => f.Night).Distinct().Count()} nights; {grid.Targets.Count} targets. Output: {o.OutputFolder}");
 
         bool[] isNight = frames.Select(analyser.IsNight).ToArray();
         int nightTotal = isNight.Count(n => n);
@@ -190,6 +199,21 @@ internal static class Program
 
         workbook.Save(Path.Combine(o.OutputFolder, "review.xlsx"), settings, o, referenceText);
         Console.WriteLine($"{workbook.Count} frames to review in review.xlsx. Reference: {referenceText}.");
+
+        if (!string.IsNullOrEmpty(o.SaveSettingsFile))
+        {
+            if (analyser.Reference is null)
+            {
+                Console.Error.WriteLine("No clear-sky reference was captured; --save-settings was not written.");
+                return 1;
+            }
+
+            MonitorSettings saved = SettingsStore.Clone(settings);
+            saved.Calibration.ClearSkyReference = analyser.Reference;
+            new SettingsStore(o.SaveSettingsFile).Save(saved);
+            Console.WriteLine($"Saved settings with the captured reference to {o.SaveSettingsFile}.");
+        }
+
         return 0;
     }
 
@@ -206,6 +230,71 @@ internal static class Program
         return string.Create(CultureInfo.InvariantCulture,
             $"{done}/{total} frames · {f.Night:yyyy-MM-dd} {local} · judged {night}/{nightTotal} · {rate:0.0} s/frame · {(int)left.TotalHours}:{left.Minutes:00} left · {toReview} to review");
     }
+
+    private static ReplayOptions Target(ReplayOptions o, string v)
+    {
+        ReplayTarget target = ParseTarget(v, o.Targets.Count + 1);
+        return o with { Targets = o.Targets.Append(target).ToArray() };
+    }
+
+    internal static ReplayTarget ParseTarget(string value, int index)
+    {
+        if (string.IsNullOrWhiteSpace(value)) throw new ArgumentException("--target needs RA,Dec.");
+
+        string text = value.Trim();
+        string name = string.Empty;
+        int equals = text.IndexOf('=');
+        if (equals >= 0)
+        {
+            name = text[..equals].Trim();
+            text = text[(equals + 1)..].Trim();
+            if (name.Length == 0) throw new ArgumentException("--target name must not be empty.");
+        }
+
+        string[] parts = text.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        if (parts.Length != 2) throw new ArgumentException("--target needs RA,Dec (for example \"05:35,-05:23\").");
+
+        double ra = ParseRa(parts[0]);
+        double dec = ParseDec(parts[1]);
+        string id = string.Create(CultureInfo.InvariantCulture,
+            $"{(name.Length == 0 ? $"Target {index:00}" : name)} RA{ra:0.###} Dec{dec:+0.###;-0.###;+0.###}");
+        return new ReplayTarget(id, ra, dec);
+    }
+
+    private static double ParseRa(string value)
+    {
+        string[] parts = value.Split(':');
+        if (parts.Length is < 1 or > 3) throw new ArgumentException($"Invalid RA '{value}'.");
+        double hours = Number(parts[0]);
+        double minutes = parts.Length > 1 ? Number(parts[1]) : 0;
+        double seconds = parts.Length > 2 ? Number(parts[2]) : 0;
+        if (hours < 0 || minutes < 0 || minutes >= 60 || seconds < 0 || seconds >= 60)
+            throw new ArgumentException($"Invalid RA '{value}'.");
+        double total = hours + (minutes / 60) + (seconds / 3600);
+        if (total >= 24) throw new ArgumentException($"RA must be below 24 hours: '{value}'.");
+        return total;
+    }
+
+    private static double ParseDec(string value)
+    {
+        string trimmed = value.Trim();
+        bool negative = trimmed.StartsWith("-", StringComparison.Ordinal);
+        string[] parts = trimmed.TrimStart('+', '-').Split(':');
+        if (parts.Length is < 1 or > 3) throw new ArgumentException($"Invalid Dec '{value}'.");
+        double degrees = Number(parts[0]);
+        double minutes = parts.Length > 1 ? Number(parts[1]) : 0;
+        double seconds = parts.Length > 2 ? Number(parts[2]) : 0;
+        if (minutes < 0 || minutes >= 60 || seconds < 0 || seconds >= 60)
+            throw new ArgumentException($"Invalid Dec '{value}'.");
+        double total = degrees + (minutes / 60) + (seconds / 3600);
+        if (total > 90) throw new ArgumentException($"Dec must be between -90 and +90: '{value}'.");
+        return negative ? -total : total;
+    }
+
+    private static double Number(string value) =>
+        double.TryParse(value, NumberStyles.Float, CultureInfo.InvariantCulture, out double n)
+            ? n
+            : throw new ArgumentException($"'{value}' is not a number.");
 
     private static ReplayOptions Nights(ReplayOptions o, string v)
     {
